@@ -1,6 +1,5 @@
 FROM crpi-skinyl3l0124ry6m.cn-beijing.personal.cr.aliyuncs.com/lxf_ai/maven:3.9-eclipse-temurin-17 AS build
 WORKDIR /build
-COPY docker/maven-settings.xml /root/.m2/settings.xml
 COPY backend/pom.xml .
 COPY backend/ruoyi-admin ./ruoyi-admin
 COPY backend/ruoyi-framework ./ruoyi-framework
