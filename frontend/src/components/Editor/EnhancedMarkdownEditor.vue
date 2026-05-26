@@ -2,8 +2,8 @@
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import MarkdownEditor from '@/components/MarkdownEditor.vue'
-import AiSelectionToolbar from '@/components/editor/AiSelectionToolbar.vue'
-import AiSlashMenu from '@/components/editor/AiSlashMenu.vue'
+import AiSelectionToolbar from '@/components/Editor/AiSelectionToolbar.vue'
+import AiSlashMenu from '@/components/Editor/AiSlashMenu.vue'
 import { useAiTransform } from '@/composables/useAiTransform'
 import {
   getCursorOffset,
