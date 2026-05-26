@@ -48,6 +48,26 @@ npm install
 npm run dev
 ```
 
+## Docker 构建（阿里云个人镜像仓库）
+
+**构建上下文必须是仓库根目录 `Ai-Blog-Web/`**，不能是 `frontend/` 子目录。
+
+```bash
+# 1. 登录私有仓库（否则会 unauthorized）
+docker login crpi-skinyl3l0124ry6m.cn-beijing.personal.cr.aliyuncs.com
+
+# 2. 在仓库根目录构建
+cd Ai-Blog-Web
+docker build -f frontend/Dockerfile -t crpi-skinyl3l0124ry6m.cn-beijing.personal.cr.aliyuncs.com/lxf_ai/al-blog-rouyi-web:latest .
+docker build -f backend/Dockerfile -t crpi-skinyl3l0124ry6m.cn-beijing.personal.cr.aliyuncs.com/lxf_ai/al-blog-rouyi-server:latest .
+
+# 3. 推送（构建成功后再 push）
+docker push crpi-skinyl3l0124ry6m.cn-beijing.personal.cr.aliyuncs.com/lxf_ai/al-blog-rouyi-web:latest
+docker push crpi-skinyl3l0124ry6m.cn-beijing.personal.cr.aliyuncs.com/lxf_ai/al-blog-rouyi-server:latest
+```
+
+常见错误：`COPY nginx.conf` not found → 应写 `COPY frontend/nginx.conf`（已修复）。`An image does not exist locally` → 先 build 成功再 push。
+
 ## Docker 一键部署
 
 ```bash

@@ -1,3 +1,6 @@
+# 构建上下文：仓库根目录 Ai-Blog-Web/
+# 示例：docker build -f backend/Dockerfile -t al-blog-rouyi-server .
+
 FROM crpi-skinyl3l0124ry6m.cn-beijing.personal.cr.aliyuncs.com/lxf_ai/maven:3.9-eclipse-temurin-17 AS build
 WORKDIR /build
 COPY backend/pom.xml .
