@@ -21,3 +21,10 @@ uploads/
 # OS
 .DS_Store
 Thumbs.db
+.cursor
+backend/.github
+backend/bin
+backend/doc
+
+frontend/bin
+frontend/.github

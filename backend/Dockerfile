@@ -1,5 +1,6 @@
-FROM maven:3.9-eclipse-temurin-17 AS build
+FROM crpi-skinyl3l0124ry6m.cn-beijing.personal.cr.aliyuncs.com/lxf_ai/maven:3.9-eclipse-temurin-17 AS build
 WORKDIR /build
+COPY docker/maven-settings.xml /root/.m2/settings.xml
 COPY backend/pom.xml .
 COPY backend/ruoyi-admin ./ruoyi-admin
 COPY backend/ruoyi-framework ./ruoyi-framework
@@ -8,9 +9,9 @@ COPY backend/ruoyi-common ./ruoyi-common
 COPY backend/ruoyi-quartz ./ruoyi-quartz
 COPY backend/ruoyi-generator ./ruoyi-generator
 COPY backend/ruoyi-blog ./ruoyi-blog
-RUN mvn -q -DskipTests package -pl ruoyi-admin -am
+RUN mvn -B -DskipTests package -pl ruoyi-admin -am
 
-FROM eclipse-temurin:17-jre-jammy
+FROM crpi-skinyl3l0124ry6m.cn-beijing.personal.cr.aliyuncs.com/lxf_ai/maven:3.9-eclipse-temurin-17
 WORKDIR /app
 RUN apt-get update && apt-get install -y wget \
     && groupadd -r app && useradd -r -g app app \

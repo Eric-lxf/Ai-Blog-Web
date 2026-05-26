@@ -54,6 +54,27 @@ npm run dev
 cp .env.example .env
 # 编辑 DEEPSEEK_API_KEY
 docker compose --env-file .env up -d --build
+# 或（云主机 / CI 推荐，失败会 exit 1 并打印后端日志）
+chmod +x deploy.sh && ./deploy.sh
+```
+
+### 云部署报错 `ExitCode expect in [0] but is 1`
+
+多为远程执行命令失败（阿里云 ECS 云助手、流水线等）。按顺序排查：
+
+| 步骤 | 命令 | 说明 |
+|------|------|------|
+| 1 | `docker compose build backend 2>&1 \| tail -50` | Maven 构建失败：检查网络、是否上传完整 `backend/` |
+| 2 | `docker compose build frontend 2>&1 \| tail -50` | 前端构建失败：需存在 `frontend/package-lock.json` |
+| 3 | `docker compose logs mysql` | 初始化 SQL 失败：删卷重来 `docker compose down -v` |
+| 4 | `docker compose logs backend` | 连不上 MySQL/Redis：确认 mysql、redis 已 healthy |
+| 5 | `docker compose ps` | backend 未 healthy：首次启动约 1–2 分钟，已放宽 `start_period` |
+
+本地仅编译（不启 Docker）：
+
+```bash
+cd backend && mvn -B -DskipTests package -pl ruoyi-admin -am
+cd frontend && npm ci && npm run build:prod
 ```
 
 | 地址 | 说明 |
