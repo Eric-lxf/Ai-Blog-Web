@@ -1,0 +1,262 @@
+package com.ruoyi.blog.service.impl;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.BeanUtils;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.ruoyi.blog.domain.BlogArticle;
+import com.ruoyi.blog.domain.BlogCategory;
+import com.ruoyi.blog.domain.BlogTag;
+import com.ruoyi.blog.dto.ArticlePageQuery;
+import com.ruoyi.blog.dto.ArticleSaveRequest;
+import com.ruoyi.blog.dto.ArticleTagRow;
+import com.ruoyi.blog.mapper.BlogArticleMapper;
+import com.ruoyi.blog.mapper.BlogArticleTagMapper;
+import com.ruoyi.blog.mapper.BlogCategoryMapper;
+import com.ruoyi.blog.service.BlogArticleService;
+import com.ruoyi.blog.service.BlogTagService;
+import com.ruoyi.blog.vo.ArticleBriefVO;
+import com.ruoyi.blog.vo.ArticleVO;
+import com.ruoyi.common.constant.HttpStatus;
+import com.ruoyi.common.exception.ServiceException;
+
+import lombok.RequiredArgsConstructor;
+
+@Service
+@RequiredArgsConstructor
+public class BlogArticleServiceImpl implements BlogArticleService
+{
+
+    private static final int STATUS_PUBLISHED = 1;
+
+    private final BlogArticleMapper blogArticleMapper;
+
+    private final BlogCategoryMapper blogCategoryMapper;
+
+    private final BlogArticleTagMapper blogArticleTagMapper;
+
+    private final BlogTagService blogTagService;
+
+    @Override
+    public Page<ArticleVO> page(ArticlePageQuery query)
+    {
+        Page<BlogArticle> result = queryArticles(query, null);
+        Map<Long, String> categoryMap = loadCategoryMap(result.getRecords());
+        Map<Long, List<BlogTag>> tagsMap = loadTagsMap(result.getRecords());
+        Page<ArticleVO> voPage = new Page<>(result.getCurrent(), result.getSize(), result.getTotal());
+        voPage.setRecords(result.getRecords().stream().map(article -> toVO(article, categoryMap, tagsMap)).toList());
+        return voPage;
+    }
+
+    @Override
+    public Page<ArticleBriefVO> publicPage(ArticlePageQuery query)
+    {
+        Page<BlogArticle> result = queryArticles(query, STATUS_PUBLISHED);
+        Map<Long, String> categoryMap = loadCategoryMap(result.getRecords());
+        Map<Long, List<BlogTag>> tagsMap = loadTagsMap(result.getRecords());
+        Page<ArticleBriefVO> voPage = new Page<>(result.getCurrent(), result.getSize(), result.getTotal());
+        voPage.setRecords(result.getRecords().stream().map(article -> toBriefVO(article, categoryMap, tagsMap)).toList());
+        return voPage;
+    }
+
+    @Override
+    public ArticleVO getById(Long id)
+    {
+        BlogArticle article = requireArticle(id);
+        Map<Long, String> categoryMap = loadCategoryMap(List.of(article));
+        Map<Long, List<BlogTag>> tagsMap = loadTagsMap(List.of(article));
+        return toVO(article, categoryMap, tagsMap);
+    }
+
+    @Override
+    @Transactional
+    public ArticleVO getPublishedById(Long id)
+    {
+        BlogArticle article = requireArticle(id);
+        if (article.getStatus() == null || article.getStatus() != STATUS_PUBLISHED)
+        {
+            throw new ServiceException("资源不存在", HttpStatus.NOT_FOUND);
+        }
+        blogArticleMapper.incrementViewCount(id);
+        article.setViewCount((article.getViewCount() == null ? 0 : article.getViewCount()) + 1);
+        Map<Long, String> categoryMap = loadCategoryMap(List.of(article));
+        Map<Long, List<BlogTag>> tagsMap = loadTagsMap(List.of(article));
+        return toVO(article, categoryMap, tagsMap);
+    }
+
+    @Override
+    @Transactional
+    public Long save(ArticleSaveRequest request)
+    {
+        BlogArticle article = new BlogArticle();
+        if (request.getId() != null)
+        {
+            BlogArticle existing = blogArticleMapper.selectById(request.getId());
+            if (existing == null)
+            {
+                throw new ServiceException("资源不存在", HttpStatus.NOT_FOUND);
+            }
+            article.setId(request.getId());
+            article.setViewCount(existing.getViewCount());
+            article.setIsAiGenerated(existing.getIsAiGenerated());
+        }
+        else
+        {
+            article.setViewCount(0);
+            article.setIsAiGenerated(0);
+        }
+        article.setTitle(request.getTitle());
+        article.setSummary(request.getSummary());
+        article.setContent(request.getContent());
+        article.setCoverImage(request.getCoverImage());
+        article.setCategoryId(request.getCategoryId());
+        article.setStatus(request.getStatus() != null ? request.getStatus() : 0);
+
+        if (article.getId() == null)
+        {
+            blogArticleMapper.insert(article);
+        }
+        else
+        {
+            blogArticleMapper.updateById(article);
+        }
+
+        List<Long> tagIds = blogTagService.resolveTagIds(request.getTagIds(), request.getTagNames());
+        bindTags(article.getId(), tagIds);
+        return article.getId();
+    }
+
+    @Override
+    @Transactional
+    public void delete(Long id)
+    {
+        BlogArticle article = blogArticleMapper.selectById(id);
+        if (article == null)
+        {
+            throw new ServiceException("资源不存在", HttpStatus.NOT_FOUND);
+        }
+        blogArticleTagMapper.deleteByArticleId(id);
+        blogArticleMapper.deleteById(id);
+    }
+
+    private Page<BlogArticle> queryArticles(ArticlePageQuery query, Integer forceStatus)
+    {
+        int pageNum = query.getPageNum() == null || query.getPageNum() < 1 ? 1 : query.getPageNum();
+        int pageSize = query.getPageSize() == null ? 10 : Math.min(query.getPageSize(), 100);
+        Page<BlogArticle> page = new Page<>(pageNum, pageSize);
+        LambdaQueryWrapper<BlogArticle> wrapper = new LambdaQueryWrapper<>();
+        if (StringUtils.hasText(query.getKeyword()))
+        {
+            wrapper.and(w -> w.like(BlogArticle::getTitle, query.getKeyword()).or().like(BlogArticle::getSummary, query.getKeyword()));
+        }
+        Integer status = forceStatus != null ? forceStatus : query.getStatus();
+        if (status != null)
+        {
+            wrapper.eq(BlogArticle::getStatus, status);
+        }
+        if (query.getCategoryId() != null)
+        {
+            wrapper.eq(BlogArticle::getCategoryId, query.getCategoryId());
+        }
+        wrapper.orderByDesc(BlogArticle::getUpdateTime);
+        return blogArticleMapper.selectPage(page, wrapper);
+    }
+
+    private BlogArticle requireArticle(Long id)
+    {
+        BlogArticle article = blogArticleMapper.selectById(id);
+        if (article == null)
+        {
+            throw new ServiceException("资源不存在", HttpStatus.NOT_FOUND);
+        }
+        return article;
+    }
+
+    private void bindTags(Long articleId, List<Long> tagIds)
+    {
+        blogArticleTagMapper.deleteByArticleId(articleId);
+        if (!CollectionUtils.isEmpty(tagIds))
+        {
+            blogArticleTagMapper.batchInsert(articleId, tagIds);
+        }
+    }
+
+    private Map<Long, String> loadCategoryMap(List<BlogArticle> articles)
+    {
+        List<Long> categoryIds = articles.stream().map(BlogArticle::getCategoryId).filter(id -> id != null).distinct().toList();
+        if (categoryIds.isEmpty())
+        {
+            return Map.of();
+        }
+        return blogCategoryMapper.selectList(new LambdaQueryWrapper<BlogCategory>().in(BlogCategory::getId, categoryIds)).stream()
+                .collect(Collectors.toMap(BlogCategory::getId, BlogCategory::getName));
+    }
+
+    private Map<Long, List<BlogTag>> loadTagsMap(List<BlogArticle> articles)
+    {
+        if (CollectionUtils.isEmpty(articles))
+        {
+            return Map.of();
+        }
+        List<Long> articleIds = articles.stream().map(BlogArticle::getId).filter(id -> id != null).toList();
+        if (articleIds.isEmpty())
+        {
+            return Map.of();
+        }
+        List<ArticleTagRow> rows = blogArticleTagMapper.selectTagsByArticleIds(articleIds);
+        Map<Long, List<BlogTag>> map = new HashMap<>();
+        for (ArticleTagRow row : rows)
+        {
+            BlogTag tag = new BlogTag();
+            tag.setId(row.getId());
+            tag.setName(row.getName());
+            tag.setCreateTime(row.getCreateTime());
+            map.computeIfAbsent(row.getArticleId(), k -> new ArrayList<>()).add(tag);
+        }
+        return map;
+    }
+
+    private ArticleVO toVO(BlogArticle article, Map<Long, String> categoryMap, Map<Long, List<BlogTag>> tagsMap)
+    {
+        ArticleVO vo = new ArticleVO();
+        BeanUtils.copyProperties(article, vo);
+        if (article.getCategoryId() != null)
+        {
+            vo.setCategoryName(categoryMap.get(article.getCategoryId()));
+        }
+        List<BlogTag> tags = tagsMap.getOrDefault(article.getId(), List.of());
+        vo.setTagIds(tags.stream().map(BlogTag::getId).toList());
+        vo.setTagNames(tags.stream().map(BlogTag::getName).toList());
+        return vo;
+    }
+
+    private ArticleBriefVO toBriefVO(BlogArticle article, Map<Long, String> categoryMap, Map<Long, List<BlogTag>> tagsMap)
+    {
+        ArticleBriefVO vo = new ArticleBriefVO();
+        vo.setId(article.getId());
+        vo.setTitle(article.getTitle());
+        vo.setSummary(article.getSummary());
+        vo.setCoverImage(article.getCoverImage());
+        vo.setCategoryId(article.getCategoryId());
+        vo.setViewCount(article.getViewCount());
+        vo.setCreateTime(article.getCreateTime());
+        vo.setUpdateTime(article.getUpdateTime());
+        if (article.getCategoryId() != null)
+        {
+            vo.setCategoryName(categoryMap.get(article.getCategoryId()));
+        }
+        List<BlogTag> tags = tagsMap.getOrDefault(article.getId(), List.of());
+        vo.setTagNames(tags.stream().map(BlogTag::getName).toList());
+        return vo;
+    }
+}

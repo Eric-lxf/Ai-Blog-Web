@@ -1,0 +1,33 @@
+# 数据源（Docker）
+spring:
+  datasource:
+    druid:
+      master:
+        url: jdbc:mysql://${MYSQL_HOST:mysql}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:ai_blog}?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+        username: ${MYSQL_USER:root}
+        password: ${MYSQL_PASSWORD:password}
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+
+ruoyi:
+  profile: ${RUOYI_PROFILE:/data/uploads}
+
+blog:
+  file:
+    upload-dir: ${RUOYI_PROFILE:/data/uploads}
+    url-prefix: /uploads
+
+deepseek:
+  api-key: ${DEEPSEEK_API_KEY:}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never

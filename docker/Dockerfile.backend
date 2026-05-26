@@ -1,0 +1,24 @@
+FROM maven:3.9-eclipse-temurin-17 AS build
+WORKDIR /build
+COPY backend/pom.xml .
+COPY backend/ruoyi-admin ./ruoyi-admin
+COPY backend/ruoyi-framework ./ruoyi-framework
+COPY backend/ruoyi-system ./ruoyi-system
+COPY backend/ruoyi-common ./ruoyi-common
+COPY backend/ruoyi-quartz ./ruoyi-quartz
+COPY backend/ruoyi-generator ./ruoyi-generator
+COPY backend/ruoyi-blog ./ruoyi-blog
+RUN mvn -q -DskipTests package -pl ruoyi-admin -am
+
+FROM eclipse-temurin:17-jre-jammy
+WORKDIR /app
+RUN apt-get update && apt-get install -y wget \
+    && groupadd -r app && useradd -r -g app app \
+    && mkdir -p /data/uploads \
+    && chown -R app:app /data/uploads /app
+COPY --from=build /build/ruoyi-admin/target/ruoyi-admin.jar app.jar
+USER app
+EXPOSE 8080
+ENV JAVA_OPTS="-Xms256m -Xmx768m"
+ENV SPRING_PROFILES_ACTIVE=druid,docker
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
