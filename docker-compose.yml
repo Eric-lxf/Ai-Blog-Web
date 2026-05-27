@@ -39,7 +39,7 @@ services:
   backend:
     build:
       context: .
-      dockerfile: backend/docker/Dockerfile.backend
+      dockerfile: backend/Dockerfile
     container_name: ai-blog-web-backend
     restart: unless-stopped
     depends_on:
@@ -78,6 +78,8 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    environment:
+      BACKEND_HOST: ${BACKEND_HOST:-backend}
     ports:
       - "${FRONTEND_PORT:-80}:80"
 
