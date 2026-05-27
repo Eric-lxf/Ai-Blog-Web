@@ -53,7 +53,7 @@ export function useArticleDraft(form, options) {
         content: form.value.content || ' ',
         coverImage: form.value.coverImage,
         categoryId: form.value.categoryId,
-        status: 0,
+        status: form.value.status === 1 ? 1 : 0,
         tagIds: form.value.tagIds,
         tagNames: form.value.tagNames,
       }

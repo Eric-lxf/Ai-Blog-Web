@@ -64,7 +64,7 @@ async function saveAsDraft() {
     })
     if (res.data) {
       ElMessage.success('已保存为草稿')
-      router.push({ path: '/blog/article/edit', query: { id: String(res.data) } })
+      router.push({ path: '/blog-admin/article/edit', query: { id: String(res.data) } })
     }
   } finally {
     loading.value = false

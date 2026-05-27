@@ -3,12 +3,12 @@ USE ai_blog;
 
 -- AI 博客业务菜单与权限（menu_id 2000+，RuoYi-Vue 3.9.2 菜单格式）
 INSERT IGNORE INTO sys_menu VALUES
-(2000, 'AI博客', 0, 5, 'blog', NULL, '', '', 1, 0, 'M', '0', '0', '', 'edit', 'admin', sysdate(), '', NULL, 'AI博客管理目录'),
-(2001, '工作台', 2000, 1, 'dashboard', 'blog/dashboard/index', '', '', 1, 0, 'C', '0', '0', 'blog:dashboard:view', 'dashboard', 'admin', sysdate(), '', NULL, ''),
-(2002, '自己写', 2000, 2, 'write', 'blog/article/edit', '', '', 1, 0, 'C', '0', '0', 'blog:article:add', 'edit', 'admin', sysdate(), '', NULL, ''),
-(2003, '博客智写', 2000, 3, 'aiWrite', 'blog/ai/write', '', '', 1, 0, 'C', '0', '0', 'blog:ai:write', 'magic-stick', 'admin', sysdate(), '', NULL, ''),
-(2004, '文章优化', 2000, 4, 'aiOptimize', 'blog/ai/optimize', '', '', 1, 0, 'C', '0', '0', 'blog:ai:optimize', 'promotion', 'admin', sysdate(), '', NULL, ''),
-(2005, '文章管理', 2000, 5, 'article', 'blog/article/index', '', '', 1, 0, 'C', '0', '0', 'blog:article:list', 'documentation', 'admin', sysdate(), '', NULL, ''),
+(2000, 'AI博客', 0, 5, 'blog-admin', NULL, '', '', 1, 0, 'M', '0', '0', '', 'documentation', 'admin', sysdate(), '', NULL, 'AI博客管理目录'),
+(2001, '工作台', 2000, 1, 'dashboard', 'blog/dashboard/index', '', '', 1, 0, 'C', '0', '0', 'blog:dashboard:view', 'chart', 'admin', sysdate(), '', NULL, ''),
+(2002, '自己写', 2000, 2, 'article/edit', 'blog/article/edit', '', '', 1, 0, 'C', '0', '0', 'blog:article:add', 'edit', 'admin', sysdate(), '', NULL, ''),
+(2003, '博客智写', 2000, 3, 'ai/write', 'blog/ai/write', '', '', 1, 0, 'C', '0', '0', 'blog:ai:write', 'star', 'admin', sysdate(), '', NULL, ''),
+(2004, '文章优化', 2000, 4, 'ai/optimize', 'blog/ai/optimize', '', '', 1, 0, 'C', '0', '0', 'blog:ai:optimize', 'clipboard', 'admin', sysdate(), '', NULL, ''),
+(2005, '文章管理', 2000, 5, 'article', 'blog/article/index', '', '', 1, 0, 'C', '0', '0', 'blog:article:list', 'list', 'admin', sysdate(), '', NULL, ''),
 (2100, '文章查询', 2005, 1, '#', '', '', '', 1, 0, 'F', '0', '0', 'blog:article:query', '#', 'admin', sysdate(), '', NULL, ''),
 (2101, '文章新增', 2005, 2, '#', '', '', '', 1, 0, 'F', '0', '0', 'blog:article:add', '#', 'admin', sysdate(), '', NULL, ''),
 (2102, '文章修改', 2005, 3, '#', '', '', '', 1, 0, 'F', '0', '0', 'blog:article:edit', '#', 'admin', sysdate(), '', NULL, ''),

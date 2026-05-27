@@ -38,7 +38,7 @@ function handleSearch() {
 }
 
 function handleEdit(id) {
-  router.push({ path: '/blog/article/edit', query: { id: String(id) } })
+  router.push({ path: '/blog-admin/article/edit', query: { id: String(id) } })
 }
 
 async function handleDelete(id) {
@@ -56,7 +56,7 @@ onMounted(loadData)
     <template #header>
       <div class="card-header">
         <span>文章列表</span>
-        <el-button type="primary" v-hasPermi="['blog:article:add']" @click="router.push('/blog/article/edit')">
+        <el-button type="primary" v-hasPermi="['blog:article:add']" @click="router.push('/blog-admin/article/edit')">
           新建
         </el-button>
       </div>

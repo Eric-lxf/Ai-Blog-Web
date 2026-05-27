@@ -155,10 +155,15 @@ async function handleSave(publish = false) {
       tagNames,
     })
     form.id = res.data
+    if (publish) {
+      form.status = 1
+    } else if (form.status !== 1) {
+      form.status = 0
+    }
     clearLocalDraft(form.id)
     ElMessage.success(publish ? '发布成功' : '保存成功')
     if (!articleId.value && form.id) {
-      router.replace({ path: '/blog/article/edit', query: { id: String(form.id) } })
+      router.replace({ path: '/blog-admin/article/edit', query: { id: String(form.id) } })
     }
     draftEnabled.value = true
   } finally {
@@ -169,11 +174,13 @@ async function handleSave(publish = false) {
 
 const savedHint = computed(() => {
   if (saveError.value) return saveError.value
-  if (saving.value) return '正在自动保存...'
+  if (saving.value) return form.status === 1 ? '正在自动保存...' : '正在自动保存草稿...'
   if (lastSavedAt.value) {
-    return `已自动保存 ${lastSavedAt.value.toLocaleTimeString()}`
+    return form.status === 1
+      ? `已自动保存 ${lastSavedAt.value.toLocaleTimeString()}`
+      : `草稿已自动保存 ${lastSavedAt.value.toLocaleTimeString()}`
   }
-  return '编辑后将自动保存草稿'
+  return form.status === 1 ? '编辑后将自动保存' : '编辑后将自动保存草稿'
 })
 
 watch(selectedTags, () => {
@@ -280,8 +287,8 @@ onMounted(async () => {
           <el-button type="success" @click="handleSave(true)" v-hasPermi="['blog:article:publish']">
             发布
           </el-button>
-          <el-button @click="router.push('/blog/article')">返回列表</el-button>
-          <el-button v-if="form.id" @click="router.push(`/blog/article/preview/${form.id}`)">
+          <el-button @click="router.push('/blog-admin/article')">返回列表</el-button>
+          <el-button v-if="form.id" @click="router.push(`/blog-admin/article/preview/${form.id}`)">
             预览
           </el-button>
         </el-form-item>

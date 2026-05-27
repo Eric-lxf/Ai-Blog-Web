@@ -24,12 +24,12 @@ export function saveArticle(data) {
   })
 }
 
-/** 自动保存草稿 */
+/** 自动保存（草稿保持 0，已发布保持 1） */
 export function autoSaveDraft(data) {
   return request({
     url: '/blog/article',
     method: 'post',
-    data: { ...data, status: 0 },
+    data,
   })
 }
 

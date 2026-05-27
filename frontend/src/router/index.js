@@ -86,42 +86,19 @@ export const constantRoutes = [
         component: () => import('@/views/index'),
         name: 'Index',
         meta: { title: '首页', icon: 'dashboard', affix: true }
-      },
+      }
+    ]
+  },
+  {
+    path: '/blog-admin',
+    component: Layout,
+    hidden: true,
+    children: [
       {
-        path: 'blog/dashboard',
-        component: () => import('@/views/blog/dashboard/index.vue'),
-        name: 'BlogDashboard',
-        meta: { title: '博客工作台', icon: 'dashboard' }
-      },
-      {
-        path: 'blog/article/edit',
-        component: () => import('@/views/blog/article/edit.vue'),
-        name: 'BlogArticleEdit',
-        meta: { title: '编辑文章', activeMenu: '/blog/article' }
-      },
-      {
-        path: 'blog/article/preview/:id(\\d+)',
+        path: 'article/preview/:id(\\d+)',
         component: () => import('@/views/blog/article/preview.vue'),
         name: 'BlogArticlePreview',
-        meta: { title: '文章预览', activeMenu: '/blog/article' }
-      },
-      {
-        path: 'blog/article',
-        component: () => import('@/views/blog/article/index.vue'),
-        name: 'BlogArticleIndex',
-        meta: { title: '文章列表', icon: 'documentation' }
-      },
-      {
-        path: 'blog/ai/write',
-        component: () => import('@/views/blog/ai/write.vue'),
-        name: 'BlogAiWrite',
-        meta: { title: '博客智写' }
-      },
-      {
-        path: 'blog/ai/optimize',
-        component: () => import('@/views/blog/ai/optimize.vue'),
-        name: 'BlogAiOptimize',
-        meta: { title: '文章优化' }
+        meta: { title: '文章预览', activeMenu: '/blog-admin/article' }
       }
     ]
   },

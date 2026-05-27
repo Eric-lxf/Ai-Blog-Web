@@ -107,7 +107,7 @@ function startPoll(id) {
         stopPoll()
         loading.value = false
         ElMessage.success(form.publish ? '文章已发布' : '草稿已生成')
-        router.push({ path: '/blog/article/edit', query: { id: String(task.targetArticleId) } })
+        router.push({ path: '/blog-admin/article/edit', query: { id: String(task.targetArticleId) } })
       } else if (task.status === 3) {
         stopPoll()
         loading.value = false
