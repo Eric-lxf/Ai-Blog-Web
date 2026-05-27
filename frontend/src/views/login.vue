@@ -147,6 +147,9 @@ function getCode() {
       codeUrl.value = "data:image/gif;base64," + res.img
       loginForm.value.uuid = res.uuid
     }
+  }).catch(() => {
+    codeUrl.value = ""
+    proxy.$modal.msgError("验证码加载失败，请刷新页面重试")
   })
 }
 
