@@ -1,18 +1,32 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+defineOptions({ name: 'BlogCommentManage' })
+
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { auditComments, deleteComment, fetchAdminComments } from '@/api/blog/comment'
 
+const route = useRoute()
+const router = useRouter()
 const loading = ref(false)
 const tableData = ref([])
 const total = ref(0)
 const selectedIds = ref([])
+
+const filterArticleId = computed(() => {
+  const id = route.query.articleId
+  return id ? Number(id) : undefined
+})
+
+const filterArticleTitle = computed(() => String(route.query.articleTitle || ''))
+
 const query = ref({
   pageNum: 1,
   pageSize: 10,
   keyword: '',
   status: undefined,
   aiStatus: undefined,
+  articleId: filterArticleId.value,
 })
 
 const statusMap = {
@@ -77,13 +91,31 @@ async function handleDelete(id) {
   loadData()
 }
 
+function clearArticleFilter() {
+  router.replace({ path: route.path })
+}
+
+watch(
+  () => route.query.articleId,
+  (id) => {
+    query.value.articleId = id ? Number(id) : undefined
+    query.value.pageNum = 1
+    loadData()
+  },
+)
+
 onMounted(loadData)
 </script>
 
 <template>
   <el-card shadow="never">
     <template #header>
-      <span>评论管理</span>
+      <div class="header">
+        <span>评论管理</span>
+        <el-tag v-if="filterArticleId" closable type="info" @close="clearArticleFilter">
+          文章：{{ filterArticleTitle || `#${filterArticleId}` }}
+        </el-tag>
+      </div>
     </template>
 
     <el-form :inline="true" @submit.prevent="handleSearch">
@@ -149,6 +181,12 @@ onMounted(loadData)
 </template>
 
 <style scoped>
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .toolbar {
   margin-bottom: 12px;
   display: flex;

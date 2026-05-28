@@ -1,10 +1,9 @@
 <script setup>
-defineOptions({ name: 'BlogArticleList' })
+defineOptions({ name: 'BlogList' })
 
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { deleteArticle, fetchArticlePage } from '@/api/blog/article'
+import { fetchArticlePage } from '@/api/blog/article'
 
 const router = useRouter()
 const loading = ref(false)
@@ -39,10 +38,6 @@ function handleSearch() {
   loadData()
 }
 
-function handleEdit(id) {
-  router.push({ path: '/blog-admin/article/edit', query: { id: String(id) } })
-}
-
 function goComments(row) {
   router.push({
     path: '/blog-ops/comment-manage',
@@ -50,11 +45,10 @@ function goComments(row) {
   })
 }
 
-async function handleDelete(id) {
-  await ElMessageBox.confirm('确定将该文章移入回收站吗？', '提示', { type: 'warning' })
-  await deleteArticle(id)
-  ElMessage.success('已移入回收站')
-  loadData()
+function previewPublic(row) {
+  if (row.status === 1) {
+    window.open(`/blog/${row.id}`, '_blank')
+  }
 }
 
 onMounted(loadData)
@@ -63,17 +57,7 @@ onMounted(loadData)
 <template>
   <el-card shadow="never">
     <template #header>
-      <div class="card-header">
-        <span>文章列表</span>
-        <div>
-          <el-button v-hasPermi="['blog:article:recycle']" @click="router.push('/blog-admin/article/recycle')">
-            回收站
-          </el-button>
-          <el-button type="primary" v-hasPermi="['blog:article:add']" @click="router.push('/blog-admin/article/edit')">
-            新建
-          </el-button>
-        </div>
-      </div>
+      <span>博客列表</span>
     </template>
 
     <el-form :inline="true" @submit.prevent="handleSearch">
@@ -93,7 +77,7 @@ onMounted(loadData)
     </el-form>
 
     <el-table v-loading="loading" :data="tableData" stripe>
-      <el-table-column prop="title" label="标题" min-width="200" class-name="col-title" />
+      <el-table-column prop="title" label="标题" min-width="200" />
       <el-table-column prop="categoryName" label="分类" width="120" />
       <el-table-column label="状态" width="110">
         <template #default="{ row }">
@@ -102,7 +86,8 @@ onMounted(loadData)
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="评论" width="90" align="center">
+      <el-table-column prop="viewCount" label="阅读" width="80" align="center" />
+      <el-table-column label="评论" width="100" align="center">
         <template #default="{ row }">
           <el-button
             link
@@ -115,16 +100,18 @@ onMounted(loadData)
         </template>
       </el-table-column>
       <el-table-column prop="updateTime" label="更新时间" width="180" />
-      <el-table-column label="操作" width="200" fixed="right">
+      <el-table-column label="操作" width="120" fixed="right">
         <template #default="{ row }">
+          <el-button
+            v-if="row.status === 1"
+            link
+            type="primary"
+            @click="previewPublic(row)"
+          >
+            前台
+          </el-button>
           <el-button link type="primary" v-hasPermi="['blog:comment:list']" @click="goComments(row)">
             评论
-          </el-button>
-          <el-button link type="primary" v-hasPermi="['blog:article:edit']" @click="handleEdit(row.id)">
-            编辑
-          </el-button>
-          <el-button link type="danger" v-hasPermi="['blog:article:remove']" @click="handleDelete(row.id)">
-            移入回收站
           </el-button>
         </template>
       </el-table-column>
@@ -144,20 +131,9 @@ onMounted(loadData)
 </template>
 
 <style scoped>
-.card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
 .pagination {
   margin-top: 16px;
   display: flex;
   justify-content: flex-end;
-}
-
-:deep(.col-title .cell) {
-  color: #0f172a;
-  font-weight: 600;
 }
 </style>

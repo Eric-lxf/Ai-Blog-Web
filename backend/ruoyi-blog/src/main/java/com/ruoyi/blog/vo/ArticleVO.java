@@ -21,6 +21,8 @@ public class ArticleVO
     private Integer status;
     private Integer isAiGenerated;
     private Integer viewCount;
+    /** 评论总数（含回复） */
+    private Long commentCount;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 }

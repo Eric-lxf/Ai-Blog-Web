@@ -1,4 +1,6 @@
 <script setup>
+defineOptions({ name: 'BlogCommentSensitive' })
+
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { addSensitiveWord, deleteSensitiveWords, fetchSensitiveWords, updateSensitiveWord } from '@/api/blog/sensitive'

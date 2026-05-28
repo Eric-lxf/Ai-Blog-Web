@@ -1,4 +1,6 @@
 <script setup>
+defineOptions({ name: 'BlogCommentReport' })
+
 import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { fetchCommentReports, handleCommentReport } from '@/api/blog/comment'

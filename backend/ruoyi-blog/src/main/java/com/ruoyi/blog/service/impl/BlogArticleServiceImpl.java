@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.BeanUtils;
@@ -13,9 +14,11 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.ruoyi.blog.domain.BlogArticle;
 import com.ruoyi.blog.domain.BlogCategory;
+import com.ruoyi.blog.domain.BlogComment;
 import com.ruoyi.blog.domain.BlogTag;
 import com.ruoyi.blog.dto.ArticlePageQuery;
 import com.ruoyi.blog.dto.ArticleSaveRequest;
@@ -23,6 +26,7 @@ import com.ruoyi.blog.dto.ArticleTagRow;
 import com.ruoyi.blog.mapper.BlogArticleMapper;
 import com.ruoyi.blog.mapper.BlogArticleTagMapper;
 import com.ruoyi.blog.mapper.BlogCategoryMapper;
+import com.ruoyi.blog.mapper.BlogCommentMapper;
 import com.ruoyi.blog.service.BlogArticleService;
 import com.ruoyi.blog.service.BlogTagService;
 import com.ruoyi.blog.vo.ArticleBriefVO;
@@ -47,14 +51,19 @@ public class BlogArticleServiceImpl implements BlogArticleService
 
     private final BlogTagService blogTagService;
 
+    private final BlogCommentMapper blogCommentMapper;
+
     @Override
     public Page<ArticleVO> page(ArticlePageQuery query)
     {
         Page<BlogArticle> result = queryArticles(query, null);
         Map<Long, String> categoryMap = loadCategoryMap(result.getRecords());
         Map<Long, List<BlogTag>> tagsMap = loadTagsMap(result.getRecords());
+        Map<Long, Long> commentCountMap = loadCommentCountMap(result.getRecords());
         Page<ArticleVO> voPage = new Page<>(result.getCurrent(), result.getSize(), result.getTotal());
-        voPage.setRecords(result.getRecords().stream().map(article -> toVO(article, categoryMap, tagsMap)).toList());
+        voPage.setRecords(result.getRecords().stream()
+                .map(article -> toVO(article, categoryMap, tagsMap, commentCountMap))
+                .toList());
         return voPage;
     }
 
@@ -75,7 +84,8 @@ public class BlogArticleServiceImpl implements BlogArticleService
         BlogArticle article = requireArticle(id);
         Map<Long, String> categoryMap = loadCategoryMap(List.of(article));
         Map<Long, List<BlogTag>> tagsMap = loadTagsMap(List.of(article));
-        return toVO(article, categoryMap, tagsMap);
+        Map<Long, Long> commentCountMap = loadCommentCountMap(List.of(article));
+        return toVO(article, categoryMap, tagsMap, commentCountMap);
     }
 
     @Override
@@ -91,7 +101,8 @@ public class BlogArticleServiceImpl implements BlogArticleService
         article.setViewCount((article.getViewCount() == null ? 0 : article.getViewCount()) + 1);
         Map<Long, String> categoryMap = loadCategoryMap(List.of(article));
         Map<Long, List<BlogTag>> tagsMap = loadTagsMap(List.of(article));
-        return toVO(article, categoryMap, tagsMap);
+        Map<Long, Long> commentCountMap = loadCommentCountMap(List.of(article));
+        return toVO(article, categoryMap, tagsMap, commentCountMap);
     }
 
     @Override
@@ -162,7 +173,10 @@ public class BlogArticleServiceImpl implements BlogArticleService
         Map<Long, String> categoryMap = loadCategoryMap(records);
         Map<Long, List<BlogTag>> tagsMap = loadTagsMap(records);
         Page<ArticleVO> voPage = new Page<>(pageNum, pageSize, total);
-        voPage.setRecords(records.stream().map(article -> toVO(article, categoryMap, tagsMap)).toList());
+        Map<Long, Long> commentCountMap = loadCommentCountMap(records);
+        voPage.setRecords(records.stream()
+                .map(article -> toVO(article, categoryMap, tagsMap, commentCountMap))
+                .toList());
         return voPage;
     }
 
@@ -274,7 +288,36 @@ public class BlogArticleServiceImpl implements BlogArticleService
         return map;
     }
 
-    private ArticleVO toVO(BlogArticle article, Map<Long, String> categoryMap, Map<Long, List<BlogTag>> tagsMap)
+    private Map<Long, Long> loadCommentCountMap(List<BlogArticle> articles)
+    {
+        if (CollectionUtils.isEmpty(articles))
+        {
+            return Map.of();
+        }
+        List<Long> articleIds = articles.stream().map(BlogArticle::getId).filter(Objects::nonNull).distinct().toList();
+        if (articleIds.isEmpty())
+        {
+            return Map.of();
+        }
+        QueryWrapper<BlogComment> wrapper = new QueryWrapper<>();
+        wrapper.select("article_id", "COUNT(*) AS cnt");
+        wrapper.in("article_id", articleIds);
+        wrapper.groupBy("article_id");
+        Map<Long, Long> map = new HashMap<>();
+        for (Map<String, Object> row : blogCommentMapper.selectMaps(wrapper))
+        {
+            Object articleId = row.get("article_id");
+            Object cnt = row.get("cnt");
+            if (articleId != null)
+            {
+                map.put(((Number) articleId).longValue(), cnt == null ? 0L : ((Number) cnt).longValue());
+            }
+        }
+        return map;
+    }
+
+    private ArticleVO toVO(BlogArticle article, Map<Long, String> categoryMap, Map<Long, List<BlogTag>> tagsMap,
+            Map<Long, Long> commentCountMap)
     {
         ArticleVO vo = new ArticleVO();
         BeanUtils.copyProperties(article, vo);
@@ -285,6 +328,7 @@ public class BlogArticleServiceImpl implements BlogArticleService
         List<BlogTag> tags = tagsMap.getOrDefault(article.getId(), List.of());
         vo.setTagIds(tags.stream().map(BlogTag::getId).toList());
         vo.setTagNames(tags.stream().map(BlogTag::getName).toList());
+        vo.setCommentCount(commentCountMap.getOrDefault(article.getId(), 0L));
         return vo;
     }
 

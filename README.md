@@ -66,7 +66,14 @@ docker push crpi-skinyl3l0124ry6m.cn-beijing.personal.cr.aliyuncs.com/lxf_ai/al-
 docker push crpi-skinyl3l0124ry6m.cn-beijing.personal.cr.aliyuncs.com/lxf_ai/al-blog-rouyi-server:latest
 ```
 
-常见错误：`COPY nginx.conf` not found → 应写 `COPY frontend/nginx.conf`（已修复）。`An image does not exist locally` → 先 build 成功再 push。
+常见错误：
+
+| 现象 | 原因 | 处理 |
+|------|------|------|
+| `npm error signal SIGKILL`（多在 `rendering chunks`） | Docker 可用内存不足，Node 被 OOM 杀掉 | Docker Desktop → Settings → Resources → Memory 调到 **8GB+**；`frontend/Dockerfile` 已关闭构建期 gzip 并设置 `NODE_OPTIONS` |
+| `unauthorized: authentication required` | 未登录阿里云镜像仓库 | 先执行 `docker login crpi-skinyl3l0124ry6m.cn-beijing.personal.cr.aliyuncs.com` |
+| `tag does not exist` | 上一步 build 失败，本地没有镜像 | 先让 `docker build` 成功再 `docker push` |
+| `COPY nginx.conf` not found | 构建上下文或路径错误 | 在仓库根目录构建，使用 `COPY frontend/nginx.conf` |
 
 ## Docker 一键部署
 
