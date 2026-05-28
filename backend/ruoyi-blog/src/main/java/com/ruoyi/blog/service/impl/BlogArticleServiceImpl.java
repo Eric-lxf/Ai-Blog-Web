@@ -145,8 +145,56 @@ public class BlogArticleServiceImpl implements BlogArticleService
         {
             throw new ServiceException("资源不存在", HttpStatus.NOT_FOUND);
         }
-        blogArticleTagMapper.deleteByArticleId(id);
         blogArticleMapper.deleteById(id);
+    }
+
+    @Override
+    public Page<ArticleVO> recyclePage(ArticlePageQuery query)
+    {
+        int pageNum = query.getPageNum() == null || query.getPageNum() < 1 ? 1 : query.getPageNum();
+        int pageSize = query.getPageSize() == null ? 10 : Math.min(query.getPageSize(), 100);
+        String keyword = StringUtils.hasText(query.getKeyword()) ? query.getKeyword().trim() : null;
+        long total = blogArticleMapper.countRecycle(keyword);
+        long offset = (long) (pageNum - 1) * pageSize;
+        List<BlogArticle> records = total == 0
+                ? List.of()
+                : blogArticleMapper.selectRecycleList(keyword, offset, pageSize);
+        Map<Long, String> categoryMap = loadCategoryMap(records);
+        Map<Long, List<BlogTag>> tagsMap = loadTagsMap(records);
+        Page<ArticleVO> voPage = new Page<>(pageNum, pageSize, total);
+        voPage.setRecords(records.stream().map(article -> toVO(article, categoryMap, tagsMap)).toList());
+        return voPage;
+    }
+
+    @Override
+    @Transactional
+    public void restore(Long id)
+    {
+        BlogArticle article = blogArticleMapper.selectDeletedById(id);
+        if (article == null)
+        {
+            throw new ServiceException("回收站中不存在该文章", HttpStatus.NOT_FOUND);
+        }
+        if (blogArticleMapper.restoreById(id) == 0)
+        {
+            throw new ServiceException("恢复失败", HttpStatus.ERROR);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void purge(Long id)
+    {
+        BlogArticle article = blogArticleMapper.selectDeletedById(id);
+        if (article == null)
+        {
+            throw new ServiceException("回收站中不存在该文章", HttpStatus.NOT_FOUND);
+        }
+        blogArticleTagMapper.deleteByArticleId(id);
+        if (blogArticleMapper.purgeById(id) == 0)
+        {
+            throw new ServiceException("彻底删除失败", HttpStatus.ERROR);
+        }
     }
 
     private Page<BlogArticle> queryArticles(ArticlePageQuery query, Integer forceStatus)

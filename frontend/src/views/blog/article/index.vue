@@ -42,9 +42,9 @@ function handleEdit(id) {
 }
 
 async function handleDelete(id) {
-  await ElMessageBox.confirm('确定删除该文章吗？', '提示', { type: 'warning' })
+  await ElMessageBox.confirm('确定将该文章移入回收站吗？', '提示', { type: 'warning' })
   await deleteArticle(id)
-  ElMessage.success('删除成功')
+  ElMessage.success('已移入回收站')
   loadData()
 }
 
@@ -56,9 +56,14 @@ onMounted(loadData)
     <template #header>
       <div class="card-header">
         <span>文章列表</span>
-        <el-button type="primary" v-hasPermi="['blog:article:add']" @click="router.push('/blog-admin/article/edit')">
-          新建
-        </el-button>
+        <div>
+          <el-button v-hasPermi="['blog:article:recycle']" @click="router.push('/blog-admin/article/recycle')">
+            回收站
+          </el-button>
+          <el-button type="primary" v-hasPermi="['blog:article:add']" @click="router.push('/blog-admin/article/edit')">
+            新建
+          </el-button>
+        </div>
       </div>
     </template>
 
@@ -95,7 +100,7 @@ onMounted(loadData)
             编辑
           </el-button>
           <el-button link type="danger" v-hasPermi="['blog:article:remove']" @click="handleDelete(row.id)">
-            删除
+            移入回收站
           </el-button>
         </template>
       </el-table-column>

@@ -39,3 +39,25 @@ export function deleteArticle(id) {
     method: 'delete',
   })
 }
+
+export function fetchRecyclePage(query) {
+  return request({
+    url: '/blog/article/recycle',
+    method: 'get',
+    params: query,
+  })
+}
+
+export function restoreArticle(id) {
+  return request({
+    url: `/blog/article/recycle/${id}/restore`,
+    method: 'put',
+  })
+}
+
+export function purgeArticle(id) {
+  return request({
+    url: `/blog/article/recycle/${id}`,
+    method: 'delete',
+  })
+}

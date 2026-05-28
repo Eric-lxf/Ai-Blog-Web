@@ -20,4 +20,10 @@ public interface BlogArticleService
     Long save(ArticleSaveRequest request);
 
     void delete(Long id);
+
+    Page<ArticleVO> recyclePage(ArticlePageQuery query);
+
+    void restore(Long id);
+
+    void purge(Long id);
 }

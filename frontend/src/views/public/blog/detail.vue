@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MarkdownViewer from '@/components/MarkdownViewer.vue'
+import CommentSection from '@/components/blog/CommentSection.vue'
 import { resolveMarkdownAssets, resolveUploadUrl } from '@/utils/blogAssets'
 import { fetchPublicArticleDetail } from '@/api/blog/public'
 
@@ -51,6 +52,7 @@ watch(articleId, loadArticle, { immediate: true })
       </div>
       <img v-if="article.coverImage" :src="resolveUploadUrl(article.coverImage)" class="cover" alt="" />
       <MarkdownViewer :value="renderedContent" />
+      <CommentSection v-if="article.id" :article-id="article.id" />
     </article>
   </div>
 </template>

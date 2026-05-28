@@ -15,6 +15,7 @@ services:
       - ./sql/quartz.sql:/docker-entrypoint-initdb.d/02-quartz.sql:ro
       - ./sql/blog_schema.sql:/docker-entrypoint-initdb.d/03-blog_schema.sql:ro
       - ./sql/blog_menu_seed.sql:/docker-entrypoint-initdb.d/04-blog_menu_seed.sql:ro
+      - ./sql/blog_comment_schema.sql:/docker-entrypoint-initdb.d/05-blog_comment_schema.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" || exit 1"]
       interval: 10s
