@@ -39,6 +39,14 @@ public class AiWriteArticlePersistenceImpl implements AiWriteArticlePersistence
         draft.setStatus(Boolean.TRUE.equals(request.getPublish()) ? 1 : 0);
         draft.setIsAiGenerated(1);
         draft.setViewCount(0);
+        try
+        {
+            draft.setAuthorUserId(SecurityUtils.getUserId());
+        }
+        catch (Exception ignored)
+        {
+            // 无登录上下文
+        }
         blogArticleMapper.insert(draft);
 
         if (!CollectionUtils.isEmpty(request.getTagNames()))

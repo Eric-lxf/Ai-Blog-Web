@@ -22,6 +22,8 @@ mysql -u root -p < sql/00-init-db.sql
 mysql -u root -p < sql/ry_base.sql
 mysql -u root -p < sql/quartz.sql
 mysql -u root -p < sql/blog_schema.sql
+mysql -u root -p < sql/blog_comment_schema.sql
+mysql -u root -p < sql/blog_notification_schema.sql
 mysql -u root -p < sql/blog_menu_seed.sql
 ```
 

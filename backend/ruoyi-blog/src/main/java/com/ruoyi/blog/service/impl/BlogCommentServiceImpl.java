@@ -99,6 +99,7 @@ public class BlogCommentServiceImpl implements BlogCommentService
             commentMapper.updateById(comment);
         }
         refreshSortScore(comment.getId());
+        publishApprovedIfNeeded(comment);
         aiCommentModerationService.reviewAsync(comment.getId());
         return comment.getId();
     }

@@ -55,6 +55,9 @@
                   <el-tab-pane label="修改密码" name="resetPwd">
                      <resetPwd />
                   </el-tab-pane>
+                  <el-tab-pane label="通知设置" name="notification">
+                     <notificationPreference />
+                  </el-tab-pane>
                </el-tabs>
             </el-card>
          </el-col>
