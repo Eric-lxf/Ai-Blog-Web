@@ -158,6 +158,10 @@ blog:
   file:
     upload-dir: ./uploads
     url-prefix: /uploads
+  notification:
+    from: ${MAIL_FROM:noreply@localhost}
+    email:
+      retryDelayMs: 300000
 
 # MyBatis-Plus 约定（博客表逻辑删除等）
 mybatis-plus:

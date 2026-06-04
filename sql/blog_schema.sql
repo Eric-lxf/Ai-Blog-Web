@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS `blog_article` (
   `html_content` longtext COMMENT '解析后的HTML',
   `cover_image` varchar(255) DEFAULT NULL COMMENT '封面图URL',
   `category_id` bigint DEFAULT NULL COMMENT '分类ID',
+  `author_user_id` bigint DEFAULT NULL COMMENT '作者用户ID',
   `status` tinyint NOT NULL DEFAULT 0 COMMENT '状态: 0-草稿, 1-已发布, 2-AI生成中',
   `is_ai_generated` tinyint DEFAULT 0 COMMENT '是否由AI主导生成',
   `view_count` int DEFAULT 0 COMMENT '浏览量',
