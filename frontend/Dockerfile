@@ -2,21 +2,32 @@ FROM crpi-skinyl3l0124ry6m.cn-beijing.personal.cr.aliyuncs.com/lxf_ai/node:20-al
 WORKDIR /app
 
 # 2C4G 云主机：Node 堆不宜过大（需留给 esbuild/Rollup 子进程），建议宿主机加 2G swap
-# 构建参数 LOW_MEM_BUILD=1（默认开启）| NODE_HEAP_MB 可按机器调整（1024~1536）
 ARG LOW_MEM_BUILD=1
 ARG NODE_HEAP_MB=1280
+# 国内 ECS 默认 npmmirror；海外或自建代理可覆盖
+ARG NPM_REGISTRY=https://registry.npmmirror.com
 
 # 构建阶段必须安装 devDependencies（vite 在 devDependencies），不可设 NODE_ENV=production
 ENV CI=true
 ENV NODE_OPTIONS=--max-old-space-size=${NODE_HEAP_MB}
 ENV VITE_LOW_MEM_BUILD=${LOW_MEM_BUILD}
-# 镜像内由 nginx 做 gzip；构建阶段关闭 vite-plugin-compression
 ENV VITE_BUILD_COMPRESS=
-# 限制 libuv 线程池，避免 2 核机器上并行过高
 ENV UV_THREADPOOL_SIZE=2
 
-COPY frontend/package.json frontend/package-lock.json ./
-RUN npm ci --no-audit --no-fund --prefer-offline --include=dev
+COPY frontend/package.json frontend/package-lock.json frontend/.npmrc ./
+# 网络不稳定时 ECONNRESET 常见：镜像源 + 重试，勿用 --prefer-offline（无缓存反而失败）
+RUN npm config set registry "${NPM_REGISTRY}" \
+  && npm config set fetch-retries 5 \
+  && npm config set fetch-retry-mintimeout 20000 \
+  && npm config set fetch-retry-maxtimeout 120000 \
+  && set -e; \
+     for attempt in 1 2 3 4 5; do \
+       echo ">>> npm ci attempt ${attempt}/5 (registry=${NPM_REGISTRY})"; \
+       npm ci --no-audit --no-fund --include=dev && break; \
+       if [ "$attempt" = "5" ]; then exit 1; fi; \
+       sleep $((attempt * 15)); \
+     done
+
 COPY frontend/ .
 RUN npm run build:prod
 

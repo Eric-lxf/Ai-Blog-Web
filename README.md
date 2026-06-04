@@ -107,6 +107,16 @@ docker build -f frontend/Dockerfile --build-arg LOW_MEM_BUILD=0 --build-arg NODE
 
 4. **本地/CI 构建 dist 再 COPY**（小机器最稳）：在内存充足的机器 `cd frontend && npm ci && npm run build:prod:lowmem`，仅把 `dist/` 打进 nginx 镜像。
 
+5. **`npm ci` 报 `ECONNRESET` / network aborted**（国内 ECS 常见）：Dockerfile 已默认 `registry.npmmirror.com` 并自动重试 5 次。仍失败可指定镜像：
+
+```bash
+docker build -f frontend/Dockerfile \
+  --build-arg NPM_REGISTRY=https://registry.npmmirror.com \
+  -t ai-blog-web:local .
+# 海外机器改用官方源
+# --build-arg NPM_REGISTRY=https://registry.npmjs.org
+```
+
 | 优化项 | 作用 |
 |--------|------|
 | `reportCompressedSize: false` | 跳过构建期 gzip 体积统计，降低 rendering chunks 内存 |
