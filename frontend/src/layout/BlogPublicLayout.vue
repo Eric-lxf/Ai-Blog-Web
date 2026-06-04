@@ -1,5 +1,15 @@
 <script setup>
-import { RouterLink, RouterView } from 'vue-router'
+import { onMounted } from 'vue'
+import { RouterLink, RouterView, useRoute } from 'vue-router'
+import { trackPublicVisit } from '@/api/blog/public'
+
+const route = useRoute()
+
+onMounted(() => {
+  if (route.path === '/blog' || route.path === '/blog/') {
+    trackPublicVisit('HOME').catch(() => {})
+  }
+})
 </script>
 
 <template>
