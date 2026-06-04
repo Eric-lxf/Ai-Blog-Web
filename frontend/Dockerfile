@@ -6,7 +6,7 @@ WORKDIR /app
 ARG LOW_MEM_BUILD=1
 ARG NODE_HEAP_MB=1280
 
-ENV NODE_ENV=production
+# 构建阶段必须安装 devDependencies（vite 在 devDependencies），不可设 NODE_ENV=production
 ENV CI=true
 ENV NODE_OPTIONS=--max-old-space-size=${NODE_HEAP_MB}
 ENV VITE_LOW_MEM_BUILD=${LOW_MEM_BUILD}
@@ -16,7 +16,7 @@ ENV VITE_BUILD_COMPRESS=
 ENV UV_THREADPOOL_SIZE=2
 
 COPY frontend/package.json frontend/package-lock.json ./
-RUN npm ci --no-audit --no-fund --prefer-offline
+RUN npm ci --no-audit --no-fund --prefer-offline --include=dev
 COPY frontend/ .
 RUN npm run build:prod
 
