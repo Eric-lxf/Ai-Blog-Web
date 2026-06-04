@@ -33,6 +33,7 @@ import com.ruoyi.blog.mapper.BlogCommentMapper;
 import com.ruoyi.blog.mapper.BlogCommentReportMapper;
 import com.ruoyi.blog.service.AiCommentModerationService;
 import com.ruoyi.blog.service.BlogCommentService;
+import com.ruoyi.blog.service.CommentApprovedEventPublisher;
 import com.ruoyi.blog.service.CommentConfigService;
 import com.ruoyi.blog.service.impl.SensitiveWordFilter.FilterResult;
 import com.ruoyi.blog.util.BlogCommentUtils;
@@ -62,6 +63,7 @@ public class BlogCommentServiceImpl implements BlogCommentService
     private final RedisCache redisCache;
     private final ISysUserService sysUserService;
     private final AiCommentModerationService aiCommentModerationService;
+    private final CommentApprovedEventPublisher commentApprovedEventPublisher;
 
     @Override
     public Page<CommentVO> publicPage(Long articleId, CommentPageQuery query, String guestKey)
@@ -121,6 +123,7 @@ public class BlogCommentServiceImpl implements BlogCommentService
             incrementReplyCount(parent.getRootId());
         }
         refreshSortScore(comment.getId());
+        publishApprovedIfNeeded(comment);
         aiCommentModerationService.reviewAsync(comment.getId());
         return comment.getId();
     }
@@ -215,6 +218,10 @@ public class BlogCommentServiceImpl implements BlogCommentService
             comment.setStatus(request.getStatus());
             comment.setRejectReason(request.getRejectReason());
             commentMapper.updateById(comment);
+            if (Objects.equals(request.getStatus(), BlogCommentConstants.STATUS_APPROVED))
+            {
+                publishApprovedIfNeeded(comment);
+            }
         }
     }
 
@@ -333,6 +340,19 @@ public class BlogCommentServiceImpl implements BlogCommentService
             comment.setSortScore(BlogCommentUtils.calcSortScore(comment));
             commentMapper.updateById(comment);
         }
+    }
+
+    private void publishApprovedIfNeeded(BlogComment comment)
+    {
+        if (comment == null || comment.getId() == null)
+        {
+            return;
+        }
+        if (!Objects.equals(comment.getStatus(), BlogCommentConstants.STATUS_APPROVED))
+        {
+            return;
+        }
+        commentApprovedEventPublisher.publish(comment.getId());
     }
 
     private void applySort(LambdaQueryWrapper<BlogComment> wrapper, String sort)
