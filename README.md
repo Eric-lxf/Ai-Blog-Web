@@ -75,7 +75,45 @@ docker push crpi-skinyl3l0124ry6m.cn-beijing.personal.cr.aliyuncs.com/lxf_ai/al-
 
 | 现象 | 原因 | 处理 |
 |------|------|------|
-| `npm error signal SIGKILL`（多在 `rendering chunks`） | Docker 可用内存不足，Node 被 OOM 杀掉 | Docker Desktop → Settings → Resources → Memory 调到 **8GB+**；`frontend/Dockerfile` 已关闭构建期 gzip 并设置 `NODE_OPTIONS` |
+| `npm error signal SIGKILL`（多在 `rendering chunks`） | 构建峰值内存超过宿主机可用内存（2C4G 常见） | 见下方 **「2C4G 前端构建」**；或加大内存 / 加 swap / 在 CI 机构建镜像 |
+
+### 2C4G 云主机前端构建（内存优化）
+
+默认 `frontend/Dockerfile` 已启用低内存模式（`VITE_LOW_MEM_BUILD=1`、堆上限约 1280MB、关闭构建期 gzip/SVGO、拆分 echarts/mermaid 等大 chunk）。
+
+**推荐（按优先级）：**
+
+1. **增加 2GB swap**（最有效，几乎不花钱）：
+
+```bash
+sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+```
+
+2. **仅构建前端镜像**（避免与 MySQL 等同时抢内存）：
+
+```bash
+docker build -f frontend/Dockerfile -t ai-blog-web:local .
+```
+
+3. **调构建参数**（内存仍不足时）：
+
+```bash
+# 堆再降到 1GB
+docker build -f frontend/Dockerfile --build-arg NODE_HEAP_MB=1024 -t ai-blog-web:local .
+# 8G+ 机器可关闭低内存模式、略提速
+docker build -f frontend/Dockerfile --build-arg LOW_MEM_BUILD=0 --build-arg NODE_HEAP_MB=2048 -t ai-blog-web:local .
+```
+
+4. **本地/CI 构建 dist 再 COPY**（小机器最稳）：在内存充足的机器 `cd frontend && npm ci && npm run build:prod:lowmem`，仅把 `dist/` 打进 nginx 镜像。
+
+| 优化项 | 作用 |
+|--------|------|
+| `reportCompressedSize: false` | 跳过构建期 gzip 体积统计，降低 rendering chunks 内存 |
+| `manualChunks` 拆分 echarts/mermaid | 降低单 chunk 峰值 |
+| `maxParallelFileOps: 2` | 适配 2 核，减少并行占用 |
+| 关闭 `vite-plugin-compression` | gzip 由 nginx 负责 |
+| `.dockerignore` | 缩小构建上下文，加快 COPY |
 | `unauthorized: authentication required` | 未登录阿里云镜像仓库 | 先执行 `docker login crpi-skinyl3l0124ry6m.cn-beijing.personal.cr.aliyuncs.com` |
 | `tag does not exist` | 上一步 build 失败，本地没有镜像 | 先让 `docker build` 成功再 `docker push` |
 | `COPY nginx.conf` not found | 构建上下文或路径错误 | 在仓库根目录构建，使用 `COPY frontend/nginx.conf` |
