@@ -1,0 +1,12 @@
+.git
+.gitignore
+**/.git
+**/node_modules
+**/dist
+backend/target
+**/.idea
+**/.vscode
+**/*.md
+docs
+terminals
+.cursor
