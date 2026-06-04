@@ -31,8 +31,10 @@
   </div>
 </template>
 
-<script setup name="BlogNotificationSend">
+<script setup>
 import { sendSystemNotification } from '@/api/blog/notification'
+
+defineOptions({ name: 'BlogNotificationSend' })
 
 const { proxy } = getCurrentInstance()
 const formRef = ref(null)

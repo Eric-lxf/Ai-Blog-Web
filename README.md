@@ -24,6 +24,7 @@ mysql -u root -p < sql/quartz.sql
 mysql -u root -p < sql/blog_schema.sql
 mysql -u root -p < sql/blog_comment_schema.sql
 mysql -u root -p < sql/blog_notification_schema.sql
+mysql -u root -p < sql/blog_notification_menu_fix.sql
 mysql -u root -p < sql/blog_menu_seed.sql
 ```
 

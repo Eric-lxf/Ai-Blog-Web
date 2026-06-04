@@ -62,8 +62,8 @@ SELECT '博客前台地址', 'blog.notification.publicBaseUrl', 'http://localhos
 WHERE NOT EXISTS (SELECT 1 FROM sys_config WHERE config_key = 'blog.notification.publicBaseUrl');
 
 INSERT IGNORE INTO sys_menu VALUES
-(2040, '消息中心', 2030, 5, 'notification', 'blog/notification/index', '', '', 1, 0, 'C', '0', '0', 'blog:notification:list', 'message', 'admin', sysdate(), '', NULL, '站内消息'),
-(2041, '发送系统通知', 2030, 6, 'notification-send', 'blog/notification/send', '', '', 1, 0, 'C', '0', '0', 'blog:notification:send', 'email', 'admin', sysdate(), '', NULL, ''),
+(2040, '消息中心', 2030, 5, 'notification', 'blog/notification/index', '', 'BlogNotification', 1, 0, 'C', '0', '0', 'blog:notification:list', 'message', 'admin', sysdate(), '', NULL, '站内消息'),
+(2041, '发送系统通知', 2030, 6, 'notification-send', 'blog/notification/send', '', 'BlogNotificationSend', 1, 0, 'C', '0', '0', 'blog:notification:send', 'email', 'admin', sysdate(), '', NULL, ''),
 (2220, '消息查询', 2040, 1, '#', '', '', '', 1, 0, 'F', '0', '0', 'blog:notification:list', '#', 'admin', sysdate(), '', NULL, ''),
 (2221, '系统通知发送', 2041, 1, '#', '', '', '', 1, 0, 'F', '0', '0', 'blog:notification:send', '#', 'admin', sysdate(), '', NULL, '');
 
