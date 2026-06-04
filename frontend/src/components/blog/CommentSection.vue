@@ -138,6 +138,7 @@ onMounted(() => {
     </div>
 
     <div class="comment-form">
+      <p v-if="isLoggedIn" class="notify-hint">登录状态下，评论或回复审核通过后会通过站内消息通知您。</p>
       <div v-if="replyTarget" class="reply-hint">
         回复 @{{ replyTarget.authorName }}
         <el-button link type="primary" @click="cancelReply">取消</el-button>
@@ -223,6 +224,12 @@ onMounted(() => {
 
 .name-input {
   max-width: 240px;
+}
+
+.notify-hint {
+  margin: 0;
+  font-size: 13px;
+  color: #64748b;
 }
 
 .reply-hint {
