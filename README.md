@@ -107,6 +107,16 @@ docker build -f frontend/Dockerfile --build-arg LOW_MEM_BUILD=0 --build-arg NODE
 
 4. **本地/CI 构建 dist 再 COPY**（小机器最稳）：在内存充足的机器 `cd frontend && npm ci && npm run build:prod:lowmem`，仅把 `dist/` 打进 nginx 镜像。
 
+5. **`npm ci` 报 `ECONNRESET` / network aborted**（国内 ECS 常见）：Dockerfile 已默认 `registry.npmmirror.com` 并自动重试 5 次。仍失败可指定镜像：
+
+```bash
+docker build -f frontend/Dockerfile \
+  --build-arg NPM_REGISTRY=https://registry.npmmirror.com \
+  -t ai-blog-web:local .
+# 海外机器改用官方源
+# --build-arg NPM_REGISTRY=https://registry.npmjs.org
+```
+
 | 优化项 | 作用 |
 |--------|------|
 | `reportCompressedSize: false` | 跳过构建期 gzip 体积统计，降低 rendering chunks 内存 |
@@ -116,6 +126,8 @@ docker build -f frontend/Dockerfile --build-arg LOW_MEM_BUILD=0 --build-arg NODE
 | `.dockerignore` | 缩小构建上下文，加快 COPY |
 | `unauthorized: authentication required` | 未登录阿里云镜像仓库 | 先执行 `docker login crpi-skinyl3l0124ry6m.cn-beijing.personal.cr.aliyuncs.com` |
 | `tag does not exist` | 上一步 build 失败，本地没有镜像 | 先让 `docker build` 成功再 `docker push` |
+| `npm error ECONNRESET`（`npm ci` 阶段） | 拉取 npm 包时网络中断 | 使用 `frontend/.npmrc` 国内镜像 + Dockerfile 重试；见「2C4G」第 5 条 |
+| `unauthorized`（push 镜像） | 未登录阿里云容器镜像仓库 | 先 `docker login crpi-skinyl3l0124ry6m.cn-beijing.personal.cr.aliyuncs.com` |
 | `COPY nginx.conf` not found | 构建上下文或路径错误 | 在仓库根目录构建，使用 `COPY frontend/nginx.conf` |
 
 ## Docker 一键部署

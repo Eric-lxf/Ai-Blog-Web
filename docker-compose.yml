@@ -79,6 +79,7 @@ services:
       args:
         LOW_MEM_BUILD: ${FRONTEND_LOW_MEM_BUILD:-1}
         NODE_HEAP_MB: ${FRONTEND_NODE_HEAP_MB:-1280}
+        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com}
     container_name: ai-blog-web-frontend
     restart: unless-stopped
     depends_on:
