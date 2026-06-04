@@ -21,6 +21,13 @@ function clearVisitedViews() {
   cache.local.remove(PERSIST_KEY)
 }
 
+/** 与页面 defineOptions.name 对齐，避免 route.name 含连字符时 keep-alive 失效 */
+function resolveCacheName(view) {
+  const matched = view.matched?.[view.matched.length - 1]
+  const component = matched?.components?.default
+  return component?.name || component?.__name || view.name
+}
+
 const useTagsViewStore = defineStore(
   'tags-view',
   {
@@ -60,9 +67,11 @@ const useTagsViewStore = defineStore(
         )
       },
       addCachedView(view) {
-        if (this.cachedViews.includes(view.name)) return
         if (!view.meta.noCache) {
-          this.cachedViews.push(view.name)
+          const cacheName = resolveCacheName(view)
+          if (cacheName && !this.cachedViews.includes(cacheName)) {
+            this.cachedViews.push(cacheName)
+          }
         }
       },
       delView(view) {
@@ -96,7 +105,8 @@ const useTagsViewStore = defineStore(
       },
       delCachedView(view) {
         return new Promise(resolve => {
-          const index = this.cachedViews.indexOf(view.name)
+          const cacheName = resolveCacheName(view)
+          const index = this.cachedViews.indexOf(cacheName)
           index > -1 && this.cachedViews.splice(index, 1)
           resolve([...this.cachedViews])
         })
@@ -123,7 +133,8 @@ const useTagsViewStore = defineStore(
       },
       delOthersCachedViews(view) {
         return new Promise(resolve => {
-          const index = this.cachedViews.indexOf(view.name)
+          const cacheName = resolveCacheName(view)
+          const index = this.cachedViews.indexOf(cacheName)
           if (index > -1) {
             this.cachedViews = this.cachedViews.slice(index, index + 1)
           } else {
@@ -175,7 +186,7 @@ const useTagsViewStore = defineStore(
             if (idx <= index || (item.meta && item.meta.affix)) {
               return true
             }
-            const i = this.cachedViews.indexOf(item.name)
+            const i = this.cachedViews.indexOf(resolveCacheName(item))
             if (i > -1) {
               this.cachedViews.splice(i, 1)
             }
@@ -199,7 +210,7 @@ const useTagsViewStore = defineStore(
             if (idx >= index || (item.meta && item.meta.affix)) {
               return true
             }
-            const i = this.cachedViews.indexOf(item.name)
+            const i = this.cachedViews.indexOf(resolveCacheName(item))
             if (i > -1) {
               this.cachedViews.splice(i, 1)
             }

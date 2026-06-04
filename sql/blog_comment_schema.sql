@@ -111,10 +111,10 @@ WHERE NOT EXISTS (SELECT 1 FROM ai_prompt_template WHERE scene_type = 'COMMENT_M
 -- 评论管理菜单 menu_id 2010+（挂在「博客」2030 下，path 勿使用 comment/xxx 嵌套）
 INSERT IGNORE INTO sys_menu VALUES
 (2030, '博客', 0, 6, 'blog-ops', NULL, '', '', 1, 0, 'M', '0', '0', '', 'list', 'admin', sysdate(), '', NULL, '博客运营'),
-(2031, '博客列表', 2030, 1, 'list', 'blog/list/index', '', '', 1, 0, 'C', '0', '0', 'blog:article:list', 'documentation', 'admin', sysdate(), '', NULL, ''),
-(2010, '评论管理', 2030, 2, 'comment-manage', 'blog/comment/index', '', '', 1, 0, 'C', '0', '0', 'blog:comment:list', 'message', 'admin', sysdate(), '', NULL, ''),
-(2011, '举报处理', 2030, 3, 'comment-report', 'blog/comment/report', '', '', 1, 0, 'C', '0', '0', 'blog:comment:report:list', 'bell', 'admin', sysdate(), '', NULL, ''),
-(2012, '敏感词管理', 2030, 4, 'comment-sensitive', 'blog/comment/sensitive', '', '', 1, 0, 'C', '0', '0', 'blog:sensitive:list', 'lock', 'admin', sysdate(), '', NULL, ''),
+(2031, '博客列表', 2030, 1, 'list', 'blog/list/index', '', 'BlogList', 1, 0, 'C', '0', '0', 'blog:article:list', 'documentation', 'admin', sysdate(), '', NULL, ''),
+(2010, '评论管理', 2030, 2, 'comment-manage', 'blog/comment/index', '', 'BlogCommentManage', 1, 0, 'C', '0', '0', 'blog:comment:list', 'message', 'admin', sysdate(), '', NULL, ''),
+(2011, '举报处理', 2030, 3, 'comment-report', 'blog/comment/report', '', 'BlogCommentReport', 1, 0, 'C', '0', '0', 'blog:comment:report:list', 'bell', 'admin', sysdate(), '', NULL, ''),
+(2012, '敏感词管理', 2030, 4, 'comment-sensitive', 'blog/comment/sensitive', '', 'BlogCommentSensitive', 1, 0, 'C', '0', '0', 'blog:sensitive:list', 'lock', 'admin', sysdate(), '', NULL, ''),
 (2200, '评论查询', 2010, 1, '#', '', '', '', 1, 0, 'F', '0', '0', 'blog:comment:list', '#', 'admin', sysdate(), '', NULL, ''),
 (2201, '评论审核', 2010, 2, '#', '', '', '', 1, 0, 'F', '0', '0', 'blog:comment:audit', '#', 'admin', sysdate(), '', NULL, ''),
 (2202, '评论删除', 2010, 3, '#', '', '', '', 1, 0, 'F', '0', '0', 'blog:comment:remove', '#', 'admin', sysdate(), '', NULL, ''),
