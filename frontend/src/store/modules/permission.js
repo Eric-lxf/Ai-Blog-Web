@@ -12,6 +12,7 @@ const modules = import.meta.glob('./../../views/**/*.vue')
 const viewFallback = {
   'blog/notification/index': () => import('@/views/blog/notification/index.vue'),
   'blog/notification/send': () => import('@/views/blog/notification/send.vue'),
+  'blog/dashboard/index': () => import('@/views/blog/dashboard/index.vue'),
 }
 
 const usePermissionStore = defineStore(
