@@ -54,8 +54,10 @@
   </div>
 </template>
 
-<script setup name="BlogNotification">
+<script setup>
 import { listNotifications, markNotificationRead, markNotificationReadAll } from '@/api/blog/notification'
+
+defineOptions({ name: 'BlogNotification' })
 
 const { proxy } = getCurrentInstance()
 const router = useRouter()

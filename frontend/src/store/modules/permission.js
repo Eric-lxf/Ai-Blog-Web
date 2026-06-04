@@ -8,6 +8,12 @@ import InnerLink from '@/layout/components/InnerLink'
 // 匹配views里面所有的.vue文件
 const modules = import.meta.glob('./../../views/**/*.vue')
 
+/** 动态菜单组件兜底（避免 glob 未命中或库中 component 路径不一致时白屏） */
+const viewFallback = {
+  'blog/notification/index': () => import('@/views/blog/notification/index.vue'),
+  'blog/notification/send': () => import('@/views/blog/notification/send.vue'),
+}
+
 const usePermissionStore = defineStore(
   'permission',
   {
@@ -114,11 +120,19 @@ export function filterDynamicRoutes(routes) {
 }
 
 export const loadView = (view) => {
+  if (!view) {
+    return undefined
+  }
+  const normalized = String(view).replace(/\.vue$/i, '').replace(/^\/+/, '')
+  if (viewFallback[normalized]) {
+    return viewFallback[normalized]
+  }
   let res
   for (const path in modules) {
     const dir = path.split('views/')[1].split('.vue')[0]
-    if (dir === view) {
+    if (dir === normalized) {
       res = () => modules[path]()
+      break
     }
   }
   return res
