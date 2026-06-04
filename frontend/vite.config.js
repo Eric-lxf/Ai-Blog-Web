@@ -10,15 +10,18 @@ export default defineConfig(({ mode, command }) => {
   const { VITE_APP_ENV } = env
   const isBuild = command === 'build'
   const lowMemBuild = process.env.VITE_LOW_MEM_BUILD === '1' || process.env.VITE_LOW_MEM_BUILD === 'true'
+  const optimizeInclude = [
+    'bytemd',
+    '@bytemd/vue-next',
+    '@bytemd/plugin-gfm',
+    '@bytemd/plugin-highlight',
+  ]
+  if (!lowMemBuild) {
+    optimizeInclude.push('@bytemd/plugin-mermaid')
+  }
   return {
     optimizeDeps: {
-      include: [
-        'bytemd',
-        '@bytemd/vue-next',
-        '@bytemd/plugin-gfm',
-        '@bytemd/plugin-highlight',
-        '@bytemd/plugin-mermaid',
-      ],
+      include: optimizeInclude,
     },
     // 部署生产环境和开发环境下的URL。
     // 默认情况下，vite 会假设你的应用是被部署在一个域名的根路径上
@@ -47,7 +50,7 @@ export default defineConfig(({ mode, command }) => {
       reportCompressedSize: !lowMemBuild,
       cssCodeSplit: true,
       rollupOptions: {
-        maxParallelFileOps: lowMemBuild ? 2 : 20,
+        maxParallelFileOps: lowMemBuild ? 1 : 20,
         output: {
           chunkFileNames: 'static/js/[name]-[hash].js',
           entryFileNames: 'static/js/[name]-[hash].js',
@@ -99,20 +102,29 @@ function manualChunks(id) {
   if (!id.includes('node_modules')) {
     return
   }
-  if (id.includes('echarts')) {
+  if (id.includes('echarts') || id.includes('zrender')) {
     return 'chunk-echarts'
   }
-  if (id.includes('mermaid') || id.includes('/elk') || id.includes('dagre') || id.includes('cytoscape')) {
+  if (id.includes('mermaid') || id.includes('/elk') || id.includes('dagre') || id.includes('cytoscape') || id.includes('katex')) {
     return 'chunk-mermaid'
   }
-  if (id.includes('element-plus')) {
+  if (id.includes('element-plus') || id.includes('@element-plus')) {
     return 'chunk-element-plus'
   }
-  if (id.includes('bytemd') || id.includes('highlight.js')) {
+  if (id.includes('bytemd') || id.includes('highlight.js') || id.includes('rehype') || id.includes('remark')) {
     return 'chunk-bytemd'
   }
-  if (id.includes('vue') || id.includes('pinia') || id.includes('vue-router')) {
+  if (id.includes('@vueup/vue-quill') || id.includes('quill')) {
+    return 'chunk-quill'
+  }
+  if (id.includes('js-beautify')) {
+    return 'chunk-js-beautify'
+  }
+  if (id.includes('vue') || id.includes('pinia') || id.includes('vue-router') || id.includes('@vue')) {
     return 'chunk-vue'
+  }
+  if (id.includes('axios') || id.includes('lodash')) {
+    return 'chunk-utils'
   }
   return 'chunk-vendor'
 }

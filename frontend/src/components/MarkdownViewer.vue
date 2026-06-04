@@ -1,4 +1,5 @@
 <script setup>
+import { onMounted, ref } from 'vue'
 import { Viewer } from '@bytemd/vue-next'
 import { createFullMarkdownPlugins } from '@/utils/markdownPlugins'
 
@@ -9,12 +10,15 @@ defineProps({
   value: { type: String, default: '' },
 })
 
-const plugins = createFullMarkdownPlugins()
+const plugins = ref([])
+onMounted(async () => {
+  plugins.value = await createFullMarkdownPlugins()
+})
 </script>
 
 <template>
   <div class="markdown-viewer">
-    <Viewer :value="value" :plugins="plugins" />
+    <Viewer v-if="plugins.length" :value="value" :plugins="plugins" />
   </div>
 </template>
 
