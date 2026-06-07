@@ -37,7 +37,8 @@ public class AiWriteController extends BlogControllerSupport
     @PostMapping("/summary")
     public AjaxResult summary(@Valid @RequestBody AiWriteWizardRequest request)
     {
-        return AjaxResult.success(aiWriteService.generateSummary(request));
+        // 必须显式传入 msg，否则 String 会匹配 success(String msg) 而非 success(Object data)
+        return AjaxResult.success("操作成功", aiWriteService.generateSummary(request));
     }
 
     @PostMapping("/outline")
