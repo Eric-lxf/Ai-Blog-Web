@@ -77,7 +77,7 @@ services:
   frontend:
     build:
       context: .
-      dockerfile: ${FRONTEND_DOCKERFILE:-frontend/Dockerfile}
+      dockerfile: frontend/Dockerfile
       args:
         LOW_MEM_BUILD: ${FRONTEND_LOW_MEM_BUILD:-1}
         NODE_HEAP_MB: ${FRONTEND_NODE_HEAP_MB:-1280}

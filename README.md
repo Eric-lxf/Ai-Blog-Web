@@ -81,36 +81,42 @@ docker push crpi-skinyl3l0124ry6m.cn-beijing.personal.cr.aliyuncs.com/lxf_ai/al-
 
 ### 2C4G 云主机前端构建（内存优化）
 
-Vite 在 Docker 构建容器内峰值约 **1.3GB+ 堆内存**，2C4G 机器容器内直接 `npm run build:prod` 极易 OOM。
+默认 `frontend/Dockerfile` 已启用低内存模式（`VITE_LOW_MEM_BUILD=1`、堆上限约 1280MB、关闭构建期 gzip/SVGO、拆分 echarts/mermaid 等大 chunk）。
 
-**2C4G 不能靠调大 Docker 内存解决**：物理只有 4GB，Docker 构建容器最多用剩余内存；vite 峰值约 1.3GB+，容器内构建必 OOM。
+**推荐（按优先级）：**
 
-**正确方案**：宿主机/CI 先 `vite build` 生成 `frontend/dist`，`frontend/Dockerfile` 只打 nginx 包（几秒完成）。
+1. **增加 2GB swap**（最有效，几乎不花钱）：
 
 ```bash
-# 推荐：一键脚本（含宿主机 build dist）
-bash scripts/build-frontend-image.sh crpi-xxx/lxf_ai/al-blog-rouyi-web:latest
-docker login crpi-skinyl3l0124ry6m.cn-beijing.personal.cr.aliyuncs.com
-docker push crpi-xxx/lxf_ai/al-blog-rouyi-web:latest
+sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 ```
 
-**CI 必须两步**（不要只 `docker build` 旧版全量 Dockerfile）：
+2. **仅构建前端镜像**（避免与 MySQL 等同时抢内存）：
 
 ```bash
-cd frontend && npm ci && npm run build:prod
-cd .. && docker build -f frontend/Dockerfile -t <镜像名> .
+docker build -f frontend/Dockerfile -t ai-blog-web:local .
 ```
 
-**加 swap 有帮助**（给宿主机 build 用，不是给 docker 内 vite）：
+3. **调构建参数**（内存仍不足时）：
 
 ```bash
-bash scripts/setup-swap.sh 2G
+# 堆再降到 1GB
+docker build -f frontend/Dockerfile --build-arg NODE_HEAP_MB=1024 -t ai-blog-web:local .
+# 8G+ 机器可关闭低内存模式、略提速
+docker build -f frontend/Dockerfile --build-arg LOW_MEM_BUILD=0 --build-arg NODE_HEAP_MB=2048 -t ai-blog-web:local .
 ```
 
-**8G+ 机器**才可在 Docker 内完整 vite 构建：
+4. **本地/CI 构建 dist 再 COPY**（小机器最稳）：在内存充足的机器 `cd frontend && npm ci && npm run build:prod:lowmem`，仅把 `dist/` 打进 nginx 镜像。
+
+5. **`npm ci` 报 `ECONNRESET` / network aborted**（国内 ECS 常见）：Dockerfile 已默认 `registry.npmmirror.com` 并自动重试 5 次。仍失败可指定镜像：
 
 ```bash
-docker build -f frontend/Dockerfile.full --build-arg NODE_HEAP_MB=2048 -t ai-blog-web:local .
+docker build -f frontend/Dockerfile \
+  --build-arg NPM_REGISTRY=https://registry.npmmirror.com \
+  -t ai-blog-web:local .
+# 海外机器改用官方源
+# --build-arg NPM_REGISTRY=https://registry.npmjs.org
 ```
 
 | 优化项 | 作用 |

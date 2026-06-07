@@ -46,16 +46,8 @@ export default defineConfig(({ mode, command }) => {
       // 关闭 gzip 体积统计，显著降低 rendering chunks 阶段内存（2C4G 机器建议开启）
       reportCompressedSize: !lowMemBuild,
       cssCodeSplit: true,
-      minify: isBuild ? 'esbuild' : false,
-      ...(lowMemBuild && isBuild
-        ? {
-            esbuild: {
-              legalComments: 'none'
-            }
-          }
-        : {}),
       rollupOptions: {
-        maxParallelFileOps: lowMemBuild ? 1 : 20,
+        maxParallelFileOps: lowMemBuild ? 2 : 20,
         output: {
           chunkFileNames: 'static/js/[name]-[hash].js',
           entryFileNames: 'static/js/[name]-[hash].js',
