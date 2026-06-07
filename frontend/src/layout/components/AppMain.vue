@@ -3,9 +3,16 @@
     <router-view v-slot="{ Component, route }">
       <transition name="fade-transform" mode="out-in">
         <keep-alive :include="tagsViewStore.cachedViews">
-          <component v-if="!route.meta.link" :is="Component" :key="route.path"/>
+          <component
+            v-if="!route.meta.link && Component"
+            :is="Component"
+            :key="route.fullPath"
+          />
         </keep-alive>
       </transition>
+      <div v-if="!route.meta.link && !Component" class="route-load-fallback">
+        <el-empty description="页面加载失败，请刷新或重新登录" />
+      </div>
     </router-view>
     <iframe-toggle />
     <copyright />
@@ -119,5 +126,8 @@ function addIframe() {
 ::-webkit-scrollbar-thumb {
   background-color: #c0c0c0;
   border-radius: 3px;
+}
+.route-load-fallback {
+  padding: 48px 24px;
 }
 </style>

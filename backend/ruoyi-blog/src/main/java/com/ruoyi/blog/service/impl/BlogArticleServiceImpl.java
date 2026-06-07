@@ -27,12 +27,15 @@ import com.ruoyi.blog.mapper.BlogArticleMapper;
 import com.ruoyi.blog.mapper.BlogArticleTagMapper;
 import com.ruoyi.blog.mapper.BlogCategoryMapper;
 import com.ruoyi.blog.mapper.BlogCommentMapper;
+import com.ruoyi.blog.constant.BlogAnalyticsConstants;
 import com.ruoyi.blog.service.BlogArticleService;
+import com.ruoyi.blog.service.BlogVisitService;
 import com.ruoyi.blog.service.BlogTagService;
 import com.ruoyi.blog.vo.ArticleBriefVO;
 import com.ruoyi.blog.vo.ArticleVO;
 import com.ruoyi.common.constant.HttpStatus;
 import com.ruoyi.common.exception.ServiceException;
+import com.ruoyi.common.utils.SecurityUtils;
 
 import lombok.RequiredArgsConstructor;
 
@@ -44,6 +47,7 @@ public class BlogArticleServiceImpl implements BlogArticleService
     private static final int STATUS_PUBLISHED = 1;
 
     private final BlogArticleMapper blogArticleMapper;
+    private final BlogVisitService blogVisitService;
 
     private final BlogCategoryMapper blogCategoryMapper;
 
@@ -99,6 +103,7 @@ public class BlogArticleServiceImpl implements BlogArticleService
         }
         blogArticleMapper.incrementViewCount(id);
         article.setViewCount((article.getViewCount() == null ? 0 : article.getViewCount()) + 1);
+        blogVisitService.recordFromRequest(BlogAnalyticsConstants.PAGE_ARTICLE, id);
         Map<Long, String> categoryMap = loadCategoryMap(List.of(article));
         Map<Long, List<BlogTag>> tagsMap = loadTagsMap(List.of(article));
         Map<Long, Long> commentCountMap = loadCommentCountMap(List.of(article));

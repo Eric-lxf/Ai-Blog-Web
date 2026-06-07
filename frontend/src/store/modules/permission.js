@@ -8,6 +8,18 @@ import InnerLink from '@/layout/components/InnerLink'
 // 匹配views里面所有的.vue文件
 const modules = import.meta.glob('./../../views/**/*.vue')
 
+/** 动态菜单组件兜底（避免 glob 未命中或库中 component 路径不一致时白屏） */
+const viewFallback = {
+  'blog/dashboard/index': () => import('@/views/blog/dashboard/index.vue'),
+  'blog/list/index': () => import('@/views/blog/list/index.vue'),
+  'blog/comment/index': () => import('@/views/blog/comment/index.vue'),
+  'blog/comment/report': () => import('@/views/blog/comment/report.vue'),
+  'blog/comment/sensitive': () => import('@/views/blog/comment/sensitive.vue'),
+  'blog/notification/index': () => import('@/views/blog/notification/index.vue'),
+  'blog/notification/send': () => import('@/views/blog/notification/send.vue'),
+  'blog/dashboard/index': () => import('@/views/blog/dashboard/index.vue'),
+}
+
 const usePermissionStore = defineStore(
   'permission',
   {
@@ -70,7 +82,11 @@ function filterAsyncRouter(asyncRouterMap, lastRouter = false, type = false) {
       } else if (route.component === 'InnerLink') {
         route.component = InnerLink
       } else {
-        route.component = loadView(route.component)
+        const loaded = loadView(route.component)
+        if (!loaded) {
+          console.warn('[loadView] component not found:', route.component, route.path)
+        }
+        route.component = loaded
       }
     }
     if (route.children != null && route.children && route.children.length) {
@@ -114,11 +130,19 @@ export function filterDynamicRoutes(routes) {
 }
 
 export const loadView = (view) => {
+  if (!view) {
+    return undefined
+  }
+  const normalized = String(view).replace(/\.vue$/i, '').replace(/^\/+/, '')
+  if (viewFallback[normalized]) {
+    return viewFallback[normalized]
+  }
   let res
   for (const path in modules) {
     const dir = path.split('views/')[1].split('.vue')[0]
-    if (dir === view) {
+    if (dir === normalized) {
       res = () => modules[path]()
+      break
     }
   }
   return res

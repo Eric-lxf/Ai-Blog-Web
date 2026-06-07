@@ -22,6 +22,7 @@ public class BlogArticle
     private String htmlContent;
     private String coverImage;
     private Long categoryId;
+    private Long authorUserId;
     /** 0-草稿, 1-已发布, 2-AI生成中 */
     private Integer status;
     private Integer isAiGenerated;

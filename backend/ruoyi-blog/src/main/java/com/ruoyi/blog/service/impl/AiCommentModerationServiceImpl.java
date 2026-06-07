@@ -1,6 +1,7 @@
 package com.ruoyi.blog.service.impl;
 
 import java.time.LocalDateTime;
+import java.util.Objects;
 import java.util.regex.Pattern;
 
 import org.springframework.scheduling.annotation.Async;
@@ -13,6 +14,7 @@ import com.ruoyi.blog.domain.BlogComment;
 import com.ruoyi.blog.dto.AiCompletionRequest;
 import com.ruoyi.blog.mapper.BlogCommentMapper;
 import com.ruoyi.blog.service.AiCommentModerationService;
+import com.ruoyi.blog.service.CommentApprovedEventPublisher;
 import com.ruoyi.blog.service.CommentConfigService;
 import com.ruoyi.blog.service.DeepSeekService;
 import com.ruoyi.common.utils.StringUtils;
@@ -31,6 +33,7 @@ public class AiCommentModerationServiceImpl implements AiCommentModerationServic
     private final BlogCommentMapper commentMapper;
     private final DeepSeekService deepSeekService;
     private final CommentConfigService commentConfigService;
+    private final CommentApprovedEventPublisher commentApprovedEventPublisher;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
@@ -100,6 +103,7 @@ public class AiCommentModerationServiceImpl implements AiCommentModerationServic
 
     private void applyResult(BlogComment comment, int score, String labels, String suggestion, String reason)
     {
+        Integer previousStatus = comment.getStatus();
         comment.setAiScore(score);
         comment.setAiLabel(labels);
         comment.setAiCheckedTime(LocalDateTime.now());
@@ -124,6 +128,11 @@ public class AiCommentModerationServiceImpl implements AiCommentModerationServic
             }
         }
         commentMapper.updateById(comment);
+        if (Objects.equals(comment.getStatus(), BlogCommentConstants.STATUS_APPROVED)
+                && !Objects.equals(previousStatus, BlogCommentConstants.STATUS_APPROVED))
+        {
+            commentApprovedEventPublisher.publish(comment.getId());
+        }
     }
 
     private JsonNode parseJson(String raw)
