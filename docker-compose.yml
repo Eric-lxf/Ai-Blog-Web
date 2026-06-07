@@ -18,6 +18,7 @@ services:
       - ./sql/blog_comment_schema.sql:/docker-entrypoint-initdb.d/05-blog_comment_schema.sql:ro
       - ./sql/blog_notification_schema.sql:/docker-entrypoint-initdb.d/06-blog_notification_schema.sql:ro
       - ./sql/blog_analytics_schema.sql:/docker-entrypoint-initdb.d/07-blog_analytics_schema.sql:ro
+      - ./sql/wechat_schema.sql:/docker-entrypoint-initdb.d/08-wechat_schema.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" || exit 1"]
       interval: 10s

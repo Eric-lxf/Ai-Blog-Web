@@ -8,6 +8,7 @@ COPY backend/ruoyi-common ./ruoyi-common
 COPY backend/ruoyi-quartz ./ruoyi-quartz
 COPY backend/ruoyi-generator ./ruoyi-generator
 COPY backend/ruoyi-blog ./ruoyi-blog
+COPY backend/ruoyi-wechat ./ruoyi-wechat
 RUN mvn -B -DskipTests package -pl ruoyi-admin -am
 
 FROM crpi-skinyl3l0124ry6m.cn-beijing.personal.cr.aliyuncs.com/lxf_ai/maven:3.9-eclipse-temurin-17

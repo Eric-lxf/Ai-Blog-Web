@@ -28,6 +28,7 @@ mysql -u root -p < sql/blog_notification_menu_fix.sql
 mysql -u root -p < sql/blog_comment_menu_route_fix.sql
 mysql -u root -p < sql/blog_analytics_schema.sql
 mysql -u root -p < sql/blog_menu_seed.sql
+mysql -u root -p < sql/wechat_schema.sql
 ```
 
 修改 `backend/ruoyi-admin/src/main/resources/application-druid.yml` 中的数据库账号，库名建议 `ai_blog`。
