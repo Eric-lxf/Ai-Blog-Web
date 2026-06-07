@@ -25,6 +25,43 @@ const viewFallback = {
   'wechat/reply/index': () => import('@/views/wechat/reply/index.vue'),
   'wechat/fans/index': () => import('@/views/wechat/fans/index.vue'),
   'wechat/message/index': () => import('@/views/wechat/message/index.vue'),
+  'system/menu/index': () => import('@/views/system/menu/index.vue'),
+}
+
+function normalizeViewPath(view) {
+  return String(view).replace(/\.vue$/i, '').replace(/^\/+/, '')
+}
+
+function buildViewCandidates(view) {
+  const normalized = normalizeViewPath(view)
+  const candidates = [normalized]
+  if (!normalized.endsWith('/index')) {
+    candidates.push(`${normalized}/index`)
+  } else {
+    candidates.push(normalized.replace(/\/index$/, ''))
+  }
+  return [...new Set(candidates)]
+}
+
+function dedupeRouteNames(routes, usedNames = new Set()) {
+  routes.forEach(route => {
+    if (route.name) {
+      let name = String(route.name)
+      if (usedNames.has(name)) {
+        const suffix = String(route.path || '')
+          .split('/')
+          .filter(Boolean)
+          .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+          .join('')
+        name = `${name}${suffix || 'Route'}`
+        route.name = name
+      }
+      usedNames.add(name)
+    }
+    if (route.children?.length) {
+      dedupeRouteNames(route.children, usedNames)
+    }
+  })
 }
 
 const usePermissionStore = defineStore(
@@ -61,6 +98,7 @@ const usePermissionStore = defineStore(
             const sidebarRoutes = filterAsyncRouter(sdata)
             const rewriteRoutes = filterAsyncRouter(rdata, false, true)
             const defaultRoutes = filterAsyncRouter(defaultData)
+            dedupeRouteNames(rewriteRoutes)
             const asyncRoutes = filterDynamicRoutes(dynamicRoutes)
             asyncRoutes.forEach(route => { router.addRoute(route) })
             this.setRoutes(rewriteRoutes)
@@ -140,19 +178,19 @@ export const loadView = (view) => {
   if (!view) {
     return undefined
   }
-  const normalized = String(view).replace(/\.vue$/i, '').replace(/^\/+/, '')
-  if (viewFallback[normalized]) {
-    return viewFallback[normalized]
-  }
-  let res
-  for (const path in modules) {
-    const dir = path.split('views/')[1].split('.vue')[0]
-    if (dir === normalized) {
-      res = () => modules[path]()
-      break
+  for (const candidate of buildViewCandidates(view)) {
+    if (viewFallback[candidate]) {
+      return viewFallback[candidate]
+    }
+    for (const path in modules) {
+      const dir = path.split('views/')[1].split('.vue')[0]
+      if (dir === candidate || dir.toLowerCase() === candidate.toLowerCase()) {
+        return () => modules[path]()
+      }
     }
   }
-  return res
+  console.warn('[loadView] component not found:', view)
+  return undefined
 }
 
 export default usePermissionStore

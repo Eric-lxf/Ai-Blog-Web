@@ -115,14 +115,14 @@ SELECT '公众号回调密文模式', 'wechat.callback.encrypt', 'false', 'Y', '
 WHERE NOT EXISTS (SELECT 1 FROM sys_config WHERE config_key = 'wechat.callback.encrypt');
 
 INSERT IGNORE INTO sys_menu VALUES
-(2050, '公众号', 0, 7, 'wechat-admin', NULL, '', '', 1, 0, 'M', '0', '0', '', 'wechat', 'admin', sysdate(), '', NULL, '微信公众号管理目录'),
-(2051, '账号管理', 2050, 1, 'account', 'wechat/account/index', '', '', 1, 0, 'C', '0', '0', 'wechat:account:list', 'user', 'admin', sysdate(), '', NULL, ''),
-(2052, '推送记录', 2050, 2, 'publish', 'wechat/publish/index', '', '', 1, 0, 'C', '0', '0', 'wechat:publish:list', 'message', 'admin', sysdate(), '', NULL, ''),
-(2053, '素材管理', 2050, 3, 'material', 'wechat/material/index', '', '', 1, 0, 'C', '0', '0', 'wechat:material:list', 'documentation', 'admin', sysdate(), '', NULL, ''),
-(2054, '菜单管理', 2050, 4, 'menu', 'wechat/menu/index', '', '', 1, 0, 'C', '0', '0', 'wechat:menu:list', 'tree', 'admin', sysdate(), '', NULL, ''),
-(2055, '自动回复', 2050, 5, 'reply', 'wechat/reply/index', '', '', 1, 0, 'C', '0', '0', 'wechat:reply:list', 'edit', 'admin', sysdate(), '', NULL, ''),
-(2056, '粉丝管理', 2050, 6, 'fans', 'wechat/fans/index', '', '', 1, 0, 'C', '0', '0', 'wechat:fans:list', 'peoples', 'admin', sysdate(), '', NULL, ''),
-(2057, '消息日志', 2050, 7, 'message-log', 'wechat/message/index', '', '', 1, 0, 'C', '0', '0', 'wechat:message:list', 'form', 'admin', sysdate(), '', NULL, ''),
+(2050, '公众号', 0, 7, 'wechat-admin', NULL, '', 'WechatAdmin', 1, 0, 'M', '0', '0', '', 'wechat', 'admin', sysdate(), '', NULL, '微信公众号管理目录'),
+(2051, '账号管理', 2050, 1, 'account', 'wechat/account/index', '', 'WechatAccount', 1, 0, 'C', '0', '0', 'wechat:account:list', 'user', 'admin', sysdate(), '', NULL, ''),
+(2052, '推送记录', 2050, 2, 'publish', 'wechat/publish/index', '', 'WechatPublish', 1, 0, 'C', '0', '0', 'wechat:publish:list', 'message', 'admin', sysdate(), '', NULL, ''),
+(2053, '素材管理', 2050, 3, 'material', 'wechat/material/index', '', 'WechatMaterial', 1, 0, 'C', '0', '0', 'wechat:material:list', 'documentation', 'admin', sysdate(), '', NULL, ''),
+(2054, '菜单管理', 2050, 4, 'wx-menu', 'wechat/menu/index', '', 'WechatMenu', 1, 0, 'C', '0', '0', 'wechat:menu:list', 'tree', 'admin', sysdate(), '', NULL, ''),
+(2055, '自动回复', 2050, 5, 'reply', 'wechat/reply/index', '', 'WechatReply', 1, 0, 'C', '0', '0', 'wechat:reply:list', 'edit', 'admin', sysdate(), '', NULL, ''),
+(2056, '粉丝管理', 2050, 6, 'fans', 'wechat/fans/index', '', 'WechatFans', 1, 0, 'C', '0', '0', 'wechat:fans:list', 'peoples', 'admin', sysdate(), '', NULL, ''),
+(2057, '消息日志', 2050, 7, 'message-log', 'wechat/message/index', '', 'WechatMessageLog', 1, 0, 'C', '0', '0', 'wechat:message:list', 'form', 'admin', sysdate(), '', NULL, ''),
 (2300, '账号查询', 2051, 1, '#', '', '', '', 1, 0, 'F', '0', '0', 'wechat:account:query', '#', 'admin', sysdate(), '', NULL, ''),
 (2301, '账号新增', 2051, 2, '#', '', '', '', 1, 0, 'F', '0', '0', 'wechat:account:add', '#', 'admin', sysdate(), '', NULL, ''),
 (2302, '账号修改', 2051, 3, '#', '', '', '', 1, 0, 'F', '0', '0', 'wechat:account:edit', '#', 'admin', sysdate(), '', NULL, ''),
