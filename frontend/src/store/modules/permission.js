@@ -18,6 +18,13 @@ const viewFallback = {
   'blog/notification/index': () => import('@/views/blog/notification/index.vue'),
   'blog/notification/send': () => import('@/views/blog/notification/send.vue'),
   'blog/dashboard/index': () => import('@/views/blog/dashboard/index.vue'),
+  'wechat/account/index': () => import('@/views/wechat/account/index.vue'),
+  'wechat/publish/index': () => import('@/views/wechat/publish/index.vue'),
+  'wechat/material/index': () => import('@/views/wechat/material/index.vue'),
+  'wechat/menu/index': () => import('@/views/wechat/menu/index.vue'),
+  'wechat/reply/index': () => import('@/views/wechat/reply/index.vue'),
+  'wechat/fans/index': () => import('@/views/wechat/fans/index.vue'),
+  'wechat/message/index': () => import('@/views/wechat/message/index.vue'),
 }
 
 const usePermissionStore = defineStore(

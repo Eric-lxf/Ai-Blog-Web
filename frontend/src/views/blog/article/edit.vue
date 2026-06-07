@@ -10,6 +10,7 @@ import { fetchArticleDetail, saveArticle } from '@/api/blog/article'
 import { fetchCategories } from '@/api/blog/category'
 import { fetchTags } from '@/api/blog/tag'
 import { uploadImage } from '@/api/blog/upload'
+import { listWechatAccount, pushWechatArticle } from '@/api/wechat'
 import {
   clearLocalDraft,
   loadLocalDraft,
@@ -25,6 +26,14 @@ const selectedTags = ref([])
 const draftEnabled = ref(true)
 const aiVisible = ref(true)
 const aiConfigured = ref(false)
+const pushDialogVisible = ref(false)
+const pushSubmitting = ref(false)
+const wechatAccounts = ref([])
+const pushFormRef = ref(null)
+const pushForm = reactive({
+  accountId: undefined,
+  publishMode: 'draft_and_publish',
+})
 
 const articleId = computed(() => {
   const q = route.query.id
@@ -183,6 +192,11 @@ const savedHint = computed(() => {
   return form.status === 1 ? '编辑后将自动保存' : '编辑后将自动保存草稿'
 })
 
+const pushRules = {
+  accountId: [{ required: true, message: '请选择公众号账号', trigger: 'change' }],
+  publishMode: [{ required: true, message: '请选择推送模式', trigger: 'change' }],
+}
+
 watch(selectedTags, () => {
   const { tagIds, tagNames } = buildTagPayload()
   form.tagIds = tagIds
@@ -205,8 +219,47 @@ async function loadAiStatus() {
   }
 }
 
+async function loadWechatAccounts() {
+  try {
+    const res = await listWechatAccount({ pageNum: 1, pageSize: 1000, status: 1 })
+    wechatAccounts.value = res.rows || []
+    if (!pushForm.accountId && wechatAccounts.value.length) {
+      pushForm.accountId = wechatAccounts.value[0].id
+    }
+  } catch {
+    wechatAccounts.value = []
+  }
+}
+
+function openPushDialog() {
+  if (!articleId.value && !form.id) {
+    ElMessage.warning('请先保存文章')
+    return
+  }
+  pushDialogVisible.value = true
+  pushFormRef.value?.clearValidate()
+}
+
+function submitPush() {
+  pushFormRef.value?.validate(async valid => {
+    if (!valid) return
+    pushSubmitting.value = true
+    try {
+      await pushWechatArticle({
+        articleId: articleId.value || form.id,
+        accountId: pushForm.accountId,
+        publishMode: pushForm.publishMode,
+      })
+      ElMessage.success('推送任务已提交')
+      pushDialogVisible.value = false
+    } finally {
+      pushSubmitting.value = false
+    }
+  })
+}
+
 onMounted(async () => {
-  await Promise.all([loadCategories(), loadTags(), loadAiStatus()])
+  await Promise.all([loadCategories(), loadTags(), loadAiStatus(), loadWechatAccounts()])
   await loadArticle()
 })
 </script>
@@ -287,6 +340,15 @@ onMounted(async () => {
           <el-button type="success" @click="handleSave(true)" v-hasPermi="['blog:article:publish']">
             发布
           </el-button>
+          <el-button
+            v-if="form.status === 1 && articleId"
+            type="warning"
+            plain
+            v-hasPermi="['wechat:publish:push']"
+            @click="openPushDialog"
+          >
+            推送到公众号
+          </el-button>
           <el-button @click="router.push('/blog-admin/article')">返回列表</el-button>
           <el-button v-if="form.id" @click="router.push(`/blog-admin/article/preview/${form.id}`)">
             预览
@@ -301,6 +363,26 @@ onMounted(async () => {
       :article-content="form.content"
       @insert="handleAiInsert"
     />
+
+    <el-dialog v-model="pushDialogVisible" title="推送到公众号" width="520px" append-to-body>
+      <el-form ref="pushFormRef" :model="pushForm" :rules="pushRules" label-width="90px">
+        <el-form-item label="公众号" prop="accountId">
+          <el-select v-model="pushForm.accountId" filterable placeholder="请选择公众号账号" style="width: 100%">
+            <el-option v-for="item in wechatAccounts" :key="item.id" :label="item.name" :value="item.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="推送模式" prop="publishMode">
+          <el-radio-group v-model="pushForm.publishMode">
+            <el-radio label="draft">仅保存草稿</el-radio>
+            <el-radio label="draft_and_publish">草稿并发布</el-radio>
+          </el-radio-group>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="pushDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="pushSubmitting" @click="submitPush">确认推送</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 

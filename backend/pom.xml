@@ -117,6 +117,13 @@
                 <version>${ruoyi.version}</version>
             </dependency>
 
+            <!-- 微信公众号模块 -->
+            <dependency>
+                <groupId>com.ruoyi</groupId>
+                <artifactId>ruoyi-wechat</artifactId>
+                <version>${ruoyi.version}</version>
+            </dependency>
+
             <!-- io常用工具类 -->
             <dependency>
                 <groupId>commons-io</groupId>
@@ -205,6 +212,7 @@
         <module>ruoyi-generator</module>
         <module>ruoyi-common</module>
         <module>ruoyi-blog</module>
+        <module>ruoyi-wechat</module>
     </modules>
     <packaging>pom</packaging>
 
