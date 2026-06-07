@@ -15,6 +15,9 @@ import com.ruoyi.wechat.dto.WechatPageQuery;
 import com.ruoyi.wechat.mapper.WechatAccountMapper;
 import com.ruoyi.wechat.service.WechatAccountService;
 import com.ruoyi.wechat.support.WechatTokenService;
+import java.util.List;
+
+import com.ruoyi.wechat.vo.WechatAccountOptionVO;
 import com.ruoyi.wechat.vo.WechatAccountVO;
 
 import lombok.RequiredArgsConstructor;
@@ -46,6 +49,21 @@ public class WechatAccountServiceImpl implements WechatAccountService
         Page<WechatAccountVO> voPage = new Page<>(result.getCurrent(), result.getSize(), result.getTotal());
         voPage.setRecords(result.getRecords().stream().map(this::toVO).toList());
         return voPage;
+    }
+
+    @Override
+    public List<WechatAccountOptionVO> listOptions()
+    {
+        return wechatAccountMapper.selectList(
+                new LambdaQueryWrapper<WechatAccount>().orderByDesc(WechatAccount::getUpdateTime))
+                .stream()
+                .map(account -> {
+                    WechatAccountOptionVO vo = new WechatAccountOptionVO();
+                    vo.setId(account.getId());
+                    vo.setName(account.getName());
+                    return vo;
+                })
+                .toList();
     }
 
     @Override

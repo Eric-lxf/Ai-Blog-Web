@@ -8,6 +8,13 @@ export function listWechatAccount(query) {
   })
 }
 
+export function listWechatAccountOptions() {
+  return request({
+    url: '/wechat/account/options',
+    method: 'get'
+  })
+}
+
 export function getWechatAccount(id) {
   return request({
     url: `/wechat/account/${id}`,

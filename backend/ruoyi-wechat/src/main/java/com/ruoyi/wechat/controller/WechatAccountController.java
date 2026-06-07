@@ -36,6 +36,15 @@ public class WechatAccountController extends WechatControllerSupport
         return mpPageTable(page);
     }
 
+    @PreAuthorize("@ss.hasPermi('wechat:account:list') or @ss.hasPermi('wechat:reply:list') or @ss.hasPermi('wechat:menu:list') "
+            + "or @ss.hasPermi('wechat:material:list') or @ss.hasPermi('wechat:publish:list') or @ss.hasPermi('wechat:fans:list') "
+            + "or @ss.hasPermi('wechat:message:list') or @ss.hasPermi('wechat:publish:push')")
+    @GetMapping("/options")
+    public AjaxResult options()
+    {
+        return AjaxResult.success(wechatAccountService.listOptions());
+    }
+
     @PreAuthorize("@ss.hasPermi('wechat:account:query')")
     @GetMapping("/{id}")
     public AjaxResult detail(@PathVariable Long id)

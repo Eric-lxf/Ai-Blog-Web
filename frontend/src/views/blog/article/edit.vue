@@ -10,7 +10,7 @@ import { fetchArticleDetail, saveArticle } from '@/api/blog/article'
 import { fetchCategories } from '@/api/blog/category'
 import { fetchTags } from '@/api/blog/tag'
 import { uploadImage } from '@/api/blog/upload'
-import { listWechatAccount, pushWechatArticle } from '@/api/wechat'
+import { listWechatAccountOptions, pushWechatArticle } from '@/api/wechat'
 import {
   clearLocalDraft,
   loadLocalDraft,
@@ -221,8 +221,8 @@ async function loadAiStatus() {
 
 async function loadWechatAccounts() {
   try {
-    const res = await listWechatAccount({ pageNum: 1, pageSize: 1000, status: 1 })
-    wechatAccounts.value = res.rows || []
+    const res = await listWechatAccountOptions()
+    wechatAccounts.value = res.data || []
     if (!pushForm.accountId && wechatAccounts.value.length) {
       pushForm.accountId = wechatAccounts.value[0].id
     }
