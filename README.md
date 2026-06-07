@@ -83,39 +83,35 @@ docker push crpi-skinyl3l0124ry6m.cn-beijing.personal.cr.aliyuncs.com/lxf_ai/al-
 
 Vite 在 Docker 构建容器内峰值约 **1.3GB+ 堆内存**，2C4G 机器容器内直接 `npm run build:prod` 极易 OOM。
 
-**默认方案（推荐）**：宿主机先 `vite build`，Docker 只打 nginx 包（`frontend/Dockerfile.prebuilt`）。
+**2C4G 不能靠调大 Docker 内存解决**：物理只有 4GB，Docker 构建容器最多用剩余内存；vite 峰值约 1.3GB+，容器内构建必 OOM。
+
+**正确方案**：宿主机/CI 先 `vite build` 生成 `frontend/dist`，`frontend/Dockerfile` 只打 nginx 包（几秒完成）。
 
 ```bash
-# 一键：宿主机 build dist + compose
-./deploy.sh
-
-# 或仅打前端镜像（CI / 推送阿里云前）
+# 推荐：一键脚本（含宿主机 build dist）
 bash scripts/build-frontend-image.sh crpi-xxx/lxf_ai/al-blog-rouyi-web:latest
+docker login crpi-skinyl3l0124ry6m.cn-beijing.personal.cr.aliyuncs.com
 docker push crpi-xxx/lxf_ai/al-blog-rouyi-web:latest
 ```
 
-`.env` 默认：
-
-```env
-FRONTEND_DOCKERFILE=frontend/Dockerfile.prebuilt
-FRONTEND_NODE_HEAP_MB=1024
-```
-
-**大内存机器**（8G+，可在 Docker 内完整构建）：
-
-```env
-FRONTEND_DOCKERFILE=frontend/Dockerfile
-```
+**CI 必须两步**（不要只 `docker build` 旧版全量 Dockerfile）：
 
 ```bash
-docker build -f frontend/Dockerfile --build-arg NODE_HEAP_MB=2048 -t ai-blog-web:local .
+cd frontend && npm ci && npm run build:prod
+cd .. && docker build -f frontend/Dockerfile -t <镜像名> .
 ```
 
-**仍 OOM 时**：
+**加 swap 有帮助**（给宿主机 build 用，不是给 docker 内 vite）：
 
-1. 增加 2GB swap：`sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile`
-2. 在内存更大的 CI/本机执行 `scripts/build-frontend-image.sh`，再把镜像推到服务器
-3. 勿在 CI 里直接用 `frontend/Dockerfile` 在 2C4G runner 上构建
+```bash
+bash scripts/setup-swap.sh 2G
+```
+
+**8G+ 机器**才可在 Docker 内完整 vite 构建：
+
+```bash
+docker build -f frontend/Dockerfile.full --build-arg NODE_HEAP_MB=2048 -t ai-blog-web:local .
+```
 
 | 优化项 | 作用 |
 |--------|------|
