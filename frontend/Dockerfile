@@ -1,13 +1,12 @@
+# Full in-docker build. Needs ~2G+ RAM for the build container (vite transform peak).
+# 2C4G cloud hosts: use deploy.sh or Dockerfile.prebuilt instead.
 FROM crpi-skinyl3l0124ry6m.cn-beijing.personal.cr.aliyuncs.com/lxf_ai/node:20-alpine AS build
 WORKDIR /app
 
-# 2C4G 云主机：Node 堆不宜过大（需留给 esbuild/Rollup 子进程），建议宿主机加 2G swap
 ARG LOW_MEM_BUILD=1
-ARG NODE_HEAP_MB=1024
-# 国内 ECS 默认 npmmirror；海外或自建代理可覆盖
+ARG NODE_HEAP_MB=1280
 ARG NPM_REGISTRY=https://registry.npmmirror.com
 
-# 构建阶段必须安装 devDependencies（vite 在 devDependencies），不可设 NODE_ENV=production
 ENV CI=true
 ENV NODE_OPTIONS=--max-old-space-size=${NODE_HEAP_MB}
 ENV VITE_LOW_MEM_BUILD=${LOW_MEM_BUILD}
@@ -15,7 +14,6 @@ ENV VITE_BUILD_COMPRESS=
 ENV UV_THREADPOOL_SIZE=2
 
 COPY frontend/package.json frontend/package-lock.json frontend/.npmrc ./
-# 网络不稳定时 ECONNRESET 常见：镜像源 + 重试，勿用 --prefer-offline（无缓存反而失败）
 RUN npm config set registry "${NPM_REGISTRY}" \
   && npm config set fetch-retries 5 \
   && npm config set fetch-retry-mintimeout 20000 \
@@ -29,8 +27,12 @@ RUN npm config set registry "${NPM_REGISTRY}" \
      done
 
 COPY frontend/ .
-RUN echo ">>> vite build LOW_MEM_BUILD=${LOW_MEM_BUILD} NODE_OPTIONS=${NODE_OPTIONS}" \
-  && npm run build:prod
+RUN if [ -f dist/index.html ]; then \
+      echo ">>> skip vite build, use prebuilt frontend/dist"; \
+    else \
+      echo ">>> vite build LOW_MEM_BUILD=${LOW_MEM_BUILD} NODE_OPTIONS=${NODE_OPTIONS}" \
+      && npm run build:prod; \
+    fi
 
 FROM crpi-skinyl3l0124ry6m.cn-beijing.personal.cr.aliyuncs.com/lxf_ai/nginx:1.27-alpine
 ENV BACKEND_HOST=backend

@@ -47,6 +47,13 @@ export default defineConfig(({ mode, command }) => {
       reportCompressedSize: !lowMemBuild,
       cssCodeSplit: true,
       minify: isBuild ? 'esbuild' : false,
+      ...(lowMemBuild && isBuild
+        ? {
+            esbuild: {
+              legalComments: 'none'
+            }
+          }
+        : {}),
       rollupOptions: {
         maxParallelFileOps: lowMemBuild ? 1 : 20,
         output: {

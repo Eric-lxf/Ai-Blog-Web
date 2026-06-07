@@ -81,43 +81,41 @@ docker push crpi-skinyl3l0124ry6m.cn-beijing.personal.cr.aliyuncs.com/lxf_ai/al-
 
 ### 2C4G 云主机前端构建（内存优化）
 
-默认 `frontend/Dockerfile` 已启用低内存模式（`VITE_LOW_MEM_BUILD=1`、堆上限约 1280MB、关闭构建期 gzip/SVGO、拆分 echarts/mermaid 等大 chunk）。
+Vite 在 Docker 构建容器内峰值约 **1.3GB+ 堆内存**，2C4G 机器容器内直接 `npm run build:prod` 极易 OOM。
 
-**推荐（按优先级）：**
-
-1. **增加 2GB swap**（最有效，几乎不花钱）：
+**默认方案（推荐）**：宿主机先 `vite build`，Docker 只打 nginx 包（`frontend/Dockerfile.prebuilt`）。
 
 ```bash
-sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
-echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+# 一键：宿主机 build dist + compose
+./deploy.sh
+
+# 或仅打前端镜像（CI / 推送阿里云前）
+bash scripts/build-frontend-image.sh crpi-xxx/lxf_ai/al-blog-rouyi-web:latest
+docker push crpi-xxx/lxf_ai/al-blog-rouyi-web:latest
 ```
 
-2. **仅构建前端镜像**（避免与 MySQL 等同时抢内存）：
+`.env` 默认：
+
+```env
+FRONTEND_DOCKERFILE=frontend/Dockerfile.prebuilt
+FRONTEND_NODE_HEAP_MB=1024
+```
+
+**大内存机器**（8G+，可在 Docker 内完整构建）：
+
+```env
+FRONTEND_DOCKERFILE=frontend/Dockerfile
+```
 
 ```bash
-docker build -f frontend/Dockerfile -t ai-blog-web:local .
+docker build -f frontend/Dockerfile --build-arg NODE_HEAP_MB=2048 -t ai-blog-web:local .
 ```
 
-3. **调构建参数**（内存仍不足时）：
+**仍 OOM 时**：
 
-```bash
-# 堆再降到 1GB
-docker build -f frontend/Dockerfile --build-arg NODE_HEAP_MB=1024 -t ai-blog-web:local .
-# 8G+ 机器可关闭低内存模式、略提速
-docker build -f frontend/Dockerfile --build-arg LOW_MEM_BUILD=0 --build-arg NODE_HEAP_MB=2048 -t ai-blog-web:local .
-```
-
-4. **本地/CI 构建 dist 再 COPY**（小机器最稳）：在内存充足的机器 `cd frontend && npm ci && npm run build:prod:lowmem`，仅把 `dist/` 打进 nginx 镜像。
-
-5. **`npm ci` 报 `ECONNRESET` / network aborted**（国内 ECS 常见）：Dockerfile 已默认 `registry.npmmirror.com` 并自动重试 5 次。仍失败可指定镜像：
-
-```bash
-docker build -f frontend/Dockerfile \
-  --build-arg NPM_REGISTRY=https://registry.npmmirror.com \
-  -t ai-blog-web:local .
-# 海外机器改用官方源
-# --build-arg NPM_REGISTRY=https://registry.npmjs.org
-```
+1. 增加 2GB swap：`sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile`
+2. 在内存更大的 CI/本机执行 `scripts/build-frontend-image.sh`，再把镜像推到服务器
+3. 勿在 CI 里直接用 `frontend/Dockerfile` 在 2C4G runner 上构建
 
 | 优化项 | 作用 |
 |--------|------|
