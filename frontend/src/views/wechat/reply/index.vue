@@ -1,216 +1,71 @@
 <template>
   <div class="app-container">
     <el-form :inline="true" :model="queryParams" class="mb8">
-      <el-form-item label="ÕËºÅ">
-        <el-select v-model="queryParams.accountId" clearable filterable placeholder="È«²¿ÕËºÅ" style="width: 220px">
+      <el-form-item label="è´¦å·">
+        <el-select v-model="queryParams.accountId" clearable filterable placeholder="å…¨éƒ¨è´¦å·" style="width: 220px">
           <el-option v-for="item in accountOptions" :key="item.id" :label="item.name" :value="item.id" />
         </el-select>
       </el-form-item>
-      <el-form-item label="×´Ì¬">
-        <el-select v-model="queryParams.status" clearable placeholder="È«²¿" style="width: 120px">
-          <el-option label="ÆôÓÃ" :value="1" />
-          <el-option label="Í£ÓÃ" :value="0" />
+      <el-form-item label="çŠ¶æ€">
+        <el-select v-model="queryParams.status" clearable placeholder="å…¨éƒ¨" style="width: 120px">
+          <el-option label="å¯ç”¨" :value="1" /><el-option label="åœç”¨" :value="0" />
         </el-select>
       </el-form-item>
-      <el-form-item label="¹Ø¼ü´Ê">
-        <el-input v-model="queryParams.keyword" placeholder="¹Ø¼ü´Ê/ÄÚÈİ" clearable style="width: 220px" @keyup.enter="handleQuery" />
+      <el-form-item label="å…³é”®è¯">
+        <el-input v-model="queryParams.keyword" placeholder="å…³é”®è¯/å†…å®¹" clearable style="width: 220px" @keyup.enter="handleQuery" />
       </el-form-item>
       <el-form-item>
-        <el-button type="primary" icon="Search" @click="handleQuery">ËÑË÷</el-button>
-        <el-button icon="Refresh" @click="resetQuery">ÖØÖÃ</el-button>
-        <el-button type="primary" plain icon="Plus" v-hasPermi="['wechat:reply:add']" @click="openDialog()">ĞÂÔö¹æÔò</el-button>
+        <el-button type="primary" icon="Search" @click="handleQuery">æœç´¢</el-button>
+        <el-button icon="Refresh" @click="resetQuery">é‡ç½®</el-button>
+        <el-button type="primary" plain icon="Plus" v-hasPermi="['wechat:reply:add']" @click="openDialog()">æ–°å¢è§„åˆ™</el-button>
       </el-form-item>
     </el-form>
-
     <el-table v-loading="loading" :data="list">
       <el-table-column label="ID" prop="id" width="80" />
-      <el-table-column label="ÕËºÅID" prop="accountId" width="90" />
-      <el-table-column label="ÀàĞÍ" width="110">
-        <template #default="{ row }">{{ replyTypeLabel(row.replyType) }}</template>
-      </el-table-column>
-      <el-table-column label="¹Ø¼ü´Ê" prop="keyword" min-width="130" show-overflow-tooltip />
-      <el-table-column label="ÄÚÈİ" prop="content" min-width="220" show-overflow-tooltip />
-      <el-table-column label="Æ¥Åä·½Ê½" width="100">
-        <template #default="{ row }">{{ row.matchType === 2 ? 'È«µÈ' : '°üº¬' }}</template>
-      </el-table-column>
-      <el-table-column label="×´Ì¬" width="90" align="center">
-        <template #default="{ row }">
-          <el-tag :type="row.enabled === 1 ? 'success' : 'info'">{{ row.enabled === 1 ? 'ÆôÓÃ' : 'Í£ÓÃ' }}</el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="¸üĞÂÊ±¼ä" prop="updateTime" width="170" />
-      <el-table-column label="²Ù×÷" width="90" align="center">
-        <template #default="{ row }">
-          <el-button link type="primary" v-hasPermi="['wechat:reply:edit']" @click="openDialog(row)">±à¼­</el-button>
-        </template>
-      </el-table-column>
+      <el-table-column label="è´¦å·ID" prop="accountId" width="90" />
+      <el-table-column label="ç±»å‹" width="110"><template #default="{ row }">{{ replyTypeLabel(row.replyType) }}</template></el-table-column>
+      <el-table-column label="å…³é”®è¯" prop="keyword" min-width="130" show-overflow-tooltip />
+      <el-table-column label="å†…å®¹" prop="content" min-width="220" show-overflow-tooltip />
+      <el-table-column label="åŒ¹é…æ–¹å¼" width="100"><template #default="{ row }">{{ row.matchType === 2 ? 'å…¨ç­‰' : 'åŒ…å«' }}</template></el-table-column>
+      <el-table-column label="çŠ¶æ€" width="90" align="center"><template #default="{ row }"><el-tag :type="row.enabled === 1 ? 'success' : 'info'">{{ row.enabled === 1 ? 'å¯ç”¨' : 'åœç”¨' }}</el-tag></template></el-table-column>
+      <el-table-column label="æ›´æ–°æ—¶é—´" prop="updateTime" width="170" />
+      <el-table-column label="æ“ä½œ" width="90" align="center"><template #default="{ row }"><el-button link type="primary" v-hasPermi="['wechat:reply:edit']" @click="openDialog(row)">ç¼–è¾‘</el-button></template></el-table-column>
     </el-table>
-
-    <pagination
-      v-show="total > 0"
-      :total="total"
-      v-model:page="queryParams.pageNum"
-      v-model:limit="queryParams.pageSize"
-      @pagination="getList"
-    />
-
-    <el-dialog v-model="dialogVisible" :title="form.id ? '±à¼­×Ô¶¯»Ø¸´' : 'ĞÂÔö×Ô¶¯»Ø¸´'" width="680px" append-to-body>
+    <pagination v-show="total > 0" :total="total" v-model:page="queryParams.pageNum" v-model:limit="queryParams.pageSize" @pagination="getList" />
+    <el-dialog v-model="dialogVisible" :title="form.id ? 'ç¼–è¾‘è‡ªåŠ¨å›å¤' : 'æ–°å¢è‡ªåŠ¨å›å¤'" width="680px" append-to-body>
       <el-form ref="formRef" :model="form" :rules="rules" label-width="90px">
-        <el-form-item label="ÕËºÅ" prop="accountId">
-          <el-select v-model="form.accountId" filterable placeholder="ÇëÑ¡ÔñÕËºÅ" style="width: 100%">
-            <el-option v-for="item in accountOptions" :key="item.id" :label="item.name" :value="item.id" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="»Ø¸´ÀàĞÍ" prop="replyType">
-          <el-select v-model="form.replyType" style="width: 100%">
-            <el-option label="¹Ø¼ü´Ê»Ø¸´" value="keyword" />
-            <el-option label="Ä¬ÈÏ»Ø¸´" value="default" />
-            <el-option label="¹Ø×¢»Ø¸´" value="subscribe" />
-          </el-select>
-        </el-form-item>
-        <el-form-item v-if="form.replyType === 'keyword'" label="¹Ø¼ü´Ê" prop="keyword">
-          <el-input v-model="form.keyword" maxlength="100" />
-        </el-form-item>
-        <el-form-item label="»Ø¸´ÄÚÈİ" prop="content">
-          <el-input v-model="form.content" type="textarea" :rows="5" maxlength="1000" show-word-limit />
-        </el-form-item>
-        <el-form-item label="Æ¥Åä·½Ê½" v-if="form.replyType === 'keyword'">
-          <el-radio-group v-model="form.matchType">
-            <el-radio :label="1">°üº¬Æ¥Åä</el-radio>
-            <el-radio :label="2">È«µÈÆ¥Åä</el-radio>
-          </el-radio-group>
-        </el-form-item>
-        <el-form-item label="×´Ì¬">
-          <el-switch v-model="form.enabled" :active-value="1" :inactive-value="0" />
-        </el-form-item>
+        <el-form-item label="è´¦å·" prop="accountId"><el-select v-model="form.accountId" filterable placeholder="è¯·é€‰æ‹©è´¦å·" style="width: 100%"><el-option v-for="item in accountOptions" :key="item.id" :label="item.name" :value="item.id" /></el-select></el-form-item>
+        <el-form-item label="å›å¤ç±»å‹" prop="replyType"><el-select v-model="form.replyType" style="width: 100%"><el-option label="å…³é”®è¯å›å¤" value="keyword" /><el-option label="é»˜è®¤å›å¤" value="default" /><el-option label="å…³æ³¨å›å¤" value="subscribe" /></el-select></el-form-item>
+        <el-form-item v-if="form.replyType === 'keyword'" label="å…³é”®è¯" prop="keyword"><el-input v-model="form.keyword" maxlength="100" /></el-form-item>
+        <el-form-item label="å›å¤å†…å®¹" prop="content"><el-input v-model="form.content" type="textarea" :rows="5" maxlength="1000" show-word-limit /></el-form-item>
+        <el-form-item label="åŒ¹é…æ–¹å¼" v-if="form.replyType === 'keyword'"><el-radio-group v-model="form.matchType"><el-radio :label="1">åŒ…å«åŒ¹é…</el-radio><el-radio :label="2">å…¨ç­‰åŒ¹é…</el-radio></el-radio-group></el-form-item>
+        <el-form-item label="çŠ¶æ€"><el-switch v-model="form.enabled" :active-value="1" :inactive-value="0" /></el-form-item>
       </el-form>
-      <template #footer>
-        <el-button @click="dialogVisible = false">È¡Ïû</el-button>
-        <el-button type="primary" :loading="submitLoading" @click="submitForm">±£´æ</el-button>
-      </template>
+      <template #footer><el-button @click="dialogVisible = false">å–æ¶ˆ</el-button><el-button type="primary" :loading="submitLoading" @click="submitForm">ä¿å­˜</el-button></template>
     </el-dialog>
   </div>
 </template>
-
 <script setup>
 import { listWechatAccount, listWechatReply, saveWechatReply } from '@/api/wechat'
-
 defineOptions({ name: 'WechatReply' })
-
 const { proxy } = getCurrentInstance()
-const formRef = ref()
-const loading = ref(false)
-const submitLoading = ref(false)
-const dialogVisible = ref(false)
-const list = ref([])
-const total = ref(0)
-const accountOptions = ref([])
-
-const queryParams = ref({
-  pageNum: 1,
-  pageSize: 10,
-  accountId: undefined,
-  status: undefined,
-  keyword: undefined
-})
-
-const form = reactive({
-  id: undefined,
-  accountId: undefined,
-  replyType: 'keyword',
-  keyword: '',
-  content: '',
-  enabled: 1,
-  matchType: 1
-})
-
+const formRef = ref(); const loading = ref(false); const submitLoading = ref(false); const dialogVisible = ref(false)
+const list = ref([]); const total = ref(0); const accountOptions = ref([])
+const queryParams = ref({ pageNum: 1, pageSize: 10, accountId: undefined, status: undefined, keyword: undefined })
+const form = reactive({ id: undefined, accountId: undefined, replyType: 'keyword', keyword: '', content: '', enabled: 1, matchType: 1 })
 const rules = {
-  accountId: [{ required: true, message: 'ÇëÑ¡ÔñÕËºÅ', trigger: 'change' }],
-  replyType: [{ required: true, message: 'ÇëÑ¡Ôñ»Ø¸´ÀàĞÍ', trigger: 'change' }],
-  keyword: [{
-    validator: (_, value, callback) => {
-      if (form.replyType === 'keyword' && !value?.trim()) {
-        callback(new Error('ÇëÊäÈë¹Ø¼ü´Ê'))
-        return
-      }
-      callback()
-    },
-    trigger: 'blur'
-  }],
-  content: [{ required: true, message: 'ÇëÊäÈë»Ø¸´ÄÚÈİ', trigger: 'blur' }]
+  accountId: [{ required: true, message: 'è¯·é€‰æ‹©è´¦å·', trigger: 'change' }],
+  replyType: [{ required: true, message: 'è¯·é€‰æ‹©å›å¤ç±»å‹', trigger: 'change' }],
+  keyword: [{ validator: (_, value, callback) => { if (form.replyType === 'keyword' && !value?.trim()) { callback(new Error('è¯·è¾“å…¥å…³é”®è¯')); return } callback() }, trigger: 'blur' }],
+  content: [{ required: true, message: 'è¯·è¾“å…¥å›å¤å†…å®¹', trigger: 'blur' }]
 }
-
-function replyTypeLabel(type) {
-  const map = { keyword: '¹Ø¼ü´Ê', default: 'Ä¬ÈÏ»Ø¸´', subscribe: '¹Ø×¢»Ø¸´' }
-  return map[type] || type
-}
-
-function loadAccounts() {
-  return listWechatAccount({ pageNum: 1, pageSize: 1000 }).then(res => {
-    accountOptions.value = res.rows || []
-  })
-}
-
-function resetForm() {
-  Object.assign(form, {
-    id: undefined,
-    accountId: undefined,
-    replyType: 'keyword',
-    keyword: '',
-    content: '',
-    enabled: 1,
-    matchType: 1
-  })
-  formRef.value?.clearValidate()
-}
-
-function getList() {
-  loading.value = true
-  listWechatReply(queryParams.value).then(res => {
-    list.value = res.rows || []
-    total.value = res.total || 0
-  }).finally(() => {
-    loading.value = false
-  })
-}
-
-function handleQuery() {
-  queryParams.value.pageNum = 1
-  getList()
-}
-
-function resetQuery() {
-  queryParams.value = { pageNum: 1, pageSize: 10, accountId: undefined, status: undefined, keyword: undefined }
-  getList()
-}
-
-function openDialog(row) {
-  resetForm()
-  if (row) {
-    Object.assign(form, row)
-  }
-  dialogVisible.value = true
-}
-
-function submitForm() {
-  if (form.replyType !== 'keyword') {
-    form.keyword = ''
-    form.matchType = 1
-  }
-  formRef.value.validate(valid => {
-    if (!valid) return
-    submitLoading.value = true
-    saveWechatReply(form).then(() => {
-      proxy.$modal.msgSuccess('±£´æ³É¹¦')
-      dialogVisible.value = false
-      getList()
-    }).finally(() => {
-      submitLoading.value = false
-    })
-  })
-}
-
-Promise.all([loadAccounts()]).finally(() => {
-  getList()
-})
+function replyTypeLabel(type) { const map = { keyword: 'å…³é”®è¯', default: 'é»˜è®¤å›å¤', subscribe: 'å…³æ³¨å›å¤' }; return map[type] || type }
+function loadAccounts() { return listWechatAccount({ pageNum: 1, pageSize: 1000 }).then(res => { accountOptions.value = res.rows || [] }) }
+function resetForm() { Object.assign(form, { id: undefined, accountId: undefined, replyType: 'keyword', keyword: '', content: '', enabled: 1, matchType: 1 }); formRef.value?.clearValidate() }
+function getList() { loading.value = true; listWechatReply(queryParams.value).then(res => { list.value = res.rows || []; total.value = res.total || 0 }).finally(() => { loading.value = false }) }
+function handleQuery() { queryParams.value.pageNum = 1; getList() }
+function resetQuery() { queryParams.value = { pageNum: 1, pageSize: 10, accountId: undefined, status: undefined, keyword: undefined }; getList() }
+function openDialog(row) { resetForm(); if (row) Object.assign(form, row); dialogVisible.value = true }
+function submitForm() { if (form.replyType !== 'keyword') { form.keyword = ''; form.matchType = 1 }; formRef.value.validate(valid => { if (!valid) return; submitLoading.value = true; saveWechatReply(form).then(() => { proxy.$modal.msgSuccess('ä¿å­˜æˆåŠŸ'); dialogVisible.value = false; getList() }).finally(() => { submitLoading.value = false }) }) }
+Promise.all([loadAccounts()]).finally(() => getList())
 </script>

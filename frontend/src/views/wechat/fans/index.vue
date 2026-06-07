@@ -1,86 +1,28 @@
 <template>
   <div class="app-container">
     <el-form :inline="true" :model="queryParams" class="mb8">
-      <el-form-item label="ÕËºÅID">
-        <el-input-number v-model="queryParams.accountId" :min="1" controls-position="right" />
-      </el-form-item>
-      <el-form-item label="×´Ì¬">
-        <el-select v-model="queryParams.status" clearable placeholder="È«²¿" style="width: 120px">
-          <el-option label="ÒÑ¹Ø×¢" :value="1" />
-          <el-option label="Î´¹Ø×¢" :value="0" />
-        </el-select>
-      </el-form-item>
-      <el-form-item label="¹Ø¼ü´Ê">
-        <el-input v-model="queryParams.keyword" placeholder="êÇ³Æ/OpenID" clearable style="width: 220px" @keyup.enter="handleQuery" />
-      </el-form-item>
-      <el-form-item>
-        <el-button type="primary" icon="Search" @click="handleQuery">ËÑË÷</el-button>
-        <el-button icon="Refresh" @click="resetQuery">ÖØÖÃ</el-button>
-      </el-form-item>
+      <el-form-item label="è´¦å·ID"><el-input-number v-model="queryParams.accountId" :min="1" controls-position="right" /></el-form-item>
+      <el-form-item label="çŠ¶æ€"><el-select v-model="queryParams.status" clearable placeholder="å…¨éƒ¨" style="width: 120px"><el-option label="å·²å…³æ³¨" :value="1" /><el-option label="æœªå…³æ³¨" :value="0" /></el-select></el-form-item>
+      <el-form-item label="å…³é”®è¯"><el-input v-model="queryParams.keyword" placeholder="æ˜µç§°/OpenID" clearable style="width: 220px" @keyup.enter="handleQuery" /></el-form-item>
+      <el-form-item><el-button type="primary" icon="Search" @click="handleQuery">æœç´¢</el-button><el-button icon="Refresh" @click="resetQuery">é‡ç½®</el-button></el-form-item>
     </el-form>
-
     <el-table v-loading="loading" :data="list">
-      <el-table-column label="ID" prop="id" width="80" />
-      <el-table-column label="ÕËºÅID" prop="accountId" width="90" />
-      <el-table-column label="êÇ³Æ" prop="nickname" min-width="140" show-overflow-tooltip />
-      <el-table-column label="OpenID" prop="openId" min-width="220" show-overflow-tooltip />
+      <el-table-column label="ID" prop="id" width="80" /><el-table-column label="è´¦å·ID" prop="accountId" width="90" />
+      <el-table-column label="æ˜µç§°" prop="nickname" min-width="140" show-overflow-tooltip /><el-table-column label="OpenID" prop="openId" min-width="220" show-overflow-tooltip />
       <el-table-column label="UnionID" prop="unionId" min-width="180" show-overflow-tooltip />
-      <el-table-column label="¹Ø×¢×´Ì¬" width="100">
-        <template #default="{ row }">
-          <el-tag :type="row.subscribeStatus === 1 ? 'success' : 'info'">
-            {{ row.subscribeStatus === 1 ? 'ÒÑ¹Ø×¢' : 'Î´¹Ø×¢' }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="¹Ø×¢Ê±¼ä" prop="subscribeTime" width="170" />
-      <el-table-column label="¸üĞÂÊ±¼ä" prop="updateTime" width="170" />
+      <el-table-column label="å…³æ³¨çŠ¶æ€" width="100"><template #default="{ row }"><el-tag :type="row.subscribeStatus === 1 ? 'success' : 'info'">{{ row.subscribeStatus === 1 ? 'å·²å…³æ³¨' : 'æœªå…³æ³¨' }}</el-tag></template></el-table-column>
+      <el-table-column label="å…³æ³¨æ—¶é—´" prop="subscribeTime" width="170" /><el-table-column label="æ›´æ–°æ—¶é—´" prop="updateTime" width="170" />
     </el-table>
-
-    <pagination
-      v-show="total > 0"
-      :total="total"
-      v-model:page="queryParams.pageNum"
-      v-model:limit="queryParams.pageSize"
-      @pagination="getList"
-    />
+    <pagination v-show="total > 0" :total="total" v-model:page="queryParams.pageNum" v-model:limit="queryParams.pageSize" @pagination="getList" />
   </div>
 </template>
-
 <script setup>
 import { listWechatFans } from '@/api/wechat'
-
 defineOptions({ name: 'WechatFans' })
-
-const loading = ref(false)
-const list = ref([])
-const total = ref(0)
-const queryParams = ref({
-  pageNum: 1,
-  pageSize: 10,
-  accountId: undefined,
-  status: undefined,
-  keyword: undefined
-})
-
-function getList() {
-  loading.value = true
-  listWechatFans(queryParams.value).then(res => {
-    list.value = res.rows || []
-    total.value = res.total || 0
-  }).finally(() => {
-    loading.value = false
-  })
-}
-
-function handleQuery() {
-  queryParams.value.pageNum = 1
-  getList()
-}
-
-function resetQuery() {
-  queryParams.value = { pageNum: 1, pageSize: 10, accountId: undefined, status: undefined, keyword: undefined }
-  getList()
-}
-
+const loading = ref(false); const list = ref([]); const total = ref(0)
+const queryParams = ref({ pageNum: 1, pageSize: 10, accountId: undefined, status: undefined, keyword: undefined })
+function getList() { loading.value = true; listWechatFans(queryParams.value).then(res => { list.value = res.rows || []; total.value = res.total || 0 }).finally(() => { loading.value = false }) }
+function handleQuery() { queryParams.value.pageNum = 1; getList() }
+function resetQuery() { queryParams.value = { pageNum: 1, pageSize: 10, accountId: undefined, status: undefined, keyword: undefined }; getList() }
 getList()
 </script>

@@ -1,74 +1,62 @@
 <template>
   <div class="app-container">
     <el-form :inline="true" :model="queryParams" class="mb8">
-      <el-form-item label="’À∫≈">
-        <el-select v-model="queryParams.accountId" clearable filterable placeholder="»´≤ø’À∫≈" style="width: 220px">
+      <el-form-item label="Ë¥¶Âè∑">
+        <el-select v-model="queryParams.accountId" clearable filterable placeholder="ÂÖ®ÈÉ®Ë¥¶Âè∑" style="width: 220px">
           <el-option v-for="item in accountOptions" :key="item.id" :label="item.name" :value="item.id" />
         </el-select>
       </el-form-item>
-      <el-form-item label="πÿº¸¥ ">
-        <el-input v-model="queryParams.keyword" placeholder="≤Àµ• JSON πÿº¸◊÷" clearable style="width: 220px" @keyup.enter="handleQuery" />
+      <el-form-item label="ÂÖ≥ÈîÆËØç">
+        <el-input v-model="queryParams.keyword" placeholder="ËèúÂçï JSON ÂÖ≥ÈîÆÂ≠ó" clearable style="width: 220px" @keyup.enter="handleQuery" />
       </el-form-item>
       <el-form-item>
-        <el-button type="primary" icon="Search" @click="handleQuery">À—À˜</el-button>
-        <el-button icon="Refresh" @click="resetQuery">÷ÿ÷√</el-button>
-        <el-button type="primary" plain icon="Plus" v-hasPermi="['wechat:menu:add']" @click="openDialog()">–¬‘ˆ≤Àµ•</el-button>
+        <el-button type="primary" icon="Search" @click="handleQuery">ÊêúÁ¥¢</el-button>
+        <el-button icon="Refresh" @click="resetQuery">ÈáçÁΩÆ</el-button>
+        <el-button type="primary" plain icon="Plus" v-hasPermi="['wechat:menu:add']" @click="openDialog()">Êñ∞Â¢ûËèúÂçï</el-button>
       </el-form-item>
     </el-form>
-
     <el-table v-loading="loading" :data="list">
       <el-table-column label="ID" prop="id" width="80" />
-      <el-table-column label="’À∫≈ID" prop="accountId" width="90" />
-      <el-table-column label="’À∫≈√˚≥∆" min-width="140">
+      <el-table-column label="Ë¥¶Âè∑ID" prop="accountId" width="90" />
+      <el-table-column label="Ë¥¶Âè∑ÂêçÁß∞" min-width="140">
         <template #default="{ row }">{{ accountNameMap[row.accountId] || '-' }}</template>
       </el-table-column>
-      <el-table-column label="“—∑¢≤º" width="90" align="center">
+      <el-table-column label="Â∑≤ÂèëÂ∏É" width="90" align="center">
         <template #default="{ row }">
-          <el-tag :type="row.isPublished === 1 ? 'success' : 'info'">{{ row.isPublished === 1 ? ' «' : '∑Ò' }}</el-tag>
+          <el-tag :type="row.isPublished === 1 ? 'success' : 'info'">{{ row.isPublished === 1 ? 'ÊòØ' : 'Âê¶' }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="≤Àµ•JSON" prop="menuJson" min-width="260" show-overflow-tooltip />
-      <el-table-column label="∏¸–¬ ±º‰" prop="updateTime" width="170" />
-      <el-table-column label="≤Ÿ◊˜" width="170" align="center">
+      <el-table-column label="ËèúÂçïJSON" prop="menuJson" min-width="260" show-overflow-tooltip />
+      <el-table-column label="Êõ¥Êñ∞Êó∂Èó¥" prop="updateTime" width="170" />
+      <el-table-column label="Êìç‰Ωú" width="170" align="center">
         <template #default="{ row }">
-          <el-button link type="primary" v-hasPermi="['wechat:menu:edit']" @click="openDialog(row)">±‡º≠</el-button>
-          <el-button link type="success" v-hasPermi="['wechat:menu:publish']" @click="handlePublish(row)">∑¢≤º</el-button>
+          <el-button link type="primary" v-hasPermi="['wechat:menu:edit']" @click="openDialog(row)">ÁºñËæë</el-button>
+          <el-button link type="success" v-hasPermi="['wechat:menu:publish']" @click="handlePublish(row)">ÂèëÂ∏É</el-button>
         </template>
       </el-table-column>
     </el-table>
-
-    <pagination
-      v-show="total > 0"
-      :total="total"
-      v-model:page="queryParams.pageNum"
-      v-model:limit="queryParams.pageSize"
-      @pagination="getList"
-    />
-
-    <el-dialog v-model="dialogVisible" :title="form.id ? '±‡º≠≤Àµ•' : '–¬‘ˆ≤Àµ•'" width="760px" append-to-body>
+    <pagination v-show="total > 0" :total="total" v-model:page="queryParams.pageNum" v-model:limit="queryParams.pageSize" @pagination="getList" />
+    <el-dialog v-model="dialogVisible" :title="form.id ? 'ÁºñËæëËèúÂçï' : 'Êñ∞Â¢ûËèúÂçï'" width="760px" append-to-body>
       <el-form ref="formRef" :model="form" :rules="rules" label-width="90px">
-        <el-form-item label="’À∫≈" prop="accountId">
-          <el-select v-model="form.accountId" filterable placeholder="«Î—°‘Ò’À∫≈" style="width: 100%">
+        <el-form-item label="Ë¥¶Âè∑" prop="accountId">
+          <el-select v-model="form.accountId" filterable placeholder="ËØ∑ÈÄâÊã©Ë¥¶Âè∑" style="width: 100%">
             <el-option v-for="item in accountOptions" :key="item.id" :label="item.name" :value="item.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="≤Àµ•JSON" prop="menuJson">
-          <el-input v-model="form.menuJson" type="textarea" :rows="14" placeholder="«Î ‰»ÎÕÍ’˚µƒ≤Àµ• JSON" />
+        <el-form-item label="ËèúÂçïJSON" prop="menuJson">
+          <el-input v-model="form.menuJson" type="textarea" :rows="14" placeholder="ËØ∑ËæìÂÖ•ÂÆåÊï¥ÁöÑËèúÂçï JSON" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">»°œ˚</el-button>
-        <el-button type="primary" :loading="submitLoading" @click="submitForm">±£¥Ê</el-button>
+        <el-button @click="dialogVisible = false">ÂèñÊ∂à</el-button>
+        <el-button type="primary" :loading="submitLoading" @click="submitForm">‰øùÂ≠ò</el-button>
       </template>
     </el-dialog>
   </div>
 </template>
-
 <script setup>
 import { listWechatAccount, listWechatMenu, publishWechatMenu, saveWechatMenu } from '@/api/wechat'
-
 defineOptions({ name: 'WechatMenu' })
-
 const { proxy } = getCurrentInstance()
 const formRef = ref()
 const loading = ref(false)
@@ -77,105 +65,29 @@ const dialogVisible = ref(false)
 const list = ref([])
 const total = ref(0)
 const accountOptions = ref([])
-const accountNameMap = computed(() => {
-  const map = {}
-  accountOptions.value.forEach(item => {
-    map[item.id] = item.name
-  })
-  return map
-})
-
-const queryParams = ref({
-  pageNum: 1,
-  pageSize: 10,
-  accountId: undefined,
-  keyword: undefined
-})
-
-const form = reactive({
-  id: undefined,
-  accountId: undefined,
-  menuJson: ''
-})
-
+const accountNameMap = computed(() => { const map = {}; accountOptions.value.forEach(item => { map[item.id] = item.name }); return map })
+const queryParams = ref({ pageNum: 1, pageSize: 10, accountId: undefined, keyword: undefined })
+const form = reactive({ id: undefined, accountId: undefined, menuJson: '' })
 const rules = {
-  accountId: [{ required: true, message: '«Î—°‘Ò’À∫≈', trigger: 'change' }],
-  menuJson: [{ required: true, message: '«Î ‰»Î≤Àµ• JSON', trigger: 'blur' }]
+  accountId: [{ required: true, message: 'ËØ∑ÈÄâÊã©Ë¥¶Âè∑', trigger: 'change' }],
+  menuJson: [{ required: true, message: 'ËØ∑ËæìÂÖ•ËèúÂçï JSON', trigger: 'blur' }]
 }
-
-function loadAccounts() {
-  return listWechatAccount({ pageNum: 1, pageSize: 1000 }).then(res => {
-    accountOptions.value = res.rows || []
-  })
-}
-
-function resetForm() {
-  Object.assign(form, {
-    id: undefined,
-    accountId: undefined,
-    menuJson: '{\n  "button": []\n}'
-  })
-  formRef.value?.clearValidate()
-}
-
-function getList() {
-  loading.value = true
-  listWechatMenu(queryParams.value).then(res => {
-    list.value = res.rows || []
-    total.value = res.total || 0
-  }).finally(() => {
-    loading.value = false
-  })
-}
-
-function handleQuery() {
-  queryParams.value.pageNum = 1
-  getList()
-}
-
-function resetQuery() {
-  queryParams.value = { pageNum: 1, pageSize: 10, accountId: undefined, keyword: undefined }
-  getList()
-}
-
-function openDialog(row) {
-  resetForm()
-  if (row) {
-    Object.assign(form, row)
-  }
-  dialogVisible.value = true
-}
-
+function loadAccounts() { return listWechatAccount({ pageNum: 1, pageSize: 1000 }).then(res => { accountOptions.value = res.rows || [] }) }
+function resetForm() { Object.assign(form, { id: undefined, accountId: undefined, menuJson: '{\n  "button": []\n}' }); formRef.value?.clearValidate() }
+function getList() { loading.value = true; listWechatMenu(queryParams.value).then(res => { list.value = res.rows || []; total.value = res.total || 0 }).finally(() => { loading.value = false }) }
+function handleQuery() { queryParams.value.pageNum = 1; getList() }
+function resetQuery() { queryParams.value = { pageNum: 1, pageSize: 10, accountId: undefined, keyword: undefined }; getList() }
+function openDialog(row) { resetForm(); if (row) Object.assign(form, row); dialogVisible.value = true }
 function submitForm() {
   formRef.value.validate(valid => {
     if (!valid) return
-    try {
-      JSON.parse(form.menuJson)
-    } catch {
-      proxy.$modal.msgError('≤Àµ• JSON ∏Ò Ω¥ÌŒÛ')
-      return
-    }
+    try { JSON.parse(form.menuJson) } catch { proxy.$modal.msgError('ËèúÂçï JSON Ê†ºÂºèÈîôËØØ'); return }
     submitLoading.value = true
-    saveWechatMenu(form).then(() => {
-      proxy.$modal.msgSuccess('±£¥Ê≥…π¶')
-      dialogVisible.value = false
-      getList()
-    }).finally(() => {
-      submitLoading.value = false
-    })
+    saveWechatMenu(form).then(() => { proxy.$modal.msgSuccess('‰øùÂ≠òÊàêÂäü'); dialogVisible.value = false; getList() }).finally(() => { submitLoading.value = false })
   })
 }
-
 function handlePublish(row) {
-  proxy.$modal.confirm('»∑»œ∑¢≤º∏√≤Àµ•µΩŒ¢–≈¬£ø').then(() => {
-    return publishWechatMenu(row.id)
-  }).then(() => {
-    proxy.$modal.msgSuccess('∑¢≤º≥…π¶')
-    getList()
-  }).catch(() => {})
+  proxy.$modal.confirm('Á°ÆËÆ§ÂèëÂ∏ÉËØ•ËèúÂçïÂà∞ÂæÆ‰ø°ÂêóÔºü').then(() => publishWechatMenu(row.id)).then(() => { proxy.$modal.msgSuccess('ÂèëÂ∏ÉÊàêÂäü'); getList() }).catch(() => {})
 }
-
-Promise.all([loadAccounts()]).finally(() => {
-  getList()
-})
+Promise.all([loadAccounts()]).finally(() => getList())
 </script>

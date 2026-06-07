@@ -1,108 +1,36 @@
 <template>
   <div class="app-container">
     <el-form :inline="true" :model="queryParams" class="mb8">
-      <el-form-item label="ÕËºÅID">
-        <el-input-number v-model="queryParams.accountId" :min="1" controls-position="right" placeholder="ÕËºÅID" />
-      </el-form-item>
-      <el-form-item label="×´Ì¬">
-        <el-select v-model="queryParams.status" placeholder="È«²¿" clearable style="width: 140px">
-          <el-option label="´ı´¦Àí" :value="0" />
-          <el-option label="²İ¸å³É¹¦" :value="1" />
-          <el-option label="·¢²¼ÖĞ" :value="2" />
-          <el-option label="ÒÑ·¢²¼" :value="3" />
-          <el-option label="Ê§°Ü" :value="4" />
-        </el-select>
-      </el-form-item>
-      <el-form-item label="¹Ø¼ü´Ê">
-        <el-input v-model="queryParams.keyword" placeholder="ÎÄÕÂID/ÏûÏ¢ID" clearable style="width: 220px" @keyup.enter="handleQuery" />
-      </el-form-item>
-      <el-form-item>
-        <el-button type="primary" icon="Search" @click="handleQuery">ËÑË÷</el-button>
-        <el-button icon="Refresh" @click="resetQuery">ÖØÖÃ</el-button>
-      </el-form-item>
+      <el-form-item label="è´¦å·ID"><el-input-number v-model="queryParams.accountId" :min="1" controls-position="right" placeholder="è´¦å·ID" /></el-form-item>
+      <el-form-item label="çŠ¶æ€"><el-select v-model="queryParams.status" placeholder="å…¨éƒ¨" clearable style="width: 140px">
+        <el-option label="å¾…å¤„ç†" :value="0" /><el-option label="è‰ç¨¿æˆåŠŸ" :value="1" /><el-option label="å‘å¸ƒä¸­" :value="2" /><el-option label="å·²å‘å¸ƒ" :value="3" /><el-option label="å¤±è´¥" :value="4" />
+      </el-select></el-form-item>
+      <el-form-item label="å…³é”®è¯"><el-input v-model="queryParams.keyword" placeholder="æ–‡ç« ID/æ¶ˆæ¯ID" clearable style="width: 220px" @keyup.enter="handleQuery" /></el-form-item>
+      <el-form-item><el-button type="primary" icon="Search" @click="handleQuery">æœç´¢</el-button><el-button icon="Refresh" @click="resetQuery">é‡ç½®</el-button></el-form-item>
     </el-form>
-
     <el-table v-loading="loading" :data="list">
-      <el-table-column label="¼ÇÂ¼ID" prop="id" width="90" />
-      <el-table-column label="ÕËºÅID" prop="accountId" width="90" />
-      <el-table-column label="ÎÄÕÂID" prop="articleId" width="90" />
-      <el-table-column label="ËØ²ÄID" prop="materialId" width="90" />
-      <el-table-column label="ÍÆËÍÄ£Ê½" prop="publishMode" width="140">
-        <template #default="{ row }">
-          {{ row.publishMode === 'draft_and_publish' ? '²İ¸å²¢·¢²¼' : '½ö²İ¸å' }}
-        </template>
-      </el-table-column>
-      <el-table-column label="×´Ì¬" width="110">
-        <template #default="{ row }">
-          <el-tag :type="statusTag(row.status)">{{ statusLabel(row.status) }}</el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="ÈÎÎñºÅ" prop="msgId" min-width="130" show-overflow-tooltip />
-      <el-table-column label="´íÎóĞÅÏ¢" prop="errorMessage" min-width="180" show-overflow-tooltip />
-      <el-table-column label="¸üĞÂÊ±¼ä" prop="updateTime" width="170" />
+      <el-table-column label="è®°å½•ID" prop="id" width="90" />
+      <el-table-column label="è´¦å·ID" prop="accountId" width="90" />
+      <el-table-column label="æ–‡ç« ID" prop="articleId" width="90" />
+      <el-table-column label="ç´ æID" prop="materialId" width="90" />
+      <el-table-column label="æ¨é€æ¨¡å¼" prop="publishMode" width="140"><template #default="{ row }">{{ row.publishMode === 'draft_and_publish' ? 'è‰ç¨¿å¹¶å‘å¸ƒ' : 'ä»…è‰ç¨¿' }}</template></el-table-column>
+      <el-table-column label="çŠ¶æ€" width="110"><template #default="{ row }"><el-tag :type="statusTag(row.status)">{{ statusLabel(row.status) }}</el-tag></template></el-table-column>
+      <el-table-column label="ä»»åŠ¡å·" prop="msgId" min-width="130" show-overflow-tooltip />
+      <el-table-column label="é”™è¯¯ä¿¡æ¯" prop="errorMessage" min-width="180" show-overflow-tooltip />
+      <el-table-column label="æ›´æ–°æ—¶é—´" prop="updateTime" width="170" />
     </el-table>
-
-    <pagination
-      v-show="total > 0"
-      :total="total"
-      v-model:page="queryParams.pageNum"
-      v-model:limit="queryParams.pageSize"
-      @pagination="getList"
-    />
+    <pagination v-show="total > 0" :total="total" v-model:page="queryParams.pageNum" v-model:limit="queryParams.pageSize" @pagination="getList" />
   </div>
 </template>
-
 <script setup>
 import { listWechatPublish } from '@/api/wechat'
-
 defineOptions({ name: 'WechatPublish' })
-
-const loading = ref(false)
-const list = ref([])
-const total = ref(0)
-const queryParams = ref({
-  pageNum: 1,
-  pageSize: 10,
-  accountId: undefined,
-  status: undefined,
-  keyword: undefined
-})
-
-function statusLabel(status) {
-  const map = { 0: '´ı´¦Àí', 1: '²İ¸å³É¹¦', 2: '·¢²¼ÖĞ', 3: 'ÒÑ·¢²¼', 4: 'Ê§°Ü' }
-  return map[status] || String(status ?? '')
-}
-
-function statusTag(status) {
-  const map = { 0: 'info', 1: 'success', 2: 'warning', 3: 'success', 4: 'danger' }
-  return map[status] || 'info'
-}
-
-function getList() {
-  loading.value = true
-  listWechatPublish(queryParams.value).then(res => {
-    list.value = res.rows || []
-    total.value = res.total || 0
-  }).finally(() => {
-    loading.value = false
-  })
-}
-
-function handleQuery() {
-  queryParams.value.pageNum = 1
-  getList()
-}
-
-function resetQuery() {
-  queryParams.value = {
-    pageNum: 1,
-    pageSize: 10,
-    accountId: undefined,
-    status: undefined,
-    keyword: undefined
-  }
-  getList()
-}
-
+const loading = ref(false); const list = ref([]); const total = ref(0)
+const queryParams = ref({ pageNum: 1, pageSize: 10, accountId: undefined, status: undefined, keyword: undefined })
+function statusLabel(status) { const map = { 0: 'å¾…å¤„ç†', 1: 'è‰ç¨¿æˆåŠŸ', 2: 'å‘å¸ƒä¸­', 3: 'å·²å‘å¸ƒ', 4: 'å¤±è´¥' }; return map[status] || String(status ?? '') }
+function statusTag(status) { const map = { 0: 'info', 1: 'success', 2: 'warning', 3: 'success', 4: 'danger' }; return map[status] || 'info' }
+function getList() { loading.value = true; listWechatPublish(queryParams.value).then(res => { list.value = res.rows || []; total.value = res.total || 0 }).finally(() => { loading.value = false }) }
+function handleQuery() { queryParams.value.pageNum = 1; getList() }
+function resetQuery() { queryParams.value = { pageNum: 1, pageSize: 10, accountId: undefined, status: undefined, keyword: undefined }; getList() }
 getList()
 </script>

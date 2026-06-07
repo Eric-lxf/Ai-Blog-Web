@@ -2,43 +2,43 @@
   <div class="app-container">
     <el-alert :closable="false" type="info" class="mb12">
       <template #title>
-        Î¢ÐÅ»Øµ÷µØÖ·Ê¾Àý£º{{ callbackExample }}
+        å¾®ä¿¡å›žè°ƒåœ°å€ç¤ºä¾‹ï¼š{{ callbackExample }}
       </template>
     </el-alert>
 
     <el-form :inline="true" :model="queryParams" class="mb8">
-      <el-form-item label="ÕËºÅÃû³Æ">
-        <el-input v-model="queryParams.keyword" placeholder="ÇëÊäÈëÕËºÅÃû³Æ" clearable style="width: 220px" @keyup.enter="handleQuery" />
+      <el-form-item label="è´¦å·åç§°">
+        <el-input v-model="queryParams.keyword" placeholder="è¯·è¾“å…¥è´¦å·åç§°" clearable style="width: 220px" @keyup.enter="handleQuery" />
       </el-form-item>
-      <el-form-item label="×´Ì¬">
-        <el-select v-model="queryParams.status" placeholder="È«²¿" clearable style="width: 120px">
-          <el-option label="ÆôÓÃ" :value="1" />
-          <el-option label="Í£ÓÃ" :value="0" />
+      <el-form-item label="çŠ¶æ€">
+        <el-select v-model="queryParams.status" placeholder="å…¨éƒ¨" clearable style="width: 120px">
+          <el-option label="å¯ç”¨" :value="1" />
+          <el-option label="åœç”¨" :value="0" />
         </el-select>
       </el-form-item>
       <el-form-item>
-        <el-button type="primary" icon="Search" @click="handleQuery">ËÑË÷</el-button>
-        <el-button icon="Refresh" @click="resetQuery">ÖØÖÃ</el-button>
-        <el-button type="primary" plain icon="Plus" v-hasPermi="['wechat:account:add']" @click="openDialog()">ÐÂÔöÕËºÅ</el-button>
+        <el-button type="primary" icon="Search" @click="handleQuery">æœç´¢</el-button>
+        <el-button icon="Refresh" @click="resetQuery">é‡ç½®</el-button>
+        <el-button type="primary" plain icon="Plus" v-hasPermi="['wechat:account:add']" @click="openDialog()">æ–°å¢žè´¦å·</el-button>
       </el-form-item>
     </el-form>
 
     <el-table v-loading="loading" :data="list">
       <el-table-column label="ID" prop="id" width="80" />
-      <el-table-column label="ÕËºÅÃû³Æ" prop="name" min-width="160" />
+      <el-table-column label="è´¦å·åç§°" prop="name" min-width="160" />
       <el-table-column label="AppID" prop="appId" min-width="180" show-overflow-tooltip />
       <el-table-column label="Token" prop="token" min-width="140" show-overflow-tooltip />
-      <el-table-column label="×´Ì¬" width="90" align="center">
+      <el-table-column label="çŠ¶æ€" width="90" align="center">
         <template #default="{ row }">
-          <el-tag :type="row.enabled === 1 ? 'success' : 'info'">{{ row.enabled === 1 ? 'ÆôÓÃ' : 'Í£ÓÃ' }}</el-tag>
+          <el-tag :type="row.enabled === 1 ? 'success' : 'info'">{{ row.enabled === 1 ? 'å¯ç”¨' : 'åœç”¨' }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="¸üÐÂÊ±¼ä" prop="updateTime" width="170" />
-      <el-table-column label="²Ù×÷" width="260" align="center" fixed="right">
+      <el-table-column label="æ›´æ–°æ—¶é—´" prop="updateTime" width="170" />
+      <el-table-column label="æ“ä½œ" width="260" align="center" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" v-hasPermi="['wechat:account:edit']" @click="openDialog(row)">±à¼­</el-button>
-          <el-button link type="primary" v-hasPermi="['wechat:account:query']" @click="handleTest(row)">²âÊÔÁ¬½Ó</el-button>
-          <el-button link type="danger" v-hasPermi="['wechat:account:remove']" @click="handleDelete(row)">É¾³ý</el-button>
+          <el-button link type="primary" v-hasPermi="['wechat:account:edit']" @click="openDialog(row)">ç¼–è¾‘</el-button>
+          <el-button link type="primary" v-hasPermi="['wechat:account:query']" @click="handleTest(row)">æµ‹è¯•è¿žæŽ¥</el-button>
+          <el-button link type="danger" v-hasPermi="['wechat:account:remove']" @click="handleDelete(row)">åˆ é™¤</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -51,9 +51,9 @@
       @pagination="getList"
     />
 
-    <el-dialog v-model="dialogVisible" :title="form.id ? '±à¼­¹«ÖÚºÅÕËºÅ' : 'ÐÂÔö¹«ÖÚºÅÕËºÅ'" width="640px" append-to-body>
+    <el-dialog v-model="dialogVisible" :title="form.id ? 'ç¼–è¾‘å…¬ä¼—å·è´¦å·' : 'æ–°å¢žå…¬ä¼—å·è´¦å·'" width="640px" append-to-body>
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
-        <el-form-item label="ÕËºÅÃû³Æ" prop="name">
+        <el-form-item label="è´¦å·åç§°" prop="name">
           <el-input v-model="form.name" maxlength="100" />
         </el-form-item>
         <el-form-item label="AppID" prop="appId">
@@ -68,16 +68,16 @@
         <el-form-item label="AESKey">
           <el-input v-model="form.aesKey" maxlength="64" />
         </el-form-item>
-        <el-form-item label="×´Ì¬">
+        <el-form-item label="çŠ¶æ€">
           <el-switch v-model="form.enabled" :active-value="1" :inactive-value="0" />
         </el-form-item>
-        <el-form-item label="»Øµ÷µØÖ·">
+        <el-form-item label="å›žè°ƒåœ°å€">
           <el-text type="info">{{ callbackWithId }}</el-text>
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">È¡Ïû</el-button>
-        <el-button type="primary" :loading="submitLoading" @click="submitForm">±£´æ</el-button>
+        <el-button @click="dialogVisible = false">å–æ¶ˆ</el-button>
+        <el-button type="primary" :loading="submitLoading" @click="submitForm">ä¿å­˜</el-button>
       </template>
     </el-dialog>
   </div>
@@ -115,10 +115,10 @@ const form = reactive({
 })
 
 const rules = {
-  name: [{ required: true, message: 'ÇëÊäÈëÕËºÅÃû³Æ', trigger: 'blur' }],
-  appId: [{ required: true, message: 'ÇëÊäÈë AppID', trigger: 'blur' }],
-  appSecret: [{ required: true, message: 'ÇëÊäÈë AppSecret', trigger: 'blur' }],
-  token: [{ required: true, message: 'ÇëÊäÈë Token', trigger: 'blur' }]
+  name: [{ required: true, message: 'è¯·è¾“å…¥è´¦å·åç§°', trigger: 'blur' }],
+  appId: [{ required: true, message: 'è¯·è¾“å…¥ AppID', trigger: 'blur' }],
+  appSecret: [{ required: true, message: 'è¯·è¾“å…¥ AppSecret', trigger: 'blur' }],
+  token: [{ required: true, message: 'è¯·è¾“å…¥ Token', trigger: 'blur' }]
 }
 
 const callbackExample = computed(() => `${callbackBase}/{accountId}`)
@@ -172,7 +172,7 @@ function submitForm() {
     if (!valid) return
     submitLoading.value = true
     saveWechatAccount(form).then(() => {
-      proxy.$modal.msgSuccess('±£´æ³É¹¦')
+      proxy.$modal.msgSuccess('ä¿å­˜æˆåŠŸ')
       dialogVisible.value = false
       getList()
     }).finally(() => {
@@ -182,17 +182,17 @@ function submitForm() {
 }
 
 function handleDelete(row) {
-  proxy.$modal.confirm(`È·¶¨É¾³ý¹«ÖÚºÅÕËºÅ¡¸${row.name}¡¹Âð£¿`).then(() => {
+  proxy.$modal.confirm(`ç¡®å®šåˆ é™¤å…¬ä¼—å·è´¦å·ã€Œ${row.name}ã€å—ï¼Ÿ`).then(() => {
     return deleteWechatAccount(row.id)
   }).then(() => {
-    proxy.$modal.msgSuccess('É¾³ý³É¹¦')
+    proxy.$modal.msgSuccess('åˆ é™¤æˆåŠŸ')
     getList()
   }).catch(() => {})
 }
 
 function handleTest(row) {
   testWechatAccount(row.id).then(() => {
-    proxy.$modal.msgSuccess('Á¬½Ó³É¹¦')
+    proxy.$modal.msgSuccess('è¿žæŽ¥æˆåŠŸ')
   })
 }
 

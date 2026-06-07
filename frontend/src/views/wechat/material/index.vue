@@ -1,102 +1,30 @@
 <template>
   <div class="app-container">
     <el-form :inline="true" :model="queryParams" class="mb8">
-      <el-form-item label="ÕËºÅID">
-        <el-input-number v-model="queryParams.accountId" :min="1" controls-position="right" />
-      </el-form-item>
-      <el-form-item label="×´Ì¬">
-        <el-select v-model="queryParams.status" clearable placeholder="È«²¿" style="width: 130px">
-          <el-option label="´ıÉÏ´«" :value="0" />
-          <el-option label="²İ¸å³É¹¦" :value="1" />
-          <el-option label="Ê§°Ü" :value="2" />
-        </el-select>
-      </el-form-item>
-      <el-form-item label="¹Ø¼ü´Ê">
-        <el-input v-model="queryParams.keyword" placeholder="ËØ²Ä±êÌâ" clearable style="width: 220px" @keyup.enter="handleQuery" />
-      </el-form-item>
-      <el-form-item>
-        <el-button type="primary" icon="Search" @click="handleQuery">ËÑË÷</el-button>
-        <el-button icon="Refresh" @click="resetQuery">ÖØÖÃ</el-button>
-      </el-form-item>
+      <el-form-item label="è´¦å·ID"><el-input-number v-model="queryParams.accountId" :min="1" controls-position="right" /></el-form-item>
+      <el-form-item label="çŠ¶æ€"><el-select v-model="queryParams.status" clearable placeholder="å…¨éƒ¨" style="width: 130px"><el-option label="å¾…ä¸Šä¼ " :value="0" /><el-option label="è‰ç¨¿æˆåŠŸ" :value="1" /><el-option label="å¤±è´¥" :value="2" /></el-select></el-form-item>
+      <el-form-item label="å…³é”®è¯"><el-input v-model="queryParams.keyword" placeholder="ç´ ææ ‡é¢˜" clearable style="width: 220px" @keyup.enter="handleQuery" /></el-form-item>
+      <el-form-item><el-button type="primary" icon="Search" @click="handleQuery">æœç´¢</el-button><el-button icon="Refresh" @click="resetQuery">é‡ç½®</el-button></el-form-item>
     </el-form>
-
     <el-table v-loading="loading" :data="list">
-      <el-table-column label="ID" prop="id" width="80" />
-      <el-table-column label="ÕËºÅID" prop="accountId" width="90" />
-      <el-table-column label="±êÌâ" prop="title" min-width="180" show-overflow-tooltip />
-      <el-table-column label="×÷Õß" prop="author" width="120" />
-      <el-table-column label="ÕªÒª" prop="digest" min-width="200" show-overflow-tooltip />
-      <el-table-column label="mediaId" prop="mediaId" min-width="170" show-overflow-tooltip />
-      <el-table-column label="×´Ì¬" width="100">
-        <template #default="{ row }">
-          <el-tag :type="row.status === 1 ? 'success' : row.status === 2 ? 'danger' : 'info'">
-            {{ row.status === 1 ? '²İ¸å³É¹¦' : row.status === 2 ? 'Ê§°Ü' : '´ıÉÏ´«' }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="¸üĞÂÊ±¼ä" prop="updateTime" width="170" />
-      <el-table-column label="²Ù×÷" width="120" align="center">
-        <template #default="{ row }">
-          <el-button link type="danger" v-hasPermi="['wechat:material:remove']" @click="handleDelete(row)">É¾³ı</el-button>
-        </template>
-      </el-table-column>
+      <el-table-column label="ID" prop="id" width="80" /><el-table-column label="è´¦å·ID" prop="accountId" width="90" />
+      <el-table-column label="æ ‡é¢˜" prop="title" min-width="180" show-overflow-tooltip /><el-table-column label="ä½œè€…" prop="author" width="120" />
+      <el-table-column label="æ‘˜è¦" prop="digest" min-width="200" show-overflow-tooltip /><el-table-column label="mediaId" prop="mediaId" min-width="170" show-overflow-tooltip />
+      <el-table-column label="çŠ¶æ€" width="100"><template #default="{ row }"><el-tag :type="row.status === 1 ? 'success' : row.status === 2 ? 'danger' : 'info'">{{ row.status === 1 ? 'è‰ç¨¿æˆåŠŸ' : row.status === 2 ? 'å¤±è´¥' : 'å¾…ä¸Šä¼ ' }}</el-tag></template></el-table-column>
+      <el-table-column label="æ›´æ–°æ—¶é—´" prop="updateTime" width="170" />
+      <el-table-column label="æ“ä½œ" width="120" align="center"><template #default="{ row }"><el-button link type="danger" v-hasPermi="['wechat:material:remove']" @click="handleDelete(row)">åˆ é™¤</el-button></template></el-table-column>
     </el-table>
-
-    <pagination
-      v-show="total > 0"
-      :total="total"
-      v-model:page="queryParams.pageNum"
-      v-model:limit="queryParams.pageSize"
-      @pagination="getList"
-    />
+    <pagination v-show="total > 0" :total="total" v-model:page="queryParams.pageNum" v-model:limit="queryParams.pageSize" @pagination="getList" />
   </div>
 </template>
-
 <script setup>
 import { deleteWechatMaterial, listWechatMaterial } from '@/api/wechat'
-
 defineOptions({ name: 'WechatMaterial' })
-
-const { proxy } = getCurrentInstance()
-const loading = ref(false)
-const list = ref([])
-const total = ref(0)
-const queryParams = ref({
-  pageNum: 1,
-  pageSize: 10,
-  accountId: undefined,
-  status: undefined,
-  keyword: undefined
-})
-
-function getList() {
-  loading.value = true
-  listWechatMaterial(queryParams.value).then(res => {
-    list.value = res.rows || []
-    total.value = res.total || 0
-  }).finally(() => {
-    loading.value = false
-  })
-}
-
-function handleQuery() {
-  queryParams.value.pageNum = 1
-  getList()
-}
-
-function resetQuery() {
-  queryParams.value = { pageNum: 1, pageSize: 10, accountId: undefined, status: undefined, keyword: undefined }
-  getList()
-}
-
-function handleDelete(row) {
-  proxy.$modal.confirm(`È·ÈÏÉ¾³ıËØ²Ä¡¸${row.title}¡¹Âğ£¿`).then(() => {
-    return deleteWechatMaterial(row.id)
-  }).then(() => {
-    proxy.$modal.msgSuccess('É¾³ı³É¹¦')
-    getList()
-  }).catch(() => {})
-}
-
+const { proxy } = getCurrentInstance(); const loading = ref(false); const list = ref([]); const total = ref(0)
+const queryParams = ref({ pageNum: 1, pageSize: 10, accountId: undefined, status: undefined, keyword: undefined })
+function getList() { loading.value = true; listWechatMaterial(queryParams.value).then(res => { list.value = res.rows || []; total.value = res.total || 0 }).finally(() => { loading.value = false }) }
+function handleQuery() { queryParams.value.pageNum = 1; getList() }
+function resetQuery() { queryParams.value = { pageNum: 1, pageSize: 10, accountId: undefined, status: undefined, keyword: undefined }; getList() }
+function handleDelete(row) { proxy.$modal.confirm(`ç¡®è®¤åˆ é™¤ç´ æã€Œ${row.title}ã€å—ï¼Ÿ`).then(() => deleteWechatMaterial(row.id)).then(() => { proxy.$modal.msgSuccess('åˆ é™¤æˆåŠŸ'); getList() }).catch(() => {}) }
 getList()
 </script>
