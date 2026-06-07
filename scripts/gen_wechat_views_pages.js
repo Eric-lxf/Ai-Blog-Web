@@ -236,7 +236,7 @@ getList()
 
   w('fans/index.vue', `<template>
   <div class="app-container">
-    <el-alert :closable="false" type="info" class="mb12" title="\u7c89\u4e1d\u5217\u8868\u6765\u81ea\u5fae\u4fe1\u63a5\u53e3\u540c\u6b65\u6216\u5173\u6ce8/\u53d6\u5173\u56de\u8c03\u3002\u9996\u6b21\u8bf7\u9009\u62e9\u8d26\u53f7\u540e\u70b9\u300c\u62c9\u53d6\u7c89\u4e1d\u300d\u3002\u5fae\u4fe1\u5df2\u9650\u5236\u6635\u79f0\u62c9\u53d6\uff0c\u65b0\u7c89\u4e1d\u6635\u79f0\u53ef\u80fd\u4e3a\u7a7a\u3002" />
+    <el-alert :closable="false" type="info" class="mb12" title="\u7c89\u4e1d\u6765\u6e90\uff1a\u8ba4\u8bc1\u670d\u52a1\u53f7/\u8ba4\u8bc1\u8ba2\u9605\u53f7\u53ef\u5168\u91cf\u62c9\u53d6\uff1b\u672a\u8ba4\u8bc1\u4e2a\u4eba\u53f7\u4f1a\u62a5 48001\uff0c\u7cfb\u7edf\u81ea\u52a8\u6539\u4ece\u6d88\u606f\u65e5\u5fd7\u8865\u5168\u56de\u8c03\u8bb0\u5f55\u3002\u5173\u6ce8/\u53d6\u5173\u4e8b\u4ef6\u4e5f\u4f1a\u81ea\u52a8\u5165\u5e93\u3002" />
     <el-form :inline="true" :model="queryParams" class="mb8">
       <el-form-item label="\u8d26\u53f7">
         <el-select v-model="queryParams.accountId" clearable filterable placeholder="\u5168\u90e8\u8d26\u53f7" style="width: 220px">
@@ -276,7 +276,9 @@ function handleSync() {
   syncLoading.value = true
   syncWechatFans(queryParams.value.accountId).then(res => {
     const data = res.data || {}
-    proxy.$modal.msgSuccess(\`\u540c\u6b65\u5b8c\u6210\uff1a\u5171 \${data.total || 0} \u4eba\uff0c\u5199\u5165 \${data.synced || 0} \u6761\`)
+    const source = data.source === 'message_log' ? '\u6d88\u606f\u65e5\u5fd7\u8865\u5168' : '\u5fae\u4fe1\u63a5\u53e3'
+    const msg = \`\u540c\u6b65\u5b8c\u6210\uff08\${source}\uff09\uff1a\u5171 \${data.total || 0} \u4eba\uff0c\u5199\u5165 \${data.synced || 0} \u6761\`
+    if (data.warning) { proxy.$modal.msgWarning(data.warning + '\\n' + msg) } else { proxy.$modal.msgSuccess(msg) }
     getList()
   }).finally(() => { syncLoading.value = false })
 }

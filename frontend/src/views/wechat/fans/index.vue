@@ -1,6 +1,6 @@
 <template>
   <div class="app-container">
-    <el-alert :closable="false" type="info" class="mb12" title="粉丝列表来自微信接口同步或关注/取关回调。首次请选择账号后点「拉取粉丝」。微信已限制昵称拉取，新粉丝昵称可能为空。" />
+    <el-alert :closable="false" type="info" class="mb12" title="粉丝来源：认证服务号/认证订阅号可全量拉取；未认证个人号会报 48001，系统自动改从消息日志补全回调记录。关注/取关事件也会自动入库。" />
     <el-form :inline="true" :model="queryParams" class="mb8">
       <el-form-item label="账号">
         <el-select v-model="queryParams.accountId" clearable filterable placeholder="全部账号" style="width: 220px">
@@ -40,7 +40,9 @@ function handleSync() {
   syncLoading.value = true
   syncWechatFans(queryParams.value.accountId).then(res => {
     const data = res.data || {}
-    proxy.$modal.msgSuccess(`同步完成：共 ${data.total || 0} 人，写入 ${data.synced || 0} 条`)
+    const source = data.source === 'message_log' ? '消息日志补全' : '微信接口'
+    const msg = `同步完成（${source}）：共 ${data.total || 0} 人，写入 ${data.synced || 0} 条`
+    if (data.warning) { proxy.$modal.msgWarning(data.warning + '\n' + msg) } else { proxy.$modal.msgSuccess(msg) }
     getList()
   }).finally(() => { syncLoading.value = false })
 }

@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -18,10 +19,13 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.ruoyi.common.exception.ServiceException;
 import com.ruoyi.wechat.constant.WechatConstants;
 import com.ruoyi.wechat.domain.WechatFans;
+import com.ruoyi.wechat.domain.WechatMessageLog;
 import com.ruoyi.wechat.dto.WechatPageQuery;
 import com.ruoyi.wechat.mapper.WechatFansMapper;
+import com.ruoyi.wechat.mapper.WechatMessageLogMapper;
 import com.ruoyi.wechat.service.WechatFansService;
 import com.ruoyi.wechat.support.WechatApiClient;
+import com.ruoyi.wechat.support.WechatApiErrors;
 import com.ruoyi.wechat.support.WechatTokenService;
 import com.ruoyi.wechat.vo.WechatFansSyncResultVO;
 import com.ruoyi.wechat.vo.WechatFansVO;
@@ -36,6 +40,7 @@ public class WechatFansServiceImpl implements WechatFansService
     private static final ZoneId CHINA_ZONE = ZoneId.of("Asia/Shanghai");
 
     private final WechatFansMapper wechatFansMapper;
+    private final WechatMessageLogMapper wechatMessageLogMapper;
     private final WechatTokenService wechatTokenService;
     private final WechatApiClient wechatApiClient;
 
@@ -75,18 +80,32 @@ public class WechatFansServiceImpl implements WechatFansService
             throw new ServiceException("accountId is required");
         }
         String token = wechatTokenService.getAccessToken(accountId);
-        List<String> openIds = fetchAllOpenIds(token);
-        int synced = 0;
-        for (int i = 0; i < openIds.size(); i += BATCH_SIZE)
+        try
         {
-            List<String> batch = openIds.subList(i, Math.min(i + BATCH_SIZE, openIds.size()));
-            synced += upsertBatch(accountId, token, batch);
+            List<String> openIds = fetchAllOpenIds(token);
+            int synced = 0;
+            for (int i = 0; i < openIds.size(); i += BATCH_SIZE)
+            {
+                List<String> batch = openIds.subList(i, Math.min(i + BATCH_SIZE, openIds.size()));
+                synced += upsertBatch(accountId, token, batch);
+            }
+            WechatFansSyncResultVO result = new WechatFansSyncResultVO();
+            result.setAccountId(accountId);
+            result.setTotal(openIds.size());
+            result.setSynced(synced);
+            result.setSource("wechat_api");
+            return result;
         }
-        WechatFansSyncResultVO result = new WechatFansSyncResultVO();
-        result.setAccountId(accountId);
-        result.setTotal(openIds.size());
-        result.setSynced(synced);
-        return result;
+        catch (ServiceException e)
+        {
+            if (WechatApiErrors.isUnauthorized(e))
+            {
+                WechatFansSyncResultVO fallback = syncFromMessageLog(accountId);
+                fallback.setWarning(WechatApiErrors.fansListUnauthorizedHint());
+                return fallback;
+            }
+            throw e;
+        }
     }
 
     @Override
@@ -108,10 +127,62 @@ public class WechatFansServiceImpl implements WechatFansService
             Map<String, Object> user = fetchUserInfo(token, openId);
             upsertFan(accountId, user);
         }
+        catch (ServiceException e)
+        {
+            if (WechatApiErrors.isUnauthorized(e))
+            {
+                upsertMinimal(accountId, openId, 1, LocalDateTime.now(CHINA_ZONE));
+                return;
+            }
+            throw e;
+        }
         catch (Exception e)
         {
             upsertMinimal(accountId, openId, 1, null);
         }
+    }
+
+    private WechatFansSyncResultVO syncFromMessageLog(Long accountId)
+    {
+        List<WechatMessageLog> logs = wechatMessageLogMapper.selectList(new LambdaQueryWrapper<WechatMessageLog>()
+                .eq(WechatMessageLog::getAccountId, accountId).isNotNull(WechatMessageLog::getOpenId)
+                .ne(WechatMessageLog::getOpenId, "").orderByAsc(WechatMessageLog::getCreateTime));
+        Map<String, MessageFanState> states = new LinkedHashMap<>();
+        for (WechatMessageLog log : logs)
+        {
+            String openId = log.getOpenId();
+            MessageFanState state = states.computeIfAbsent(openId, key -> new MessageFanState());
+            if ("event".equalsIgnoreCase(log.getMessageType()))
+            {
+                if ("subscribe".equalsIgnoreCase(log.getEventType()))
+                {
+                    state.subscribeStatus = 1;
+                    state.subscribeTime = log.getCreateTime();
+                }
+                else if ("unsubscribe".equalsIgnoreCase(log.getEventType()))
+                {
+                    state.subscribeStatus = 0;
+                }
+            }
+            else if (state.subscribeStatus == null)
+            {
+                state.subscribeStatus = 1;
+            }
+        }
+        int synced = 0;
+        for (Map.Entry<String, MessageFanState> entry : states.entrySet())
+        {
+            MessageFanState state = entry.getValue();
+            int subscribeStatus = state.subscribeStatus == null ? 1 : state.subscribeStatus;
+            upsertMinimal(accountId, entry.getKey(), subscribeStatus, state.subscribeTime);
+            synced++;
+        }
+        WechatFansSyncResultVO result = new WechatFansSyncResultVO();
+        result.setAccountId(accountId);
+        result.setTotal(states.size());
+        result.setSynced(synced);
+        result.setSource("message_log");
+        return result;
     }
 
     private List<String> fetchAllOpenIds(String token)
@@ -122,7 +193,7 @@ public class WechatFansServiceImpl implements WechatFansService
         {
             String url = WechatConstants.API_HOST + "/cgi-bin/user/get?access_token=" + token + "&next_openid=" + nextOpenId;
             Map<String, Object> resp = wechatApiClient.getJson(url);
-            assertWechatOk(resp, "fetch fans openid list");
+            WechatApiErrors.assertOk(resp, "fetch fans openid list");
             Object dataObj = resp.get("data");
             if (dataObj instanceof Map<?, ?> dataMap)
             {
@@ -154,7 +225,22 @@ public class WechatFansServiceImpl implements WechatFansService
         List<Map<String, String>> userList = openIds.stream().map(openId -> Map.of("openid", openId, "lang", "zh_CN")).toList();
         String url = WechatConstants.API_HOST + "/cgi-bin/user/info/batchget?access_token=" + token;
         Map<String, Object> resp = wechatApiClient.postJson(url, Map.of("user_list", userList));
-        assertWechatOk(resp, "batch fetch fans info");
+        try
+        {
+            WechatApiErrors.assertOk(resp, "batch fetch fans info");
+        }
+        catch (ServiceException e)
+        {
+            if (WechatApiErrors.isUnauthorized(e))
+            {
+                for (String openId : openIds)
+                {
+                    upsertMinimal(accountId, openId, 1, null);
+                }
+                return openIds.size();
+            }
+            throw e;
+        }
         Object usersObj = resp.get("user_info_list");
         if (!(usersObj instanceof List<?> users))
         {
@@ -176,7 +262,7 @@ public class WechatFansServiceImpl implements WechatFansService
     {
         String url = WechatConstants.API_HOST + "/cgi-bin/user/info?access_token=" + token + "&openid=" + openId + "&lang=zh_CN";
         Map<String, Object> resp = wechatApiClient.getJson(url);
-        assertWechatOk(resp, "fetch fan info");
+        WechatApiErrors.assertOk(resp, "fetch fan info");
         return resp;
     }
 
@@ -296,19 +382,16 @@ public class WechatFansServiceImpl implements WechatFansService
         return target;
     }
 
-    private void assertWechatOk(Map<String, Object> resp, String action)
-    {
-        Object errCode = resp.get("errcode");
-        if (errCode != null && !"0".equals(String.valueOf(errCode)))
-        {
-            throw new ServiceException(action + " failed: " + resp);
-        }
-    }
-
     private WechatFansVO toVO(WechatFans source)
     {
         WechatFansVO vo = new WechatFansVO();
         BeanUtils.copyProperties(source, vo);
         return vo;
+    }
+
+    private static final class MessageFanState
+    {
+        private Integer subscribeStatus;
+        private LocalDateTime subscribeTime;
     }
 }
