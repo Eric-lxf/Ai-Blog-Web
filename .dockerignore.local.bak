@@ -1,0 +1,10 @@
+.git
+.gitignore
+**/.idea
+**/.vscode
+**/node_modules
+frontend/dist
+frontend/.env.local
+backend/**/target
+**/*.md
+!frontend/README.md

@@ -1,0 +1,15 @@
+# Release image: requires frontend/dist built on host/CI first.
+#   cd frontend && npm ci && npm run build:prod
+#   docker build -f frontend/Dockerfile.release -t <web-tag> .
+FROM alpine:3.20 AS check
+COPY frontend/dist /dist
+RUN test -f /dist/index.html || ( \
+  echo "ERROR: frontend/dist/index.html not found." >&2; \
+  echo "Build on host first: cd frontend && npm ci && npm run build:prod" >&2; \
+  exit 1 )
+
+FROM crpi-skinyl3l0124ry6m.cn-beijing.personal.cr.aliyuncs.com/lxf_ai/nginx:1.27-alpine
+ENV BACKEND_HOST=backend
+COPY frontend/nginx.conf /etc/nginx/templates/default.conf.template
+COPY --from=check /dist /usr/share/nginx/html
+EXPOSE 80
