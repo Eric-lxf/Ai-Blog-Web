@@ -6,13 +6,13 @@
           <el-option v-for="item in accountOptions" :key="item.id" :label="item.name" :value="item.id" />
         </el-select>
       </el-form-item>
-      <el-form-item label="关键�?">
-        <el-input v-model="queryParams.keyword" placeholder="菜单 JSON 关键�?" clearable style="width: 220px" @keyup.enter="handleQuery" />
+      <el-form-item label="关键词">
+        <el-input v-model="queryParams.keyword" placeholder="菜单 JSON 关键字" clearable style="width: 220px" @keyup.enter="handleQuery" />
       </el-form-item>
       <el-form-item>
         <el-button type="primary" icon="Search" @click="handleQuery">搜索</el-button>
         <el-button icon="Refresh" @click="resetQuery">重置</el-button>
-        <el-button type="primary" plain icon="Plus" v-hasPermi="['wechat:menu:add']" @click="openDialog()">新�?�菜�?</el-button>
+        <el-button type="primary" plain icon="Plus" v-hasPermi="['wechat:menu:add']" @click="openDialog()">新增菜单</el-button>
       </el-form-item>
     </el-form>
     <el-table v-loading="loading" :data="list">
@@ -21,9 +21,9 @@
       <el-table-column label="账号名称" min-width="140">
         <template #default="{ row }">{{ accountNameMap[row.accountId] || '-' }}</template>
       </el-table-column>
-      <el-table-column label="已发�?" width="90" align="center">
+      <el-table-column label="已发布" width="90" align="center">
         <template #default="{ row }">
-          <el-tag :type="row.isPublished === 1 ? 'success' : 'info'">{{ row.isPublished === 1 ? '�?' : '�?' }}</el-tag>
+          <el-tag :type="row.isPublished === 1 ? 'success' : 'info'">{{ row.isPublished === 1 ? '是' : '否' }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column label="菜单JSON" prop="menuJson" min-width="260" show-overflow-tooltip />
@@ -36,7 +36,7 @@
       </el-table-column>
     </el-table>
     <pagination v-show="total > 0" :total="total" v-model:page="queryParams.pageNum" v-model:limit="queryParams.pageSize" @pagination="getList" />
-    <el-dialog v-model="dialogVisible" :title="form.id ? '编辑菜单' : '新�?�菜�?'" width="760px" append-to-body>
+    <el-dialog v-model="dialogVisible" :title="form.id ? '编辑菜单' : '新增菜单'" width="760px" append-to-body>
       <el-form ref="formRef" :model="form" :rules="rules" label-width="90px">
         <el-form-item label="账号" prop="accountId">
           <el-select v-model="form.accountId" filterable placeholder="请选择账号" style="width: 100%">
@@ -70,10 +70,10 @@ const queryParams = ref({ pageNum: 1, pageSize: 10, accountId: undefined, keywor
 const form = reactive({ id: undefined, accountId: undefined, menuJson: '' })
 const rules = {
   accountId: [{ required: true, message: '请选择账号', trigger: 'change' }],
-  menuJson: [{ required: true, message: '请输入菜�? JSON', trigger: 'blur' }]
+  menuJson: [{ required: true, message: '请输入菜单 JSON', trigger: 'blur' }]
 }
 function loadAccounts() { return listWechatAccountOptions().then(res => { accountOptions.value = res.data || [] }) }
-function resetForm() { Object.assign(form, { id: undefined, accountId: undefined, menuJson: '{\n  "button": []\n}' }); formRef.value?.clearValidate() }
+function resetForm() { Object.assign(form, { id: undefined, accountId: undefined, menuJson: '{"button":[]}' }); formRef.value?.clearValidate() }
 function getList() { loading.value = true; listWechatMenu(queryParams.value).then(res => { list.value = res.rows || []; total.value = res.total || 0 }).finally(() => { loading.value = false }) }
 function handleQuery() { queryParams.value.pageNum = 1; getList() }
 function resetQuery() { queryParams.value = { pageNum: 1, pageSize: 10, accountId: undefined, keyword: undefined }; getList() }
@@ -81,13 +81,13 @@ function openDialog(row) { resetForm(); if (row) Object.assign(form, row); dialo
 function submitForm() {
   formRef.value.validate(valid => {
     if (!valid) return
-    try { JSON.parse(form.menuJson) } catch { proxy.$modal.msgError('菜单 JSON 格式错�??'); return }
+    try { JSON.parse(form.menuJson) } catch { proxy.$modal.msgError('菜单 JSON 格式错误'); return }
     submitLoading.value = true
     saveWechatMenu(form).then(() => { proxy.$modal.msgSuccess('保存成功'); dialogVisible.value = false; getList() }).finally(() => { submitLoading.value = false })
   })
 }
 function handlePublish(row) {
-  proxy.$modal.confirm('�?认发布�?�菜单到�?信吗�?').then(() => publishWechatMenu(row.id)).then(() => { proxy.$modal.msgSuccess('发布成功'); getList() }).catch(() => {})
+  proxy.$modal.confirm('确认发布该菜单到微信吗？').then(() => publishWechatMenu(row.id)).then(() => { proxy.$modal.msgSuccess('发布成功'); getList() }).catch(() => {})
 }
 Promise.all([loadAccounts()]).finally(() => getList())
 </script>

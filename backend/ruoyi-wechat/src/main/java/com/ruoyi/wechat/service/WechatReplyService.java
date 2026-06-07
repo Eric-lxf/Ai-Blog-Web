@@ -11,5 +11,12 @@ public interface WechatReplyService
 
     Long save(WechatAutoReplySaveRequest request);
 
-    String matchReply(Long accountId, String content);
+    /**
+     * Resolve passive reply content from local rules (not synced to WeChat MP autoreply UI).
+     *
+     * @param msgType message type from callback xml, e.g. text / event
+     * @param event   event name when msgType is event, e.g. subscribe
+     * @param content user text when msgType is text
+     */
+    String resolveReply(Long accountId, String msgType, String event, String content);
 }

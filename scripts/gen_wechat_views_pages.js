@@ -95,6 +95,7 @@ Promise.all([loadAccounts()]).finally(() => getList())
 
   w('reply/index.vue', `<template>
   <div class="app-container">
+    <el-alert :closable="false" type="warning" class="mb12" title="\u89c4\u5219\u901a\u8fc7\u670d\u52a1\u5668\u56de\u8c03\u751f\u6548\uff0c\u4e0d\u4f1a\u5199\u5165\u5fae\u4fe1\u516c\u4f17\u53f7\u540e\u53f0\u7684\u300c\u81ea\u52a8\u56de\u590d\u300d\u9875\u9762\u3002\u8bf7\u5728\u516c\u4f17\u53f7\u914d\u7f6e\u4e2d\u5f00\u542f\u5f00\u53d1\u8005\u6a21\u5f0f\uff0c\u5e76\u586b\u5199\u8d26\u53f7\u7ba1\u7406\u9875\u5c55\u793a\u7684\u56de\u8c03 URL\uff08\u542b accountId\uff09\u3002" />
     <el-form :inline="true" :model="queryParams" class="mb8">
       <el-form-item label="\u8d26\u53f7">
         <el-select v-model="queryParams.accountId" clearable filterable placeholder="\u5168\u90e8\u8d26\u53f7" style="width: 220px">
@@ -235,11 +236,20 @@ getList()
 
   w('fans/index.vue', `<template>
   <div class="app-container">
+    <el-alert :closable="false" type="info" class="mb12" title="\u7c89\u4e1d\u5217\u8868\u6765\u81ea\u5fae\u4fe1\u63a5\u53e3\u540c\u6b65\u6216\u5173\u6ce8/\u53d6\u5173\u56de\u8c03\u3002\u9996\u6b21\u8bf7\u9009\u62e9\u8d26\u53f7\u540e\u70b9\u300c\u62c9\u53d6\u7c89\u4e1d\u300d\u3002\u5fae\u4fe1\u5df2\u9650\u5236\u6635\u79f0\u62c9\u53d6\uff0c\u65b0\u7c89\u4e1d\u6635\u79f0\u53ef\u80fd\u4e3a\u7a7a\u3002" />
     <el-form :inline="true" :model="queryParams" class="mb8">
-      <el-form-item label="\u8d26\u53f7ID"><el-input-number v-model="queryParams.accountId" :min="1" controls-position="right" /></el-form-item>
+      <el-form-item label="\u8d26\u53f7">
+        <el-select v-model="queryParams.accountId" clearable filterable placeholder="\u5168\u90e8\u8d26\u53f7" style="width: 220px">
+          <el-option v-for="item in accountOptions" :key="item.id" :label="item.name" :value="item.id" />
+        </el-select>
+      </el-form-item>
       <el-form-item label="\u72b6\u6001"><el-select v-model="queryParams.status" clearable placeholder="\u5168\u90e8" style="width: 120px"><el-option label="\u5df2\u5173\u6ce8" :value="1" /><el-option label="\u672a\u5173\u6ce8" :value="0" /></el-select></el-form-item>
       <el-form-item label="\u5173\u952e\u8bcd"><el-input v-model="queryParams.keyword" placeholder="\u6635\u79f0/OpenID" clearable style="width: 220px" @keyup.enter="handleQuery" /></el-form-item>
-      <el-form-item><el-button type="primary" icon="Search" @click="handleQuery">\u641c\u7d22</el-button><el-button icon="Refresh" @click="resetQuery">\u91cd\u7f6e</el-button></el-form-item>
+      <el-form-item>
+        <el-button type="primary" icon="Search" @click="handleQuery">\u641c\u7d22</el-button>
+        <el-button icon="Refresh" @click="resetQuery">\u91cd\u7f6e</el-button>
+        <el-button type="success" plain icon="Download" :loading="syncLoading" v-hasPermi="['wechat:fans:list']" @click="handleSync">\u62c9\u53d6\u7c89\u4e1d</el-button>
+      </el-form-item>
     </el-form>
     <el-table v-loading="loading" :data="list">
       <el-table-column label="ID" prop="id" width="80" /><el-table-column label="\u8d26\u53f7ID" prop="accountId" width="90" />
@@ -252,14 +262,25 @@ getList()
   </div>
 </template>
 <script setup>
-import { listWechatFans } from '@/api/wechat'
+import { listWechatAccountOptions, listWechatFans, syncWechatFans } from '@/api/wechat'
 defineOptions({ name: 'WechatFans' })
-const loading = ref(false); const list = ref([]); const total = ref(0)
+const { proxy } = getCurrentInstance()
+const loading = ref(false); const syncLoading = ref(false); const list = ref([]); const total = ref(0); const accountOptions = ref([])
 const queryParams = ref({ pageNum: 1, pageSize: 10, accountId: undefined, status: undefined, keyword: undefined })
+function loadAccounts() { return listWechatAccountOptions().then(res => { accountOptions.value = res.data || [] }) }
 function getList() { loading.value = true; listWechatFans(queryParams.value).then(res => { list.value = res.rows || []; total.value = res.total || 0 }).finally(() => { loading.value = false }) }
 function handleQuery() { queryParams.value.pageNum = 1; getList() }
 function resetQuery() { queryParams.value = { pageNum: 1, pageSize: 10, accountId: undefined, status: undefined, keyword: undefined }; getList() }
-getList()
+function handleSync() {
+  if (!queryParams.value.accountId) { proxy.$modal.msgWarning('\u8bf7\u5148\u9009\u62e9\u8981\u540c\u6b65\u7684\u8d26\u53f7'); return }
+  syncLoading.value = true
+  syncWechatFans(queryParams.value.accountId).then(res => {
+    const data = res.data || {}
+    proxy.$modal.msgSuccess(\`\u540c\u6b65\u5b8c\u6210\uff1a\u5171 \${data.total || 0} \u4eba\uff0c\u5199\u5165 \${data.synced || 0} \u6761\`)
+    getList()
+  }).finally(() => { syncLoading.value = false })
+}
+Promise.all([loadAccounts()]).finally(() => getList())
 </script>`)
 
   w('message/index.vue', `<template>

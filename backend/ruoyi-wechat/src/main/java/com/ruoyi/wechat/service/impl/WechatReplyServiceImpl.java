@@ -3,7 +3,6 @@ package com.ruoyi.wechat.service.impl;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -12,6 +11,7 @@ import com.ruoyi.wechat.dto.WechatAutoReplySaveRequest;
 import com.ruoyi.wechat.dto.WechatPageQuery;
 import com.ruoyi.wechat.mapper.WechatAutoReplyMapper;
 import com.ruoyi.wechat.service.WechatReplyService;
+import com.ruoyi.wechat.support.WechatReplyMatcher;
 import com.ruoyi.wechat.vo.WechatAutoReplyVO;
 
 import lombok.RequiredArgsConstructor;
@@ -58,34 +58,15 @@ public class WechatReplyServiceImpl implements WechatReplyService
     }
 
     @Override
-    public String matchReply(Long accountId, String content)
+    public String resolveReply(Long accountId, String msgType, String event, String content)
     {
-        if (!StringUtils.hasText(content))
+        if (accountId == null)
         {
             return "";
         }
         LambdaQueryWrapper<WechatAutoReply> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(WechatAutoReply::getAccountId, accountId).eq(WechatAutoReply::getEnabled, 1)
-                .eq(WechatAutoReply::getReplyType, "keyword");
-        for (WechatAutoReply reply : wechatAutoReplyMapper.selectList(wrapper))
-        {
-            if (!StringUtils.hasText(reply.getKeyword()))
-            {
-                continue;
-            }
-            if (reply.getMatchType() != null && reply.getMatchType() == 2)
-            {
-                if (content.equals(reply.getKeyword()))
-                {
-                    return reply.getContent();
-                }
-            }
-            else if (content.contains(reply.getKeyword()))
-            {
-                return reply.getContent();
-            }
-        }
-        return "";
+        wrapper.eq(WechatAutoReply::getAccountId, accountId).eq(WechatAutoReply::getEnabled, 1);
+        return WechatReplyMatcher.resolve(wechatAutoReplyMapper.selectList(wrapper), msgType, event, content);
     }
 
     private WechatAutoReplyVO toVO(WechatAutoReply source)

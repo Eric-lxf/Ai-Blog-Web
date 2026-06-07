@@ -1,6 +1,10 @@
 /**
  * Write wechat vue pages as UTF-8 (avoids Windows GBK save on source files).
- * Run: node scripts/gen_wechat_views.js
+ *
+ * IMPORTANT: Do NOT edit frontend/src/views/wechat/*.vue directly in the IDE on Windows.
+ * Always change scripts/gen_wechat_views*.js (use \\uXXXX for Chinese), then run:
+ *   node scripts/gen_wechat_views.js
+ *   node scripts/verify-wechat-encoding.js
  */
 const fs = require('fs')
 const path = require('path')

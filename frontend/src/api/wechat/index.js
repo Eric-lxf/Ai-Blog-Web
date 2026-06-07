@@ -122,6 +122,14 @@ export function listWechatFans(query) {
   })
 }
 
+export function syncWechatFans(accountId) {
+  return request({
+    url: '/wechat/fans/sync',
+    method: 'post',
+    params: { accountId }
+  })
+}
+
 export function listWechatMessage(query) {
   return request({
     url: '/wechat/message',

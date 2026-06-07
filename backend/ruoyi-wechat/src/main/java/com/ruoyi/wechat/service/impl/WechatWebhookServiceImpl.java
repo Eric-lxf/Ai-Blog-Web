@@ -13,6 +13,7 @@ import com.ruoyi.common.constant.HttpStatus;
 import com.ruoyi.common.exception.ServiceException;
 import com.ruoyi.wechat.domain.WechatAccount;
 import com.ruoyi.wechat.service.WechatAccountService;
+import com.ruoyi.wechat.service.WechatFansService;
 import com.ruoyi.wechat.service.WechatMessageService;
 import com.ruoyi.wechat.service.WechatReplyService;
 import com.ruoyi.wechat.service.WechatWebhookService;
@@ -27,6 +28,7 @@ public class WechatWebhookServiceImpl implements WechatWebhookService
     private final WechatAccountService wechatAccountService;
     private final WechatReplyService wechatReplyService;
     private final WechatMessageService wechatMessageService;
+    private final WechatFansService wechatFansService;
 
     @Override
     public String verify(Long accountId, String signature, String timestamp, String nonce, String echostr)
@@ -54,14 +56,30 @@ public class WechatWebhookServiceImpl implements WechatWebhookService
         String event = readXmlTag(requestBody, "Event");
         String content = readXmlTag(requestBody, "Content");
         wechatMessageService.saveInbound(accountId, openId, msgType, event, content, requestBody);
-        String reply = wechatReplyService.matchReply(accountId, content);
+        if ("event".equalsIgnoreCase(msgType))
+        {
+            if ("subscribe".equalsIgnoreCase(event))
+            {
+                wechatFansService.handleSubscribeEvent(accountId, openId, true);
+            }
+            else if ("unsubscribe".equalsIgnoreCase(event))
+            {
+                wechatFansService.handleSubscribeEvent(accountId, openId, false);
+            }
+        }
+        String reply = wechatReplyService.resolveReply(accountId, msgType, event, content);
         if (reply == null || reply.isBlank())
         {
             return "success";
         }
-        return "<xml><ToUserName><![CDATA[" + openId + "]]></ToUserName><FromUserName><![CDATA[" + readXmlTag(requestBody, "ToUserName")
+        return buildTextReplyXml(openId, readXmlTag(requestBody, "ToUserName"), reply);
+    }
+
+    private String buildTextReplyXml(String toUser, String fromUser, String content)
+    {
+        return "<xml><ToUserName><![CDATA[" + toUser + "]]></ToUserName><FromUserName><![CDATA[" + fromUser
                 + "]]></FromUserName><CreateTime>" + (System.currentTimeMillis() / 1000)
-                + "</CreateTime><MsgType><![CDATA[text]]></MsgType><Content><![CDATA[" + reply + "]]></Content></xml>";
+                + "</CreateTime><MsgType><![CDATA[text]]></MsgType><Content><![CDATA[" + content + "]]></Content></xml>";
     }
 
     private String readXmlTag(String xml, String tag)
