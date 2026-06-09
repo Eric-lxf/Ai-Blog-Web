@@ -27,6 +27,13 @@ public final class WechatSignatureUtils
         return sha1(joined);
     }
 
+    public static String signMessage(String token, String timestamp, String nonce, String encrypt)
+    {
+        String[] values = { token, timestamp, nonce, encrypt };
+        Arrays.sort(values);
+        return sha1(String.join("", values));
+    }
+
     private static String sha1(String text)
     {
         try

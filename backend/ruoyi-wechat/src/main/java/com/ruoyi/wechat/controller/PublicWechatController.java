@@ -25,15 +25,19 @@ public class PublicWechatController
     @GetMapping(value = "/{accountId}", produces = MediaType.TEXT_PLAIN_VALUE)
     public String verify(@PathVariable Long accountId, @RequestParam("signature") String signature,
             @RequestParam("timestamp") String timestamp, @RequestParam("nonce") String nonce,
-            @RequestParam("echostr") String echostr)
+            @RequestParam("echostr") String echostr,
+            @RequestParam(value = "msg_signature", required = false) String msgSignature,
+            @RequestParam(value = "encrypt_type", required = false) String encryptType)
     {
-        return wechatWebhookService.verify(accountId, signature, timestamp, nonce, echostr);
+        return wechatWebhookService.verify(accountId, signature, timestamp, nonce, echostr, msgSignature, encryptType);
     }
 
     @PostMapping(value = "/{accountId}", produces = MediaType.TEXT_PLAIN_VALUE)
     public String callback(@PathVariable Long accountId, @RequestParam("signature") String signature,
-            @RequestParam("timestamp") String timestamp, @RequestParam("nonce") String nonce, @RequestBody String body)
+            @RequestParam("timestamp") String timestamp, @RequestParam("nonce") String nonce, @RequestBody String body,
+            @RequestParam(value = "msg_signature", required = false) String msgSignature,
+            @RequestParam(value = "encrypt_type", required = false) String encryptType)
     {
-        return wechatWebhookService.receive(accountId, signature, timestamp, nonce, body);
+        return wechatWebhookService.receive(accountId, signature, timestamp, nonce, body, msgSignature, encryptType);
     }
 }
