@@ -1,4 +1,5 @@
 <script setup>
+import { onMounted, ref } from 'vue'
 import { Editor } from '@bytemd/vue-next'
 import { createFullMarkdownPlugins } from '@/utils/markdownPlugins'
 import { uploadImage } from '@/api/blog/upload'
@@ -12,7 +13,10 @@ defineProps({
 
 const emit = defineEmits(['update:modelValue'])
 
-const plugins = createFullMarkdownPlugins()
+const plugins = ref([])
+onMounted(async () => {
+  plugins.value = await createFullMarkdownPlugins()
+})
 
 async function handleUpload(files) {
   return Promise.all(
@@ -27,6 +31,7 @@ async function handleUpload(files) {
 <template>
   <div class="markdown-editor">
     <Editor
+      v-if="plugins.length"
       :value="modelValue"
       :plugins="plugins"
       :upload-images="handleUpload"

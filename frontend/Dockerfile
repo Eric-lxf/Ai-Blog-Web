@@ -3,7 +3,7 @@ WORKDIR /app
 
 # 2C4G 云主机：Node 堆不宜过大（需留给 esbuild/Rollup 子进程），建议宿主机加 2G swap
 ARG LOW_MEM_BUILD=1
-ARG NODE_HEAP_MB=1280
+ARG NODE_HEAP_MB=2048
 # 国内 ECS 默认 npmmirror；海外或自建代理可覆盖
 ARG NPM_REGISTRY=https://registry.npmmirror.com
 
@@ -29,7 +29,7 @@ RUN npm config set registry "${NPM_REGISTRY}" \
      done
 
 COPY frontend/ .
-RUN npm run build:prod
+RUN npm run build:prod:lowmem
 
 FROM crpi-skinyl3l0124ry6m.cn-beijing.personal.cr.aliyuncs.com/lxf_ai/nginx:1.27-alpine
 ENV BACKEND_HOST=backend

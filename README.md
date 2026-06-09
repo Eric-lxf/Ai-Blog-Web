@@ -77,11 +77,12 @@ docker push crpi-skinyl3l0124ry6m.cn-beijing.personal.cr.aliyuncs.com/lxf_ai/al-
 
 | 现象 | 原因 | 处理 |
 |------|------|------|
+| `JavaScript heap out of memory`（多在 transforming / rendering chunks） | Node 堆上限不足（默认曾 1280MB，rendering 常需 1.5GB+） | 先加 swap，再 `docker build --build-arg NODE_HEAP_MB=2048`；拉取含 mermaid 懒加载的最新代码 |
 | `npm error signal SIGKILL`（多在 `rendering chunks`） | 构建峰值内存超过宿主机可用内存（2C4G 常见） | 见下方 **「2C4G 前端构建」**；或加大内存 / 加 swap / 在 CI 机构建镜像 |
 
 ### 2C4G 云主机前端构建（内存优化）
 
-默认 `frontend/Dockerfile` 已启用低内存模式（`VITE_LOW_MEM_BUILD=1`、堆上限约 1280MB、关闭构建期 gzip/SVGO、拆分 echarts/mermaid 等大 chunk）。
+默认 `frontend/Dockerfile` 已启用低内存模式（`VITE_LOW_MEM_BUILD=1`、Node 堆约 2048MB、mermaid 运行时按需加载、关闭构建期 gzip/SVGO、拆分 echarts/mermaid 等大 chunk）。**`vite build` 在 transforming 之后还有 rendering chunks 峰值**，2C4G 无 swap 时 1280MB 堆常会 OOM，务必先加 swap 或适当提高 `NODE_HEAP_MB`。
 
 **推荐（按优先级）：**
 
@@ -101,8 +102,8 @@ docker build -f frontend/Dockerfile -t ai-blog-web:local .
 3. **调构建参数**（内存仍不足时）：
 
 ```bash
-# 堆再降到 1GB
-docker build -f frontend/Dockerfile --build-arg NODE_HEAP_MB=1024 -t ai-blog-web:local .
+# 无 swap 且物理内存紧张时可略降堆（可能仍 OOM，优先加 swap）
+docker build -f frontend/Dockerfile --build-arg NODE_HEAP_MB=1536 -t ai-blog-web:local .
 # 8G+ 机器可关闭低内存模式、略提速
 docker build -f frontend/Dockerfile --build-arg LOW_MEM_BUILD=0 --build-arg NODE_HEAP_MB=2048 -t ai-blog-web:local .
 ```
@@ -123,7 +124,8 @@ docker build -f frontend/Dockerfile \
 |--------|------|
 | `reportCompressedSize: false` | 跳过构建期 gzip 体积统计，降低 rendering chunks 内存 |
 | `manualChunks` 拆分 echarts/mermaid | 降低单 chunk 峰值 |
-| `maxParallelFileOps: 2` | 适配 2 核，减少并行占用 |
+| mermaid 动态 import | 降低 transforming 阶段整图进内存 |
+| `maxParallelFileOps: 1` | 降低 rendering 并行峰值 |
 | 关闭 `vite-plugin-compression` | gzip 由 nginx 负责 |
 | `.dockerignore` | 缩小构建上下文，加快 COPY |
 | `unauthorized: authentication required` | 未登录阿里云镜像仓库 | 先执行 `docker login crpi-skinyl3l0124ry6m.cn-beijing.personal.cr.aliyuncs.com` |
