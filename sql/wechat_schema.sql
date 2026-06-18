@@ -125,6 +125,20 @@ CREATE TABLE IF NOT EXISTS `wx_qrcode` (
   KEY `idx_account_scene_str` (`account_id`, `scene_str`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='公众号带参数二维码';
 
+CREATE TABLE IF NOT EXISTS `wx_media_asset` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `account_id` bigint NOT NULL COMMENT '公众号账号ID',
+  `name` varchar(100) NOT NULL COMMENT '素材名称',
+  `media_type` varchar(20) NOT NULL COMMENT 'image/thumb/content',
+  `media_id` varchar(128) DEFAULT NULL COMMENT '微信永久素材ID或正文图无ID',
+  `url` varchar(1000) DEFAULT NULL COMMENT '微信CDN地址',
+  `file_name` varchar(255) DEFAULT NULL COMMENT '原始文件名',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_account_type_time` (`account_id`, `media_type`, `update_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='微信公众号永久素材';
+
 INSERT INTO sys_config (config_name, config_key, config_value, config_type, create_by, create_time, remark)
 SELECT '微信公众号功能开关', 'wechat.enabled', 'false', 'Y', 'admin', sysdate(), '是否启用微信公众号模块'
 WHERE NOT EXISTS (SELECT 1 FROM sys_config WHERE config_key = 'wechat.enabled');
@@ -147,6 +161,7 @@ INSERT IGNORE INTO sys_menu VALUES
 (2056, '粉丝管理', 2050, 6, 'fans', 'wechat/fans/index', '', 'WechatFans', 1, 0, 'C', '0', '0', 'wechat:fans:list', 'peoples', 'admin', sysdate(), '', NULL, ''),
 (2057, '消息日志', 2050, 7, 'message-log', 'wechat/message/index', '', 'WechatMessageLog', 1, 0, 'C', '0', '0', 'wechat:message:list', 'form', 'admin', sysdate(), '', NULL, ''),
 (2058, '渠道二维码', 2050, 8, 'qrcode', 'wechat/qrcode/index', '', 'WechatQrcode', 1, 0, 'C', '0', '0', 'wechat:qrcode:list', 'qrcode', 'admin', sysdate(), '', NULL, ''),
+(2059, '草稿箱', 2050, 9, 'draft', 'wechat/draft/index', '', 'WechatDraft', 1, 0, 'C', '0', '0', 'wechat:draft:list', 'edit', 'admin', sysdate(), '', NULL, ''),
 (2300, '账号查询', 2051, 1, '#', '', '', '', 1, 0, 'F', '0', '0', 'wechat:account:query', '#', 'admin', sysdate(), '', NULL, ''),
 (2301, '账号新增', 2051, 2, '#', '', '', '', 1, 0, 'F', '0', '0', 'wechat:account:add', '#', 'admin', sysdate(), '', NULL, ''),
 (2302, '账号修改', 2051, 3, '#', '', '', '', 1, 0, 'F', '0', '0', 'wechat:account:edit', '#', 'admin', sysdate(), '', NULL, ''),
@@ -155,6 +170,8 @@ INSERT IGNORE INTO sys_menu VALUES
 (2313, '发布查询', 2052, 2, '#', '', '', '', 1, 0, 'F', '0', '0', 'wechat:publish:query', '#', 'admin', sysdate(), '', NULL, ''),
 (2314, '发布删除', 2052, 3, '#', '', '', '', 1, 0, 'F', '0', '0', 'wechat:publish:remove', '#', 'admin', sysdate(), '', NULL, ''),
 (2305, '素材删除', 2053, 1, '#', '', '', '', 1, 0, 'F', '0', '0', 'wechat:material:remove', '#', 'admin', sysdate(), '', NULL, ''),
+(2317, '素材上传', 2053, 2, '#', '', '', '', 1, 0, 'F', '0', '0', 'wechat:material:add', '#', 'admin', sysdate(), '', NULL, ''),
+(2318, '素材查询', 2053, 3, '#', '', '', '', 1, 0, 'F', '0', '0', 'wechat:material:query', '#', 'admin', sysdate(), '', NULL, ''),
 (2306, '菜单新增', 2054, 1, '#', '', '', '', 1, 0, 'F', '0', '0', 'wechat:menu:add', '#', 'admin', sysdate(), '', NULL, ''),
 (2307, '菜单修改', 2054, 2, '#', '', '', '', 1, 0, 'F', '0', '0', 'wechat:menu:edit', '#', 'admin', sysdate(), '', NULL, ''),
 (2308, '菜单发布', 2054, 3, '#', '', '', '', 1, 0, 'F', '0', '0', 'wechat:menu:publish', '#', 'admin', sysdate(), '', NULL, ''),
@@ -163,7 +180,10 @@ INSERT IGNORE INTO sys_menu VALUES
 (2309, '回复新增', 2055, 1, '#', '', '', '', 1, 0, 'F', '0', '0', 'wechat:reply:add', '#', 'admin', sysdate(), '', NULL, ''),
 (2310, '回复修改', 2055, 2, '#', '', '', '', 1, 0, 'F', '0', '0', 'wechat:reply:edit', '#', 'admin', sysdate(), '', NULL, ''),
 (2315, '二维码新增', 2058, 1, '#', '', '', '', 1, 0, 'F', '0', '0', 'wechat:qrcode:add', '#', 'admin', sysdate(), '', NULL, ''),
-(2316, '二维码删除', 2058, 2, '#', '', '', '', 1, 0, 'F', '0', '0', 'wechat:qrcode:remove', '#', 'admin', sysdate(), '', NULL, '');
+(2316, '二维码删除', 2058, 2, '#', '', '', '', 1, 0, 'F', '0', '0', 'wechat:qrcode:remove', '#', 'admin', sysdate(), '', NULL, ''),
+(2319, '草稿新增', 2059, 1, '#', '', '', '', 1, 0, 'F', '0', '0', 'wechat:draft:add', '#', 'admin', sysdate(), '', NULL, ''),
+(2320, '草稿修改', 2059, 2, '#', '', '', '', 1, 0, 'F', '0', '0', 'wechat:draft:edit', '#', 'admin', sysdate(), '', NULL, ''),
+(2321, '草稿删除', 2059, 3, '#', '', '', '', 1, 0, 'F', '0', '0', 'wechat:draft:remove', '#', 'admin', sysdate(), '', NULL, '');
 
 INSERT IGNORE INTO sys_role_menu (role_id, menu_id)
-SELECT 1, menu_id FROM sys_menu WHERE menu_id BETWEEN 2050 AND 2316;
+SELECT 1, menu_id FROM sys_menu WHERE menu_id BETWEEN 2050 AND 2321;

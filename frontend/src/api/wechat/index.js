@@ -122,6 +122,94 @@ export function listWechatMaterial(query) {
   })
 }
 
+export function listWechatMediaAsset(query) {
+  return request({
+    url: '/wechat/material/assets',
+    method: 'get',
+    params: query
+  })
+}
+
+export function uploadWechatMediaAsset(data) {
+  return request({
+    url: '/wechat/material/upload',
+    method: 'post',
+    data,
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+}
+
+export function deleteWechatMediaAsset(id) {
+  return request({
+    url: `/wechat/material/assets/${id}`,
+    method: 'delete'
+  })
+}
+
+export function batchGetWechatMaterial(data) {
+  return request({
+    url: '/wechat/material/wechat/batchget',
+    method: 'post',
+    data
+  })
+}
+
+export function deleteWechatMaterialFromWechat(data) {
+  return request({
+    url: '/wechat/material/wechat/delete',
+    method: 'post',
+    data
+  })
+}
+
+export function batchGetWechatDraft(data) {
+  return request({
+    url: '/wechat/draft/batchget',
+    method: 'post',
+    data
+  })
+}
+
+export function getWechatDraft(data) {
+  return request({
+    url: '/wechat/draft/get',
+    method: 'post',
+    data
+  })
+}
+
+export function countWechatDraft(accountId) {
+  return request({
+    url: '/wechat/draft/count',
+    method: 'get',
+    params: { accountId }
+  })
+}
+
+export function saveWechatDraft(data) {
+  return request({
+    url: '/wechat/draft',
+    method: 'post',
+    data
+  })
+}
+
+export function updateWechatDraft(data) {
+  return request({
+    url: '/wechat/draft/update',
+    method: 'post',
+    data
+  })
+}
+
+export function deleteWechatDraft(data) {
+  return request({
+    url: '/wechat/draft/delete',
+    method: 'post',
+    data
+  })
+}
+
 export function deleteWechatMaterial(id) {
   return request({
     url: `/wechat/material/${id}`,

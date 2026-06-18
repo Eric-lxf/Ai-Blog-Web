@@ -21,6 +21,7 @@ const viewFallback = {
   'wechat/account/index': () => import('@/views/wechat/account/index.vue'),
   'wechat/publish/index': () => import('@/views/wechat/publish/index.vue'),
   'wechat/material/index': () => import('@/views/wechat/material/index.vue'),
+  'wechat/draft/index': () => import('@/views/wechat/draft/index.vue'),
   'wechat/menu/index': () => import('@/views/wechat/menu/index.vue'),
   'wechat/reply/index': () => import('@/views/wechat/reply/index.vue'),
   'wechat/fans/index': () => import('@/views/wechat/fans/index.vue'),

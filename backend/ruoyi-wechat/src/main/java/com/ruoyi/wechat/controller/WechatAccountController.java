@@ -38,7 +38,8 @@ public class WechatAccountController extends WechatControllerSupport
 
     @PreAuthorize("@ss.hasPermi('wechat:account:list') or @ss.hasPermi('wechat:reply:list') or @ss.hasPermi('wechat:menu:list') "
             + "or @ss.hasPermi('wechat:material:list') or @ss.hasPermi('wechat:publish:list') or @ss.hasPermi('wechat:fans:list') "
-            + "or @ss.hasPermi('wechat:message:list') or @ss.hasPermi('wechat:publish:push') or @ss.hasPermi('wechat:qrcode:list')")
+            + "or @ss.hasPermi('wechat:message:list') or @ss.hasPermi('wechat:publish:push') or @ss.hasPermi('wechat:qrcode:list') "
+            + "or @ss.hasPermi('wechat:draft:list')")
     @GetMapping("/options")
     public AjaxResult options()
     {
