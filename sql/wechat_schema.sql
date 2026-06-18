@@ -132,8 +132,10 @@ INSERT IGNORE INTO sys_menu VALUES
 (2306, '菜单新增', 2054, 1, '#', '', '', '', 1, 0, 'F', '0', '0', 'wechat:menu:add', '#', 'admin', sysdate(), '', NULL, ''),
 (2307, '菜单修改', 2054, 2, '#', '', '', '', 1, 0, 'F', '0', '0', 'wechat:menu:edit', '#', 'admin', sysdate(), '', NULL, ''),
 (2308, '菜单发布', 2054, 3, '#', '', '', '', 1, 0, 'F', '0', '0', 'wechat:menu:publish', '#', 'admin', sysdate(), '', NULL, ''),
+(2311, '菜单查询', 2054, 4, '#', '', '', '', 1, 0, 'F', '0', '0', 'wechat:menu:query', '#', 'admin', sysdate(), '', NULL, ''),
+(2312, '菜单删除', 2054, 5, '#', '', '', '', 1, 0, 'F', '0', '0', 'wechat:menu:remove', '#', 'admin', sysdate(), '', NULL, ''),
 (2309, '回复新增', 2055, 1, '#', '', '', '', 1, 0, 'F', '0', '0', 'wechat:reply:add', '#', 'admin', sysdate(), '', NULL, ''),
 (2310, '回复修改', 2055, 2, '#', '', '', '', 1, 0, 'F', '0', '0', 'wechat:reply:edit', '#', 'admin', sysdate(), '', NULL, '');
 
 INSERT IGNORE INTO sys_role_menu (role_id, menu_id)
-SELECT 1, menu_id FROM sys_menu WHERE menu_id BETWEEN 2050 AND 2310;
+SELECT 1, menu_id FROM sys_menu WHERE menu_id BETWEEN 2050 AND 2312;

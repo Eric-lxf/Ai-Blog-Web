@@ -98,6 +98,27 @@ export function publishWechatMenu(id) {
   })
 }
 
+export function getWechatMenuFromWechat(accountId) {
+  return request({
+    url: `/wechat/menu/wechat/${accountId}`,
+    method: 'get'
+  })
+}
+
+export function deleteWechatMenuFromWechat(accountId) {
+  return request({
+    url: `/wechat/menu/wechat/${accountId}`,
+    method: 'delete'
+  })
+}
+
+export function deleteWechatMenu(id) {
+  return request({
+    url: `/wechat/menu/${id}`,
+    method: 'delete'
+  })
+}
+
 export function listWechatReply(query) {
   return request({
     url: '/wechat/reply',
