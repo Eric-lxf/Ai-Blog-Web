@@ -69,9 +69,9 @@
 | 删除已发布 `freepublish/delete` | 下线文章 | ✅ | 已发布列表「删除」 |
 | 本地推送记录 | 审计、排错 | ✅ | `wx_publish_record`，含状态机 |
 | 从记录重新发布 | 失败重试 | 🟡 | `POST /wechat/publish/{id}/submit`，非设计中的 `retry` 命名 |
-| **草稿箱独立管理** | 在微信侧增删改草稿 | ❌ | 无 `draft/batchget`、`draft/update`、`draft/delete` |
-| **素材库独立上传** | 运营主动上传图片/语音 | ❌ | 仅有推送时内部上传；无 `material/upload` 管理页 |
-| **永久素材列表/删除** | 管理微信素材库 | ❌ | 本地 `wx_material` 仅记录推送产物，不同步微信素材库 |
+| **草稿箱独立管理** | 在微信侧增删改草稿 | ✅ | `draft/batchget`、`get`、`add`、`update`、`delete`、`count` |
+| **素材库独立上传** | 运营主动上传图片/封面/正文图 | ✅ | `POST /wechat/material/upload`，类型 thumb/image/content |
+| **永久素材列表/删除** | 管理微信素材库 | 🟡 | 本地 `wx_media_asset` + 微信 `batchget_material` 查询 |
 | 留言/评论管理 | 读者互动 | ❌ | 未对接评论相关 API |
 | 阅读原文链接配置 | 引流回官网 | 🟡 | 字段存在，推送时固定空字符串 |
 
