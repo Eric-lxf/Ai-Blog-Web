@@ -11,6 +11,8 @@ public interface WechatReplyService
 
     Long save(WechatAutoReplySaveRequest request);
 
+    void delete(Long id);
+
     /**
      * Resolve passive reply content from local rules (not synced to WeChat MP autoreply UI).
      *

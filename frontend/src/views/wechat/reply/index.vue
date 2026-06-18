@@ -30,7 +30,10 @@
       <el-table-column label="匹配方式" width="100"><template #default="{ row }">{{ row.matchType === 2 ? '全等' : '包含' }}</template></el-table-column>
       <el-table-column label="状态" width="90" align="center"><template #default="{ row }"><el-tag :type="row.enabled === 1 ? 'success' : 'info'">{{ row.enabled === 1 ? '启用' : '停用' }}</el-tag></template></el-table-column>
       <el-table-column label="更新时间" prop="updateTime" width="170" />
-      <el-table-column label="操作" width="90" align="center"><template #default="{ row }"><el-button link type="primary" v-hasPermi="['wechat:reply:edit']" @click="openDialog(row)">编辑</el-button></template></el-table-column>
+      <el-table-column label="操作" width="140" align="center"><template #default="{ row }">
+        <el-button link type="primary" v-hasPermi="['wechat:reply:edit']" @click="openDialog(row)">编辑</el-button>
+        <el-button link type="danger" v-hasPermi="['wechat:reply:remove']" @click="handleDelete(row)">删除</el-button>
+      </template></el-table-column>
     </el-table>
     <pagination v-show="total > 0" :total="total" v-model:page="queryParams.pageNum" v-model:limit="queryParams.pageSize" @pagination="getList" />
     <el-dialog v-model="dialogVisible" :title="form.id ? '编辑自动回复' : '新增自动回复'" width="680px" append-to-body>
@@ -48,7 +51,7 @@
   </div>
 </template>
 <script setup>
-import { listWechatAccountOptions, listWechatReply, saveWechatReply } from '@/api/wechat'
+import { deleteWechatReply, listWechatAccountOptions, listWechatReply, saveWechatReply } from '@/api/wechat'
 defineOptions({ name: 'WechatReply' })
 const { proxy } = getCurrentInstance()
 const formRef = ref(); const loading = ref(false); const submitLoading = ref(false); const dialogVisible = ref(false)
@@ -69,5 +72,9 @@ function handleQuery() { queryParams.value.pageNum = 1; getList() }
 function resetQuery() { queryParams.value = { pageNum: 1, pageSize: 10, accountId: undefined, status: undefined, keyword: undefined }; getList() }
 function openDialog(row) { resetForm(); if (row) Object.assign(form, row); dialogVisible.value = true }
 function submitForm() { if (form.replyType !== 'keyword' && form.replyType !== 'scan') { form.keyword = ''; form.matchType = 1 }; formRef.value.validate(valid => { if (!valid) return; submitLoading.value = true; saveWechatReply(form).then(() => { proxy.$modal.msgSuccess('保存成功'); dialogVisible.value = false; getList() }).finally(() => { submitLoading.value = false }) }) }
+function handleDelete(row) {
+  proxy.$modal.confirm(`确认删除规则 #${row.id} 吗？`).then(() => deleteWechatReply(row.id))
+    .then(() => { proxy.$modal.msgSuccess('删除成功'); getList() }).catch(() => {})
+}
 Promise.all([loadAccounts()]).finally(() => getList())
 </script>

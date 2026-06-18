@@ -19,5 +19,7 @@ public interface WechatMenuService
 
     void deleteFromWechat(Long accountId);
 
+    Long syncFromWechat(Long accountId);
+
     void delete(Long menuId);
 }

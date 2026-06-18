@@ -64,4 +64,29 @@ public final class WechatMenuPayloadParser
             throw new ServiceException("invalid menu json: " + e.getMessage(), HttpStatus.BAD_REQUEST);
         }
     }
+
+    /**
+     * 从微信 {@code /cgi-bin/menu/get} 响应中提取按钮数组，序列化为本地存储格式（按钮 JSON 数组字符串）。
+     */
+    public static String toStoredJson(Map<String, Object> wechatMenuResponse, ObjectMapper objectMapper)
+    {
+        Object menuObj = wechatMenuResponse.get("menu");
+        if (!(menuObj instanceof Map<?, ?> menuMap))
+        {
+            throw new ServiceException("wechat menu not found", HttpStatus.BAD_REQUEST);
+        }
+        Object button = menuMap.get("button");
+        if (button == null)
+        {
+            throw new ServiceException("wechat menu button array is empty", HttpStatus.BAD_REQUEST);
+        }
+        try
+        {
+            return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(button);
+        }
+        catch (Exception e)
+        {
+            throw new ServiceException("failed to serialize wechat menu: " + e.getMessage(), HttpStatus.BAD_REQUEST);
+        }
+    }
 }

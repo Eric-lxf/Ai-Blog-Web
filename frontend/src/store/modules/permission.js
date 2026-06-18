@@ -27,6 +27,7 @@ const viewFallback = {
   'wechat/fans/index': () => import('@/views/wechat/fans/index.vue'),
   'wechat/message/index': () => import('@/views/wechat/message/index.vue'),
   'wechat/qrcode/index': () => import('@/views/wechat/qrcode/index.vue'),
+  'wechat/config/index': () => import('@/views/wechat/config/index.vue'),
   'system/menu/index': () => import('@/views/system/menu/index.vue'),
 }
 

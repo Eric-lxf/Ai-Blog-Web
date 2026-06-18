@@ -103,12 +103,38 @@ public class WechatMenuServiceImpl implements WechatMenuService
     }
 
     @Override
+    @Transactional
     public void deleteFromWechat(Long accountId)
     {
         String token = wechatTokenService.getAccessToken(accountId);
         String url = WechatConstants.API_HOST + "/cgi-bin/menu/delete?access_token=" + token;
         Map<String, Object> resp = wechatApiClient.getJson(url);
         WechatApiErrors.assertOk(resp, "delete wechat menu");
+    }
+
+    @Override
+    @Transactional
+    public Long syncFromWechat(Long accountId)
+    {
+        Map<String, Object> resp = getFromWechat(accountId);
+        String menuJson = WechatMenuPayloadParser.toStoredJson(resp, objectMapper);
+        WechatMenuPayloadParser.parseCreatePayload(menuJson, objectMapper);
+        LambdaQueryWrapper<WechatMenu> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(WechatMenu::getAccountId, accountId).orderByDesc(WechatMenu::getUpdateTime).last("LIMIT 1");
+        WechatMenu existing = wechatMenuMapper.selectOne(wrapper);
+        if (existing != null)
+        {
+            existing.setMenuJson(menuJson);
+            existing.setIsPublished(1);
+            wechatMenuMapper.updateById(existing);
+            return existing.getId();
+        }
+        WechatMenu menu = new WechatMenu();
+        menu.setAccountId(accountId);
+        menu.setMenuJson(menuJson);
+        menu.setIsPublished(1);
+        wechatMenuMapper.insert(menu);
+        return menu.getId();
     }
 
     @Override

@@ -41,4 +41,14 @@ class WechatMenuPayloadParserTest
         assertThrows(ServiceException.class,
                 () -> WechatMenuPayloadParser.parseCreatePayload("{\"name\":\"bad\"}", objectMapper));
     }
+
+    @Test
+    void toStoredJson_should_extract_button_array()
+    {
+        Map<String, Object> resp = Map.of("menu", Map.of("button", List.of(
+                Map.of("type", "click", "name", "今日歌曲", "key", "V1001_TODAY_MUSIC"))));
+        String stored = WechatMenuPayloadParser.toStoredJson(resp, objectMapper);
+        Map<String, Object> payload = WechatMenuPayloadParser.parseCreatePayload(stored, objectMapper);
+        assertEquals(1, ((List<?>) payload.get("button")).size());
+    }
 }

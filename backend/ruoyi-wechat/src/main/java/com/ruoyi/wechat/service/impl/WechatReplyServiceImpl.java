@@ -6,6 +6,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.ruoyi.common.constant.HttpStatus;
+import com.ruoyi.common.exception.ServiceException;
 import com.ruoyi.wechat.domain.WechatAutoReply;
 import com.ruoyi.wechat.dto.WechatAutoReplySaveRequest;
 import com.ruoyi.wechat.dto.WechatPageQuery;
@@ -55,6 +57,16 @@ public class WechatReplyServiceImpl implements WechatReplyService
             wechatAutoReplyMapper.updateById(entity);
         }
         return entity.getId();
+    }
+
+    @Override
+    @Transactional
+    public void delete(Long id)
+    {
+        if (wechatAutoReplyMapper.deleteById(id) == 0)
+        {
+            throw new ServiceException("reply rule not found", HttpStatus.NOT_FOUND);
+        }
     }
 
     @Override

@@ -261,6 +261,13 @@ export function deleteWechatMenu(id) {
   })
 }
 
+export function syncWechatMenuFromWechat(accountId) {
+  return request({
+    url: `/wechat/menu/sync/${accountId}`,
+    method: 'post'
+  })
+}
+
 export function listWechatReply(query) {
   return request({
     url: '/wechat/reply',
@@ -272,6 +279,28 @@ export function listWechatReply(query) {
 export function saveWechatReply(data) {
   return request({
     url: '/wechat/reply',
+    method: 'post',
+    data
+  })
+}
+
+export function deleteWechatReply(id) {
+  return request({
+    url: `/wechat/reply/${id}`,
+    method: 'delete'
+  })
+}
+
+export function getWechatModuleConfig() {
+  return request({
+    url: '/wechat/config',
+    method: 'get'
+  })
+}
+
+export function saveWechatModuleConfig(data) {
+  return request({
+    url: '/wechat/config',
     method: 'post',
     data
   })

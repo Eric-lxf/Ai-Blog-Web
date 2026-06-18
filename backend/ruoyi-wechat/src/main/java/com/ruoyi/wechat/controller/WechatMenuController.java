@@ -66,6 +66,13 @@ public class WechatMenuController extends WechatControllerSupport
         return AjaxResult.success();
     }
 
+    @PreAuthorize("@ss.hasPermi('wechat:menu:sync')")
+    @PostMapping("/sync/{accountId}")
+    public AjaxResult syncFromWechat(@PathVariable Long accountId)
+    {
+        return AjaxResult.success(wechatMenuService.syncFromWechat(accountId));
+    }
+
     @PreAuthorize("@ss.hasPermi('wechat:menu:remove')")
     @DeleteMapping("/{id}")
     public AjaxResult delete(@PathVariable Long id)
