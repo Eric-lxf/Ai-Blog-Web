@@ -13,6 +13,7 @@ import com.ruoyi.wechat.config.WechatProperties;
 
 import lombok.RequiredArgsConstructor;
 import okhttp3.MediaType;
+import okhttp3.MultipartBody;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
@@ -66,6 +67,32 @@ public class WechatApiClient
                 {
                 });
             }
+        }
+        catch (IOException e)
+        {
+            throw new ServiceException("wechat api call exception: " + e.getMessage());
+        }
+    }
+
+    public Map<String, Object> postMultipart(String url, String fieldName, String filename, byte[] bytes, String mediaType)
+    {
+        OkHttpClient client = buildClient();
+        RequestBody fileBody = RequestBody.create(bytes, MediaType.parse(mediaType));
+        RequestBody body = new MultipartBody.Builder()
+                .setType(MultipartBody.FORM)
+                .addFormDataPart(fieldName, filename, fileBody)
+                .build();
+        Request request = new Request.Builder().url(url).post(body).build();
+        try (Response response = client.newCall(request).execute())
+        {
+            if (!response.isSuccessful())
+            {
+                throw new ServiceException("wechat api call failed: " + response.code());
+            }
+            String respBody = response.body() == null ? "{}" : response.body().string();
+            return objectMapper.readValue(respBody, new TypeReference<Map<String, Object>>()
+            {
+            });
         }
         catch (IOException e)
         {

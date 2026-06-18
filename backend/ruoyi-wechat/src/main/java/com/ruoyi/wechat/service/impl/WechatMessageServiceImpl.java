@@ -53,6 +53,19 @@ public class WechatMessageServiceImpl implements WechatMessageService
         wechatMessageLogMapper.insert(log);
     }
 
+    @Override
+    @Transactional
+    public void saveOutbound(Long accountId, String openId, String messageType, String content)
+    {
+        WechatMessageLog log = new WechatMessageLog();
+        log.setAccountId(accountId);
+        log.setDirection("out");
+        log.setOpenId(openId);
+        log.setMessageType(messageType);
+        log.setContent(content);
+        wechatMessageLogMapper.insert(log);
+    }
+
     private WechatMessageLogVO toVO(WechatMessageLog source)
     {
         WechatMessageLogVO vo = new WechatMessageLogVO();

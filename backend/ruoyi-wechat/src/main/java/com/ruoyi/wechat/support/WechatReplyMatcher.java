@@ -13,7 +13,8 @@ public final class WechatReplyMatcher
     {
     }
 
-    public static String resolve(List<WechatAutoReply> rules, String msgType, String event, String content)
+    public static String resolve(List<WechatAutoReply> rules, String msgType, String event, String eventKey,
+            String content)
     {
         if (rules == null || rules.isEmpty())
         {
@@ -23,7 +24,20 @@ public final class WechatReplyMatcher
         {
             if ("subscribe".equalsIgnoreCase(event))
             {
+                String scene = WechatQrcodeUtils.parseSceneFromSubscribeEventKey(eventKey);
+                if (StringUtils.hasText(scene))
+                {
+                    String scanReply = matchScanReply(rules, scene);
+                    if (StringUtils.hasText(scanReply))
+                    {
+                        return scanReply;
+                    }
+                }
                 return loadReplyContent(rules, "subscribe");
+            }
+            if ("SCAN".equalsIgnoreCase(event))
+            {
+                return matchScanReply(rules, eventKey);
             }
             return "";
         }
@@ -45,6 +59,20 @@ public final class WechatReplyMatcher
                 .filter(rule -> replyType.equals(rule.getReplyType()))
                 .max(Comparator.comparing(WechatAutoReply::getUpdateTime, Comparator.nullsLast(Comparator.naturalOrder())))
                 .map(WechatAutoReply::getContent).filter(StringUtils::hasText).orElse("");
+    }
+
+    private static String matchScanReply(List<WechatAutoReply> rules, String scene)
+    {
+        if (!StringUtils.hasText(scene))
+        {
+            return "";
+        }
+        return rules.stream().filter(rule -> rule.getEnabled() != null && rule.getEnabled() == 1)
+                .filter(rule -> "scan".equals(rule.getReplyType()))
+                .filter(rule -> StringUtils.hasText(rule.getKeyword()))
+                .sorted(Comparator.comparing(WechatAutoReply::getUpdateTime, Comparator.nullsLast(Comparator.reverseOrder())))
+                .filter(rule -> scene.equals(rule.getKeyword().trim()))
+                .map(WechatAutoReply::getContent).filter(StringUtils::hasText).findFirst().orElse("");
     }
 
     private static String matchKeywordReply(List<WechatAutoReply> rules, String content)

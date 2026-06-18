@@ -18,6 +18,7 @@ public class WechatFans
     private String openId;
     private String unionId;
     private String nickname;
+    private String remark;
     private Integer subscribeStatus;
     private LocalDateTime subscribeTime;
     private LocalDateTime createTime;

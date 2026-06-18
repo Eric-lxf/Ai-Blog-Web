@@ -3,6 +3,7 @@ package com.ruoyi.wechat.controller;
 import jakarta.validation.Valid;
 
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -35,6 +36,13 @@ public class WechatMenuController extends WechatControllerSupport
         return mpPageTable(page);
     }
 
+    @PreAuthorize("@ss.hasPermi('wechat:menu:query')")
+    @GetMapping("/wechat/{accountId}")
+    public AjaxResult getFromWechat(@PathVariable Long accountId)
+    {
+        return AjaxResult.success(wechatMenuService.getFromWechat(accountId));
+    }
+
     @PreAuthorize("@ss.hasPermi('wechat:menu:add') or @ss.hasPermi('wechat:menu:edit')")
     @PostMapping
     public AjaxResult save(@Valid @RequestBody WechatMenuSaveRequest request)
@@ -47,6 +55,29 @@ public class WechatMenuController extends WechatControllerSupport
     public AjaxResult publish(@PathVariable("id") Long id)
     {
         wechatMenuService.publish(id);
+        return AjaxResult.success();
+    }
+
+    @PreAuthorize("@ss.hasPermi('wechat:menu:publish')")
+    @DeleteMapping("/wechat/{accountId}")
+    public AjaxResult deleteFromWechat(@PathVariable Long accountId)
+    {
+        wechatMenuService.deleteFromWechat(accountId);
+        return AjaxResult.success();
+    }
+
+    @PreAuthorize("@ss.hasPermi('wechat:menu:sync')")
+    @PostMapping("/sync/{accountId}")
+    public AjaxResult syncFromWechat(@PathVariable Long accountId)
+    {
+        return AjaxResult.success(wechatMenuService.syncFromWechat(accountId));
+    }
+
+    @PreAuthorize("@ss.hasPermi('wechat:menu:remove')")
+    @DeleteMapping("/{id}")
+    public AjaxResult delete(@PathVariable Long id)
+    {
+        wechatMenuService.delete(id);
         return AjaxResult.success();
     }
 }

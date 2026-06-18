@@ -250,7 +250,7 @@ function submitPush() {
         accountId: pushForm.accountId,
         publishMode: pushForm.publishMode,
       })
-      ElMessage.success('推送任务已提交')
+      ElMessage.success(pushForm.publishMode === 'draft' ? '草稿已保存到公众号' : '文章已推送到公众号')
       pushDialogVisible.value = false
     } finally {
       pushSubmitting.value = false

@@ -16,4 +16,5 @@ public class WechatPageQuery
     private Long accountId;
     private String keyword;
     private Integer status;
+    private Long tagId;
 }

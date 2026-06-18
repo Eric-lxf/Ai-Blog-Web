@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ruoyi.common.constant.HttpStatus;
 import com.ruoyi.common.exception.ServiceException;
 import com.ruoyi.wechat.constant.WechatConstants;
@@ -17,6 +18,8 @@ import com.ruoyi.wechat.dto.WechatPageQuery;
 import com.ruoyi.wechat.mapper.WechatMenuMapper;
 import com.ruoyi.wechat.service.WechatMenuService;
 import com.ruoyi.wechat.support.WechatApiClient;
+import com.ruoyi.wechat.support.WechatApiErrors;
+import com.ruoyi.wechat.support.WechatMenuPayloadParser;
 import com.ruoyi.wechat.support.WechatTokenService;
 import com.ruoyi.wechat.vo.WechatMenuVO;
 
@@ -29,6 +32,7 @@ public class WechatMenuServiceImpl implements WechatMenuService
     private final WechatMenuMapper wechatMenuMapper;
     private final WechatTokenService wechatTokenService;
     private final WechatApiClient wechatApiClient;
+    private final ObjectMapper objectMapper;
 
     @Override
     public Page<WechatMenuVO> page(WechatPageQuery query)
@@ -52,6 +56,7 @@ public class WechatMenuServiceImpl implements WechatMenuService
     @Transactional
     public Long save(WechatMenuSaveRequest request)
     {
+        WechatMenuPayloadParser.parseCreatePayload(request.getMenuJson(), objectMapper);
         WechatMenu menu = new WechatMenu();
         BeanUtils.copyProperties(request, menu);
         if (menu.getId() == null)
@@ -80,15 +85,66 @@ public class WechatMenuServiceImpl implements WechatMenuService
         }
         String token = wechatTokenService.getAccessToken(menu.getAccountId());
         String url = WechatConstants.API_HOST + "/cgi-bin/menu/create?access_token=" + token;
-        Map<String, Object> payload = Map.of("button", menu.getMenuJson());
+        Map<String, Object> payload = WechatMenuPayloadParser.parseCreatePayload(menu.getMenuJson(), objectMapper);
         Map<String, Object> resp = wechatApiClient.postJson(url, payload);
-        Object errCode = resp.get("errcode");
-        if (errCode != null && !"0".equals(String.valueOf(errCode)))
-        {
-            throw new ServiceException("publish wechat menu failed: " + resp);
-        }
+        WechatApiErrors.assertOk(resp, "publish wechat menu");
         menu.setIsPublished(1);
         wechatMenuMapper.updateById(menu);
+    }
+
+    @Override
+    public Map<String, Object> getFromWechat(Long accountId)
+    {
+        String token = wechatTokenService.getAccessToken(accountId);
+        String url = WechatConstants.API_HOST + "/cgi-bin/menu/get?access_token=" + token;
+        Map<String, Object> resp = wechatApiClient.getJson(url);
+        WechatApiErrors.assertOk(resp, "query wechat menu");
+        return resp;
+    }
+
+    @Override
+    @Transactional
+    public void deleteFromWechat(Long accountId)
+    {
+        String token = wechatTokenService.getAccessToken(accountId);
+        String url = WechatConstants.API_HOST + "/cgi-bin/menu/delete?access_token=" + token;
+        Map<String, Object> resp = wechatApiClient.getJson(url);
+        WechatApiErrors.assertOk(resp, "delete wechat menu");
+    }
+
+    @Override
+    @Transactional
+    public Long syncFromWechat(Long accountId)
+    {
+        Map<String, Object> resp = getFromWechat(accountId);
+        String menuJson = WechatMenuPayloadParser.toStoredJson(resp, objectMapper);
+        WechatMenuPayloadParser.parseCreatePayload(menuJson, objectMapper);
+        LambdaQueryWrapper<WechatMenu> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(WechatMenu::getAccountId, accountId).orderByDesc(WechatMenu::getUpdateTime).last("LIMIT 1");
+        WechatMenu existing = wechatMenuMapper.selectOne(wrapper);
+        if (existing != null)
+        {
+            existing.setMenuJson(menuJson);
+            existing.setIsPublished(1);
+            wechatMenuMapper.updateById(existing);
+            return existing.getId();
+        }
+        WechatMenu menu = new WechatMenu();
+        menu.setAccountId(accountId);
+        menu.setMenuJson(menuJson);
+        menu.setIsPublished(1);
+        wechatMenuMapper.insert(menu);
+        return menu.getId();
+    }
+
+    @Override
+    @Transactional
+    public void delete(Long menuId)
+    {
+        if (wechatMenuMapper.deleteById(menuId) == 0)
+        {
+            throw new ServiceException("menu not found", HttpStatus.NOT_FOUND);
+        }
     }
 
     private WechatMenuVO toVO(WechatMenu menu)

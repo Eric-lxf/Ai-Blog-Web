@@ -3,7 +3,9 @@ package com.ruoyi.wechat.controller;
 import jakarta.validation.Valid;
 
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -39,5 +41,13 @@ public class WechatReplyController extends WechatControllerSupport
     public AjaxResult save(@Valid @RequestBody WechatAutoReplySaveRequest request)
     {
         return AjaxResult.success(wechatReplyService.save(request));
+    }
+
+    @PreAuthorize("@ss.hasPermi('wechat:reply:remove')")
+    @DeleteMapping("/{id}")
+    public AjaxResult delete(@PathVariable Long id)
+    {
+        wechatReplyService.delete(id);
+        return AjaxResult.success();
     }
 }

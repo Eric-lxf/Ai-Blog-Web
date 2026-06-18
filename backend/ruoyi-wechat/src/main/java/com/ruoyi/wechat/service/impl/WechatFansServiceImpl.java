@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
@@ -19,11 +20,16 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.ruoyi.common.exception.ServiceException;
 import com.ruoyi.wechat.constant.WechatConstants;
 import com.ruoyi.wechat.domain.WechatFans;
+import com.ruoyi.wechat.domain.WechatFansTag;
 import com.ruoyi.wechat.domain.WechatMessageLog;
+import com.ruoyi.wechat.domain.WechatTag;
 import com.ruoyi.wechat.dto.WechatPageQuery;
 import com.ruoyi.wechat.mapper.WechatFansMapper;
+import com.ruoyi.wechat.mapper.WechatFansTagMapper;
 import com.ruoyi.wechat.mapper.WechatMessageLogMapper;
+import com.ruoyi.wechat.mapper.WechatTagMapper;
 import com.ruoyi.wechat.service.WechatFansService;
+import com.ruoyi.wechat.service.WechatTagService;
 import com.ruoyi.wechat.support.WechatApiClient;
 import com.ruoyi.wechat.support.WechatApiErrors;
 import com.ruoyi.wechat.support.WechatTokenService;
@@ -40,9 +46,12 @@ public class WechatFansServiceImpl implements WechatFansService
     private static final ZoneId CHINA_ZONE = ZoneId.of("Asia/Shanghai");
 
     private final WechatFansMapper wechatFansMapper;
+    private final WechatFansTagMapper wechatFansTagMapper;
+    private final WechatTagMapper wechatTagMapper;
     private final WechatMessageLogMapper wechatMessageLogMapper;
     private final WechatTokenService wechatTokenService;
     private final WechatApiClient wechatApiClient;
+    private final WechatTagService wechatTagService;
 
     @Override
     public Page<WechatFansVO> page(WechatPageQuery query)
@@ -62,12 +71,25 @@ public class WechatFansServiceImpl implements WechatFansService
         if (StringUtils.hasText(query.getKeyword()))
         {
             wrapper.and(w -> w.like(WechatFans::getNickname, query.getKeyword()).or()
-                    .like(WechatFans::getOpenId, query.getKeyword()));
+                    .like(WechatFans::getOpenId, query.getKeyword()).or()
+                    .like(WechatFans::getRemark, query.getKeyword()));
+        }
+        if (query.getTagId() != null)
+        {
+            List<WechatFansTag> relations = wechatFansTagMapper.selectList(new LambdaQueryWrapper<WechatFansTag>()
+                    .eq(WechatFansTag::getTagId, query.getTagId()));
+            if (relations.isEmpty())
+            {
+                Page<WechatFansVO> empty = new Page<>(pageNum, pageSize, 0);
+                empty.setRecords(List.of());
+                return empty;
+            }
+            wrapper.in(WechatFans::getId, relations.stream().map(WechatFansTag::getFansId).toList());
         }
         wrapper.orderByDesc(WechatFans::getUpdateTime);
         Page<WechatFans> result = wechatFansMapper.selectPage(page, wrapper);
         Page<WechatFansVO> voPage = new Page<>(result.getCurrent(), result.getSize(), result.getTotal());
-        voPage.setRecords(result.getRecords().stream().map(this::toVO).toList());
+        voPage.setRecords(enrichTagNames(result.getRecords()));
         return voPage;
     }
 
@@ -284,9 +306,11 @@ public class WechatFansServiceImpl implements WechatFansService
         }
         entity.setUnionId(stringValue(user.get("unionid")));
         entity.setNickname(stringValue(user.get("nickname")));
+        entity.setRemark(stringValue(user.get("remark")));
         entity.setSubscribeStatus(subscribeStatus);
         entity.setSubscribeTime(subscribeTime);
         saveOrUpdate(entity);
+        wechatTagService.applyFanTagsFromUserInfo(accountId, entity.getId(), user.get("tagid_list"));
     }
 
     private void upsertMinimal(Long accountId, String openId, int subscribeStatus, LocalDateTime subscribeTime)
@@ -387,6 +411,30 @@ public class WechatFansServiceImpl implements WechatFansService
         WechatFansVO vo = new WechatFansVO();
         BeanUtils.copyProperties(source, vo);
         return vo;
+    }
+
+    private List<WechatFansVO> enrichTagNames(List<WechatFans> fansList)
+    {
+        if (fansList.isEmpty())
+        {
+            return List.of();
+        }
+        List<Long> fanIds = fansList.stream().map(WechatFans::getId).toList();
+        List<WechatFansTag> relations = wechatFansTagMapper.selectList(new LambdaQueryWrapper<WechatFansTag>()
+                .in(WechatFansTag::getFansId, fanIds));
+        Map<Long, List<Long>> fanTagMap = relations.stream().collect(Collectors.groupingBy(WechatFansTag::getFansId,
+                Collectors.mapping(WechatFansTag::getTagId, Collectors.toList())));
+        List<Long> tagIds = relations.stream().map(WechatFansTag::getTagId).distinct().toList();
+        Map<Long, String> tagNameMap = tagIds.isEmpty() ? Map.of()
+                : wechatTagMapper.selectBatchIds(tagIds).stream()
+                        .collect(Collectors.toMap(WechatTag::getId, WechatTag::getName, (a, b) -> a));
+        return fansList.stream().map(fan -> {
+            WechatFansVO vo = toVO(fan);
+            List<String> names = fanTagMap.getOrDefault(fan.getId(), List.of()).stream()
+                    .map(tagNameMap::get).filter(StringUtils::hasText).toList();
+            vo.setTagNames(names);
+            return vo;
+        }).toList();
     }
 
     private static final class MessageFanState
