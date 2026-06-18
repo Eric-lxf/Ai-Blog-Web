@@ -14,9 +14,10 @@ public interface WechatReplyService
     /**
      * Resolve passive reply content from local rules (not synced to WeChat MP autoreply UI).
      *
-     * @param msgType message type from callback xml, e.g. text / event
-     * @param event   event name when msgType is event, e.g. subscribe
-     * @param content user text when msgType is text
+     * @param msgType  message type from callback xml, e.g. text / event
+     * @param event    event name when msgType is event, e.g. subscribe / SCAN
+     * @param eventKey event key when msgType is event, e.g. qrscene_123
+     * @param content  user text when msgType is text
      */
-    String resolveReply(Long accountId, String msgType, String event, String content);
+    String resolveReply(Long accountId, String msgType, String event, String eventKey, String content);
 }

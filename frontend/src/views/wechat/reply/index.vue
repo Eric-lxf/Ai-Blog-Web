@@ -36,8 +36,9 @@
     <el-dialog v-model="dialogVisible" :title="form.id ? '编辑自动回复' : '新增自动回复'" width="680px" append-to-body>
       <el-form ref="formRef" :model="form" :rules="rules" label-width="90px">
         <el-form-item label="账号" prop="accountId"><el-select v-model="form.accountId" filterable placeholder="请选择账号" style="width: 100%"><el-option v-for="item in accountOptions" :key="item.id" :label="item.name" :value="item.id" /></el-select></el-form-item>
-        <el-form-item label="回复类型" prop="replyType"><el-select v-model="form.replyType" style="width: 100%"><el-option label="关键词回复" value="keyword" /><el-option label="默认回复" value="default" /><el-option label="关注回复" value="subscribe" /></el-select></el-form-item>
+        <el-form-item label="回复类型" prop="replyType"><el-select v-model="form.replyType" style="width: 100%"><el-option label="关键词回复" value="keyword" /><el-option label="默认回复" value="default" /><el-option label="关注回复" value="subscribe" /><el-option label="扫码回复" value="scan" /></el-select></el-form-item>
         <el-form-item v-if="form.replyType === 'keyword'" label="关键词" prop="keyword"><el-input v-model="form.keyword" maxlength="100" /></el-form-item>
+        <el-form-item v-if="form.replyType === 'scan'" label="场景值" prop="keyword"><el-input v-model="form.keyword" maxlength="64" placeholder="与二维码场景值一致" /></el-form-item>
         <el-form-item label="回复内容" prop="content"><el-input v-model="form.content" type="textarea" :rows="5" maxlength="1000" show-word-limit /></el-form-item>
         <el-form-item label="匹配方式" v-if="form.replyType === 'keyword'"><el-radio-group v-model="form.matchType"><el-radio :label="1">包含匹配</el-radio><el-radio :label="2">全等匹配</el-radio></el-radio-group></el-form-item>
         <el-form-item label="状态"><el-switch v-model="form.enabled" :active-value="1" :inactive-value="0" /></el-form-item>
@@ -57,16 +58,16 @@ const form = reactive({ id: undefined, accountId: undefined, replyType: 'keyword
 const rules = {
   accountId: [{ required: true, message: '请选择账号', trigger: 'change' }],
   replyType: [{ required: true, message: '请选择回复类型', trigger: 'change' }],
-  keyword: [{ validator: (_, value, callback) => { if (form.replyType === 'keyword' && !value?.trim()) { callback(new Error('请输入关键词')); return } callback() }, trigger: 'blur' }],
+  keyword: [{ validator: (_, value, callback) => { if ((form.replyType === 'keyword' || form.replyType === 'scan') && !value?.trim()) { callback(new Error(form.replyType === 'scan' ? '请输入场景值' : '请输入关键词')); return } callback() }, trigger: 'blur' }],
   content: [{ required: true, message: '请输入回复内容', trigger: 'blur' }]
 }
-function replyTypeLabel(type) { const map = { keyword: '关键词', default: '默认回复', subscribe: '关注回复' }; return map[type] || type }
+function replyTypeLabel(type) { const map = { keyword: '关键词', default: '默认回复', subscribe: '关注回复', scan: '扫码回复' }; return map[type] || type }
 function loadAccounts() { return listWechatAccountOptions().then(res => { accountOptions.value = res.data || [] }) }
 function resetForm() { Object.assign(form, { id: undefined, accountId: undefined, replyType: 'keyword', keyword: '', content: '', enabled: 1, matchType: 1 }); formRef.value?.clearValidate() }
 function getList() { loading.value = true; listWechatReply(queryParams.value).then(res => { list.value = res.rows || []; total.value = res.total || 0 }).finally(() => { loading.value = false }) }
 function handleQuery() { queryParams.value.pageNum = 1; getList() }
 function resetQuery() { queryParams.value = { pageNum: 1, pageSize: 10, accountId: undefined, status: undefined, keyword: undefined }; getList() }
 function openDialog(row) { resetForm(); if (row) Object.assign(form, row); dialogVisible.value = true }
-function submitForm() { if (form.replyType !== 'keyword') { form.keyword = ''; form.matchType = 1 }; formRef.value.validate(valid => { if (!valid) return; submitLoading.value = true; saveWechatReply(form).then(() => { proxy.$modal.msgSuccess('保存成功'); dialogVisible.value = false; getList() }).finally(() => { submitLoading.value = false }) }) }
+function submitForm() { if (form.replyType !== 'keyword' && form.replyType !== 'scan') { form.keyword = ''; form.matchType = 1 }; formRef.value.validate(valid => { if (!valid) return; submitLoading.value = true; saveWechatReply(form).then(() => { proxy.$modal.msgSuccess('保存成功'); dialogVisible.value = false; getList() }).finally(() => { submitLoading.value = false }) }) }
 Promise.all([loadAccounts()]).finally(() => getList())
 </script>

@@ -10,6 +10,7 @@ import com.ruoyi.wechat.service.WechatAccountService;
 import com.ruoyi.wechat.service.WechatFansService;
 import com.ruoyi.wechat.service.WechatMessageService;
 import com.ruoyi.wechat.service.WechatReplyService;
+import com.ruoyi.wechat.service.WechatQrcodeService;
 import com.ruoyi.wechat.service.WechatWebhookService;
 import com.ruoyi.wechat.support.WechatCryptUtil;
 import com.ruoyi.wechat.support.WechatSignatureUtils;
@@ -25,6 +26,7 @@ public class WechatWebhookServiceImpl implements WechatWebhookService
     private final WechatReplyService wechatReplyService;
     private final WechatMessageService wechatMessageService;
     private final WechatFansService wechatFansService;
+    private final WechatQrcodeService wechatQrcodeService;
 
     @Override
     public String verify(Long accountId, String signature, String timestamp, String nonce, String echostr,
@@ -50,6 +52,7 @@ public class WechatWebhookServiceImpl implements WechatWebhookService
         String openId = WechatXmlUtils.readTag(plainXml, "FromUserName");
         String msgType = WechatXmlUtils.readTag(plainXml, "MsgType");
         String event = WechatXmlUtils.readTag(plainXml, "Event");
+        String eventKey = WechatXmlUtils.readTag(plainXml, "EventKey");
         String content = WechatXmlUtils.readTag(plainXml, "Content");
         wechatMessageService.saveInbound(accountId, openId, msgType, event, content, plainXml);
         if ("event".equalsIgnoreCase(msgType))
@@ -57,13 +60,18 @@ public class WechatWebhookServiceImpl implements WechatWebhookService
             if ("subscribe".equalsIgnoreCase(event))
             {
                 wechatFansService.handleSubscribeEvent(accountId, openId, true);
+                wechatQrcodeService.recordScan(accountId, event, eventKey);
             }
             else if ("unsubscribe".equalsIgnoreCase(event))
             {
                 wechatFansService.handleSubscribeEvent(accountId, openId, false);
             }
+            else if ("SCAN".equalsIgnoreCase(event))
+            {
+                wechatQrcodeService.recordScan(accountId, event, eventKey);
+            }
         }
-        String reply = wechatReplyService.resolveReply(accountId, msgType, event, content);
+        String reply = wechatReplyService.resolveReply(accountId, msgType, event, eventKey, content);
         if (reply == null || reply.isBlank())
         {
             return "success";

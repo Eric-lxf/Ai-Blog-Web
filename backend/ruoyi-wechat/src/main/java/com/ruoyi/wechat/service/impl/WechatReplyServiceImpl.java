@@ -58,7 +58,7 @@ public class WechatReplyServiceImpl implements WechatReplyService
     }
 
     @Override
-    public String resolveReply(Long accountId, String msgType, String event, String content)
+    public String resolveReply(Long accountId, String msgType, String event, String eventKey, String content)
     {
         if (accountId == null)
         {
@@ -66,7 +66,7 @@ public class WechatReplyServiceImpl implements WechatReplyService
         }
         LambdaQueryWrapper<WechatAutoReply> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(WechatAutoReply::getAccountId, accountId).eq(WechatAutoReply::getEnabled, 1);
-        return WechatReplyMatcher.resolve(wechatAutoReplyMapper.selectList(wrapper), msgType, event, content);
+        return WechatReplyMatcher.resolve(wechatAutoReplyMapper.selectList(wrapper), msgType, event, eventKey, content);
     }
 
     private WechatAutoReplyVO toVO(WechatAutoReply source)

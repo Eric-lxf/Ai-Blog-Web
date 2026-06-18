@@ -212,3 +212,26 @@ export function listWechatMessage(query) {
     params: query
   })
 }
+
+export function listWechatQrcode(query) {
+  return request({
+    url: '/wechat/qrcode',
+    method: 'get',
+    params: query
+  })
+}
+
+export function createWechatQrcode(data) {
+  return request({
+    url: '/wechat/qrcode',
+    method: 'post',
+    data
+  })
+}
+
+export function deleteWechatQrcode(id) {
+  return request({
+    url: `/wechat/qrcode/${id}`,
+    method: 'delete'
+  })
+}
