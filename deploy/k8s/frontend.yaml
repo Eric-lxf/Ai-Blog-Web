@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-blog-frontend
+  namespace: ai-blog
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ai-blog-frontend
+  template:
+    metadata:
+      labels:
+        app: ai-blog-frontend
+    spec:
+      imagePullSecrets:
+        - name: acr-blog-private
+      containers:
+        - name: frontend
+          image: crpi-skinyl3l0124ry6m.cn-beijing.personal.cr.aliyuncs.com/blog_private/ai-blog-frontend:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+          env:
+            - name: BACKEND_HOST
+              value: ai-blog-backend
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-blog-frontend
+  namespace: ai-blog
+spec:
+  type: LoadBalancer
+  selector:
+    app: ai-blog-frontend
+  ports:
+    - port: 80
+      targetPort: 80

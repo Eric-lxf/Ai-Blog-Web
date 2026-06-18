@@ -1,0 +1,115 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ai-blog-backend-env
+  namespace: ai-blog
+type: Opaque
+stringData:
+  MYSQL_HOST: "your-mysql-host"
+  MYSQL_PORT: "3306"
+  MYSQL_DATABASE: "ai_blog"
+  MYSQL_USER: "root"
+  MYSQL_PASSWORD: "change-me"
+  REDIS_HOST: "your-redis-host"
+  REDIS_PORT: "6379"
+  DEEPSEEK_API_KEY: ""
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-blog-backend
+  namespace: ai-blog
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ai-blog-backend
+  template:
+    metadata:
+      labels:
+        app: ai-blog-backend
+    spec:
+      imagePullSecrets:
+        - name: acr-blog-private
+      containers:
+        - name: backend
+          image: crpi-skinyl3l0124ry6m.cn-beijing.personal.cr.aliyuncs.com/blog_private/ai-blog-backend:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: druid,docker
+            - name: RUOYI_PROFILE
+              value: /data/uploads
+            - name: MYSQL_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: ai-blog-backend-env
+                  key: MYSQL_HOST
+            - name: MYSQL_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: ai-blog-backend-env
+                  key: MYSQL_PORT
+            - name: MYSQL_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: ai-blog-backend-env
+                  key: MYSQL_DATABASE
+            - name: MYSQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: ai-blog-backend-env
+                  key: MYSQL_USER
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ai-blog-backend-env
+                  key: MYSQL_PASSWORD
+            - name: REDIS_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: ai-blog-backend-env
+                  key: REDIS_HOST
+            - name: REDIS_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: ai-blog-backend-env
+                  key: REDIS_PORT
+            - name: DEEPSEEK_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ai-blog-backend-env
+                  key: DEEPSEEK_API_KEY
+          readinessProbe:
+            httpGet:
+              path: /captchaImage
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /captchaImage
+              port: 8080
+            initialDelaySeconds: 120
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-blog-backend
+  namespace: ai-blog
+spec:
+  selector:
+    app: ai-blog-backend
+  ports:
+    - port: 8080
+      targetPort: 8080
