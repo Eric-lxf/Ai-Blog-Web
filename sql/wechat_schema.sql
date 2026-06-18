@@ -140,7 +140,7 @@ CREATE TABLE IF NOT EXISTS `wx_media_asset` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='微信公众号永久素材';
 
 INSERT INTO sys_config (config_name, config_key, config_value, config_type, create_by, create_time, remark)
-SELECT '微信公众号功能开关', 'wechat.enabled', 'false', 'Y', 'admin', sysdate(), '是否启用微信公众号模块'
+SELECT '微信公众号功能开关', 'wechat.enabled', 'true', 'Y', 'admin', sysdate(), '是否启用微信公众号模块（默认启用）'
 WHERE NOT EXISTS (SELECT 1 FROM sys_config WHERE config_key = 'wechat.enabled');
 
 INSERT INTO sys_config (config_name, config_key, config_value, config_type, create_by, create_time, remark)

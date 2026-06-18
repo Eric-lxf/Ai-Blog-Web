@@ -10,7 +10,7 @@ import lombok.Data;
 @ConfigurationProperties(prefix = "wechat")
 public class WechatProperties
 {
-    private boolean enabled = false;
+    private boolean enabled = true;
     private int connectTimeoutMs = 10000;
     private int readTimeoutMs = 30000;
 }
