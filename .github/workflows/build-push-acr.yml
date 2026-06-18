@@ -65,11 +65,29 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # 前端在 Runner 上构建 dist（约 7GB 内存），避免 Docker 内 Vite 1280MB 堆 OOM
+      - name: Setup Node.js for frontend build
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend dist on runner
+        working-directory: frontend
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+          VITE_LOW_MEM_BUILD: '1'
+          VITE_BUILD_COMPRESS: ''
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build:prod
+
       - name: Build and push frontend image
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: frontend/Dockerfile
+          file: frontend/Dockerfile.release
           push: true
           tags: |
             ${{ env.ACR_REGISTRY }}/${{ env.ACR_NAMESPACE }}/${{ env.FRONTEND_IMAGE_NAME }}:${{ github.sha }}
