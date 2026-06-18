@@ -28,6 +28,10 @@ const viewFallback = {
   'wechat/message/index': () => import('@/views/wechat/message/index.vue'),
   'wechat/qrcode/index': () => import('@/views/wechat/qrcode/index.vue'),
   'wechat/config/index': () => import('@/views/wechat/config/index.vue'),
+  'wechat/tag/index': () => import('@/views/wechat/tag/index.vue'),
+  'wechat/kefu/index': () => import('@/views/wechat/kefu/index.vue'),
+  'wechat/template/index': () => import('@/views/wechat/template/index.vue'),
+  'wechat/mass/index': () => import('@/views/wechat/mass/index.vue'),
   'system/menu/index': () => import('@/views/system/menu/index.vue'),
 }
 

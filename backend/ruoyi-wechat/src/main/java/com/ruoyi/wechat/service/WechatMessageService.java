@@ -9,4 +9,6 @@ public interface WechatMessageService
     Page<WechatMessageLogVO> page(WechatPageQuery query);
 
     void saveInbound(Long accountId, String openId, String messageType, String eventType, String content, String rawXml);
+
+    void saveOutbound(Long accountId, String openId, String messageType, String content);
 }

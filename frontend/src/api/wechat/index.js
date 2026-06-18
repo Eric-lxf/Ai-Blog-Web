@@ -352,3 +352,59 @@ export function deleteWechatQrcode(id) {
     method: 'delete'
   })
 }
+
+export function listWechatTag(query) {
+  return request({ url: '/wechat/tag', method: 'get', params: query })
+}
+
+export function listWechatTagOptions(accountId) {
+  return request({ url: '/wechat/tag/options', method: 'get', params: { accountId } })
+}
+
+export function saveWechatTag(data) {
+  return request({ url: '/wechat/tag', method: 'post', data })
+}
+
+export function deleteWechatTag(id) {
+  return request({ url: `/wechat/tag/${id}`, method: 'delete' })
+}
+
+export function syncWechatTag(accountId) {
+  return request({ url: '/wechat/tag/sync', method: 'post', params: { accountId } })
+}
+
+export function markWechatTag(data) {
+  return request({ url: '/wechat/tag/mark', method: 'post', data })
+}
+
+export function checkWechatKefuSession(accountId, openId) {
+  return request({ url: '/wechat/kefu/session', method: 'get', params: { accountId, openId } })
+}
+
+export function sendWechatKefuMessage(data) {
+  return request({ url: '/wechat/kefu/send', method: 'post', data })
+}
+
+export function listWechatTemplate(accountId) {
+  return request({ url: '/wechat/template/list', method: 'get', params: { accountId } })
+}
+
+export function sendWechatTemplate(data) {
+  return request({ url: '/wechat/template/send', method: 'post', data })
+}
+
+export function listWechatMass(query) {
+  return request({ url: '/wechat/mass', method: 'get', params: query })
+}
+
+export function previewWechatMass(data) {
+  return request({ url: '/wechat/mass/preview', method: 'post', data })
+}
+
+export function sendWechatMass(data) {
+  return request({ url: '/wechat/mass/send', method: 'post', data })
+}
+
+export function syncWechatMassStatus(id) {
+  return request({ url: `/wechat/mass/${id}/sync-status`, method: 'post' })
+}

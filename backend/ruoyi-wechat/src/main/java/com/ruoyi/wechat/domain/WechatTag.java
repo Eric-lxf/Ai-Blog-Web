@@ -9,18 +9,15 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
 @Data
-@TableName("wx_fans")
-public class WechatFans
+@TableName("wx_tag")
+public class WechatTag
 {
     @TableId(type = IdType.AUTO)
     private Long id;
     private Long accountId;
-    private String openId;
-    private String unionId;
-    private String nickname;
-    private String remark;
-    private Integer subscribeStatus;
-    private LocalDateTime subscribeTime;
+    private Integer wechatTagId;
+    private String name;
+    private Integer fanCount;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 }
