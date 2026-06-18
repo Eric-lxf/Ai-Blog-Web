@@ -128,6 +128,8 @@ INSERT IGNORE INTO sys_menu VALUES
 (2302, '账号修改', 2051, 3, '#', '', '', '', 1, 0, 'F', '0', '0', 'wechat:account:edit', '#', 'admin', sysdate(), '', NULL, ''),
 (2303, '账号删除', 2051, 4, '#', '', '', '', 1, 0, 'F', '0', '0', 'wechat:account:remove', '#', 'admin', sysdate(), '', NULL, ''),
 (2304, '推送执行', 2052, 1, '#', '', '', '', 1, 0, 'F', '0', '0', 'wechat:publish:push', '#', 'admin', sysdate(), '', NULL, ''),
+(2313, '发布查询', 2052, 2, '#', '', '', '', 1, 0, 'F', '0', '0', 'wechat:publish:query', '#', 'admin', sysdate(), '', NULL, ''),
+(2314, '发布删除', 2052, 3, '#', '', '', '', 1, 0, 'F', '0', '0', 'wechat:publish:remove', '#', 'admin', sysdate(), '', NULL, ''),
 (2305, '素材删除', 2053, 1, '#', '', '', '', 1, 0, 'F', '0', '0', 'wechat:material:remove', '#', 'admin', sysdate(), '', NULL, ''),
 (2306, '菜单新增', 2054, 1, '#', '', '', '', 1, 0, 'F', '0', '0', 'wechat:menu:add', '#', 'admin', sysdate(), '', NULL, ''),
 (2307, '菜单修改', 2054, 2, '#', '', '', '', 1, 0, 'F', '0', '0', 'wechat:menu:edit', '#', 'admin', sysdate(), '', NULL, ''),
@@ -138,4 +140,4 @@ INSERT IGNORE INTO sys_menu VALUES
 (2310, '回复修改', 2055, 2, '#', '', '', '', 1, 0, 'F', '0', '0', 'wechat:reply:edit', '#', 'admin', sysdate(), '', NULL, '');
 
 INSERT IGNORE INTO sys_role_menu (role_id, menu_id)
-SELECT 1, menu_id FROM sys_menu WHERE menu_id BETWEEN 2050 AND 2312;
+SELECT 1, menu_id FROM sys_menu WHERE menu_id BETWEEN 2050 AND 2314;

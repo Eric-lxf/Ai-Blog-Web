@@ -60,6 +60,60 @@ export function pushWechatArticle(data) {
   })
 }
 
+export function submitWechatPublishRecord(id) {
+  return request({
+    url: `/wechat/publish/${id}/submit`,
+    method: 'post'
+  })
+}
+
+export function syncWechatPublishStatus(id) {
+  return request({
+    url: `/wechat/publish/${id}/sync-status`,
+    method: 'post'
+  })
+}
+
+export function batchGetWechatPublished(data) {
+  return request({
+    url: '/wechat/publish/wechat/batchget',
+    method: 'post',
+    data
+  })
+}
+
+export function deleteWechatPublished(data) {
+  return request({
+    url: '/wechat/publish/wechat/delete',
+    method: 'post',
+    data
+  })
+}
+
+export function getWechatPublishStatus(data) {
+  return request({
+    url: '/wechat/publish/wechat/status',
+    method: 'post',
+    data
+  })
+}
+
+export function getWechatPublishedArticle(data) {
+  return request({
+    url: '/wechat/publish/wechat/article',
+    method: 'post',
+    data
+  })
+}
+
+export function submitWechatDraft(data) {
+  return request({
+    url: '/wechat/publish/wechat/submit',
+    method: 'post',
+    data
+  })
+}
+
 export function listWechatMaterial(query) {
   return request({
     url: '/wechat/material',

@@ -19,14 +19,12 @@ import com.ruoyi.wechat.domain.WechatMaterial;
 import com.ruoyi.wechat.domain.WechatPublishRecord;
 import com.ruoyi.wechat.dto.WechatPushRequest;
 import com.ruoyi.wechat.service.WechatDraftService;
+import com.ruoyi.wechat.service.WechatFreePublishService;
 import com.ruoyi.wechat.service.WechatPublishService;
 import com.ruoyi.wechat.service.WechatPushOrchestrator;
 import com.ruoyi.wechat.service.WechatMaterialService;
-import com.ruoyi.wechat.support.WechatApiClient;
-import com.ruoyi.wechat.support.WechatApiErrors;
 import com.ruoyi.wechat.support.WechatContentConverter;
 import com.ruoyi.wechat.support.WechatMediaUploadService;
-import com.ruoyi.wechat.support.WechatTokenService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -40,8 +38,7 @@ public class WechatPushOrchestratorImpl implements WechatPushOrchestrator
     private final WechatMaterialService wechatMaterialService;
     private final WechatDraftService wechatDraftService;
     private final WechatPublishService wechatPublishService;
-    private final WechatTokenService wechatTokenService;
-    private final WechatApiClient wechatApiClient;
+    private final WechatFreePublishService wechatFreePublishService;
     private final WechatMediaUploadService wechatMediaUploadService;
     private final ObjectMapper objectMapper;
 
@@ -100,22 +97,12 @@ public class WechatPushOrchestratorImpl implements WechatPushOrchestrator
             return record.getId();
         }
 
-        String accessToken = wechatTokenService.getAccessToken(request.getAccountId());
-        String url = WechatConstants.API_HOST + "/cgi-bin/freepublish/submit?access_token=" + accessToken;
-        Map<String, Object> payload = Map.of("media_id", material.getMediaId());
-        Map<String, Object> resp = wechatApiClient.postJson(url, payload);
-
-        try
-        {
-            WechatApiErrors.assertOk(resp, "wechat publish");
-        }
-        catch (ServiceException e)
-        {
-            wechatPublishService.markFailed(record.getId(), "publish failed", toJson(resp));
-            throw e;
-        }
+        Map<String, Object> resp = wechatFreePublishService.submit(request.getAccountId(), material.getMediaId());
         String publishId = String.valueOf(resp.getOrDefault("publish_id", ""));
-        wechatPublishService.markSuccess(record.getId(), publishId, toJson(resp));
+        record.setStatus(WechatConstants.PUBLISH_STATUS_PUBLISHING);
+        record.setMsgId(publishId);
+        record.setResponseBody(toJson(resp));
+        wechatPublishService.save(record);
         return record.getId();
     }
 
