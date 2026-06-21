@@ -17,6 +17,17 @@
 
 本地 `application-druid.yml` 默认 **root / password**。若用 Compose 起 MySQL，请在 `.env` 中设置 `MYSQL_ROOT_PASSWORD=password`（可复制 `.env.example` 后改此项），与 JDBC 配置一致。
 
+### 快照环境实况（Cursor Cloud，重要）
+
+当前 VM 快照**未安装 Docker**；MySQL 8 与 Redis 改为 **apt 安装**，直接用 service 启动（无 systemd，需 `sudo`）：
+
+- 启动依赖：`sudo service mysql start` 与 `sudo service redis-server start`。
+- 连接 MySQL 用 **TCP**：`mysql -uroot -ppassword -h 127.0.0.1`（非 root 用户无法走 unix socket；`root@localhost` 密码即 `password`，与 JDBC 一致）。
+- 库 `ai_blog` **已初始化**（含 schema 与 `admin` 用户），正常无需重跑 `sql/`。若需重载，请用 `mysql --force`：`sql/blog_notification_schema.sql` 第 4 行 `ALTER TABLE blog_article ADD COLUMN author_user_id ...` 非幂等，会与 `blog_schema.sql` 已含的同名列冲突报 `Duplicate column`（无害，可忽略）。
+- 更新脚本只跑 `cd frontend && npm ci`；后端 Maven 依赖随构建命令拉取并缓存在 `~/.m2`（`mvn dependency:go-offline` 因跨模块依赖会失败，勿用）。
+- 登录验证码：默认 `sys.account.captchaEnabled=true`（数学验证码，自动化读图困难）。自动化登录/接口测试可临时关闭：`UPDATE sys_config SET config_value='false' WHERE config_key='sys.account.captchaEnabled'` 后**重启后端**（配置有缓存），测试完记得改回 `true`。
+- 前端生产构建用 `npm run build:prod`（16G 内存默认堆足够）；`build:prod:lowmem`（1280MB 堆）在本机会 OOM，勿用。
+
 ### 后端
 
 - 工具：**JDK 17+**、**Maven 3.8+**（仓库根无父 POM，在 `backend/` 下执行 Maven）。
