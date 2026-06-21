@@ -17,6 +17,15 @@
 
 本地 `application-druid.yml` 默认 **root / password**。若用 Compose 起 MySQL，请在 `.env` 中设置 `MYSQL_ROOT_PASSWORD=password`（可复制 `.env.example` 后改此项），与 JDBC 配置一致。
 
+### 本环境快照要点（Cursor Cloud，已预装）
+
+本 VM 用 **apt 原生** MySQL/Redis/Maven（非 Docker），快照已保留安装与 `ai_blog` 库数据。无 systemd，每次会话需手动起服务：
+
+- 启动服务：`sudo service mysql start` 与 `sudo service redis-server start`（`redis-cli ping` 验证）。
+- **MySQL 必须走 TCP**：用 `mysql -uroot -ppassword -h127.0.0.1` —— 非 sudo 直连本地 socket 会 `ERROR 2002 (13)`。root 密码已设为 `password`（与 druid 配置一致）。
+- 初始化（仅首次/重置库时）：按 `docker-compose.yml` 顺序导入 `sql/*.sql`。其中 `blog_notification_schema.sql` 首行 `ALTER TABLE blog_article ADD author_user_id` 会因列已存在报 `1060 Duplicate column`，用 `mysql --force` 跳过即可（其余建表/菜单语句正常执行）。
+- **验证码**：自动化/GUI 登录会被数学验证码图卡住。本快照已在库中将 `sys_config.sys.account.captchaEnabled` 置 `false` 并删除 Redis 键 `sys_config:sys.account.captchaEnabled`（RuoYi 缓存配置，改库后必须删该键或重启后端才生效）。`curl -s localhost:8080/captchaImage` 返回 `captchaEnabled:false` 即生效；改回 `true` 同理需删键。
+
 ### 后端
 
 - 工具：**JDK 17+**、**Maven 3.8+**（仓库根无父 POM，在 `backend/` 下执行 Maven）。
