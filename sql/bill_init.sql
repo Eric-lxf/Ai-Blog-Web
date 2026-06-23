@@ -1,7 +1,7 @@
-SET NAMES utf8mb4;
-USE ai_blog;
+-- ============================================================
+-- blog_bill 表 + 菜单种子数据（menu_id 2400-2419）
+-- ============================================================
 
--- Bill table
 CREATE TABLE IF NOT EXISTS blog_bill (
   id             BIGINT        NOT NULL AUTO_INCREMENT PRIMARY KEY,
   bill_date      DATE          NOT NULL                              COMMENT '消费日期',
@@ -20,18 +20,16 @@ CREATE TABLE IF NOT EXISTS blog_bill (
   INDEX idx_user_date (user_id, bill_date)
 ) COMMENT='个人消费账单' DEFAULT CHARSET=utf8mb4;
 
--- Menu seed data (menu_id 2200-2220)
 INSERT IGNORE INTO sys_menu VALUES
-(2200, '账单管理',  0,    6, 'bill',     NULL,                 '', '', 1, 0, 'M', '0', '0', '',                   'money', 'admin', sysdate(), '', NULL, '个人消费账单管理'),
-(2201, '账单记录',  2200, 1, 'list',     'blog/bill/index',    '', '', 1, 0, 'C', '0', '0', 'blog:bill:list',      'list',  'admin', sysdate(), '', NULL, ''),
-(2202, '消费分析',  2200, 2, 'analysis', 'blog/bill/analysis', '', '', 1, 0, 'C', '0', '0', 'blog:bill:analysis',  'chart', 'admin', sysdate(), '', NULL, ''),
-(2210, '账单查询',  2201, 1, '#', '', '', '', 1, 0, 'F', '0', '0', 'blog:bill:query',     '#', 'admin', sysdate(), '', NULL, ''),
-(2211, '账单新增',  2201, 2, '#', '', '', '', 1, 0, 'F', '0', '0', 'blog:bill:add',       '#', 'admin', sysdate(), '', NULL, ''),
-(2212, '账单修改',  2201, 3, '#', '', '', '', 1, 0, 'F', '0', '0', 'blog:bill:edit',      '#', 'admin', sysdate(), '', NULL, ''),
-(2213, '账单删除',  2201, 4, '#', '', '', '', 1, 0, 'F', '0', '0', 'blog:bill:remove',    '#', 'admin', sysdate(), '', NULL, ''),
-(2214, 'AI识别',  2201, 5, '#', '', '', '', 1, 0, 'F', '0', '0', 'blog:bill:recognize', '#', 'admin', sysdate(), '', NULL, ''),
-(2220, '分析查看',  2202, 1, '#', '', '', '', 1, 0, 'F', '0', '0', 'blog:bill:analysis',  '#', 'admin', sysdate(), '', NULL, '');
+(2400, '账单管理', 0,    6, 'bill',     NULL,                 '', '', 1, 0, 'M', '0', '0', '',                   'money', 'admin', sysdate(), '', NULL, '个人消费账单管理'),
+(2401, '账单记录', 2400, 1, 'list',     'blog/bill/index',    '', '', 1, 0, 'C', '0', '0', 'blog:bill:list',      'list',  'admin', sysdate(), '', NULL, ''),
+(2402, '消费分析', 2400, 2, 'analysis', 'blog/bill/analysis', '', '', 1, 0, 'C', '0', '0', 'blog:bill:analysis',  'chart', 'admin', sysdate(), '', NULL, ''),
+(2410, '账单查询', 2401, 1, '#', '', '', '', 1, 0, 'F', '0', '0', 'blog:bill:query',     '#', 'admin', sysdate(), '', NULL, ''),
+(2411, '账单新增', 2401, 2, '#', '', '', '', 1, 0, 'F', '0', '0', 'blog:bill:add',       '#', 'admin', sysdate(), '', NULL, ''),
+(2412, '账单修改', 2401, 3, '#', '', '', '', 1, 0, 'F', '0', '0', 'blog:bill:edit',      '#', 'admin', sysdate(), '', NULL, ''),
+(2413, '账单删除', 2401, 4, '#', '', '', '', 1, 0, 'F', '0', '0', 'blog:bill:remove',    '#', 'admin', sysdate(), '', NULL, ''),
+(2414, 'AI识别',   2401, 5, '#', '', '', '', 1, 0, 'F', '0', '0', 'blog:bill:recognize', '#', 'admin', sysdate(), '', NULL, ''),
+(2415, '分析查看', 2402, 1, '#', '', '', '', 1, 0, 'F', '0', '0', 'blog:bill:analysis',  '#', 'admin', sysdate(), '', NULL, '');
 
--- Grant to super admin (role_id=1)
 INSERT IGNORE INTO sys_role_menu (role_id, menu_id)
-SELECT 1, menu_id FROM sys_menu WHERE menu_id >= 2200 AND menu_id < 2300;
+SELECT 1, menu_id FROM sys_menu WHERE menu_id >= 2400 AND menu_id < 2420;

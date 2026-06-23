@@ -37,7 +37,7 @@ public class BlogBillController extends BlogControllerSupport
     private final BlogBillService blogBillService;
 
     @PreAuthorize("@ss.hasPermi('blog:bill:list')")
-    @GetMapping
+    @GetMapping("/list")
     public TableDataInfo page(@Valid BillPageQuery query)
     {
         Page<BillVO> page = blogBillService.page(query);
