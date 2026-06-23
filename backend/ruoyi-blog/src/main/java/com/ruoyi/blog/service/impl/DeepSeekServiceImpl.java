@@ -276,6 +276,72 @@ public class DeepSeekServiceImpl implements DeepSeekService
         }
     }
 
+    @Override
+    public String recognizeImage(String imageUrl, String textPrompt)
+    {
+        if (!deepSeekProperties.isConfigured())
+        {
+            throw new ServiceException("未配置 DeepSeek API Key，请设置环境变量 DEEPSEEK_API_KEY", HttpStatus.ERROR);
+        }
+        try
+        {
+            ObjectNode root = objectMapper.createObjectNode();
+            root.put("model", deepSeekProperties.getVisionModel());
+            root.put("stream", false);
+            ArrayNode messages = root.putArray("messages");
+            ObjectNode userMsg = objectMapper.createObjectNode();
+            userMsg.put("role", "user");
+            ArrayNode content = userMsg.putArray("content");
+
+            ObjectNode imgPart = objectMapper.createObjectNode();
+            imgPart.put("type", "image_url");
+            ObjectNode imgUrlNode = objectMapper.createObjectNode();
+            imgUrlNode.put("url", imageUrl);
+            imgPart.set("image_url", imgUrlNode);
+            content.add(imgPart);
+
+            ObjectNode textPart = objectMapper.createObjectNode();
+            textPart.put("type", "text");
+            textPart.put("text", textPrompt);
+            content.add(textPart);
+
+            messages.add(userMsg);
+
+            String requestBody = objectMapper.writeValueAsString(root);
+            Request httpRequest = new Request.Builder()
+                    .url(deepSeekProperties.getBaseUrl() + "/v1/chat/completions")
+                    .header("Authorization", "Bearer " + deepSeekProperties.getApiKey())
+                    .header("Content-Type", "application/json")
+                    .post(RequestBody.create(requestBody, JSON))
+                    .build();
+
+            try (Response response = deepSeekOkHttpClient.newCall(httpRequest).execute())
+            {
+                if (!response.isSuccessful())
+                {
+                    log.warn("DeepSeek vision HTTP error: {}", response.code());
+                    throw new ServiceException("AI 识别服务暂时不可用，请稍后重试", HttpStatus.ERROR);
+                }
+                ResponseBody body = response.body();
+                if (body == null)
+                {
+                    throw new ServiceException("AI 识别返回为空", HttpStatus.ERROR);
+                }
+                JsonNode node = objectMapper.readTree(body.string());
+                return node.path("choices").get(0).path("message").path("content").asText("");
+            }
+        }
+        catch (ServiceException e)
+        {
+            throw e;
+        }
+        catch (Exception e)
+        {
+            log.error("DeepSeek vision error", e);
+            throw new ServiceException("AI 识别服务异常，请稍后重试", HttpStatus.ERROR);
+        }
+    }
+
     private void sendErrorAndComplete(SseEmitter emitter, String message)
     {
         try

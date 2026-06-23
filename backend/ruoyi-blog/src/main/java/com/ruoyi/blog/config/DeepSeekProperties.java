@@ -19,6 +19,9 @@ public class DeepSeekProperties
 
     private int timeoutSeconds = 300;
 
+    /** 用于图片识别的视觉模型，需支持 OpenAI vision 格式（如 deepseek-vl2、gpt-4o 等） */
+    private String visionModel = "deepseek-vl2";
+
     public boolean isConfigured()
     {
         return apiKey != null && !apiKey.isBlank();

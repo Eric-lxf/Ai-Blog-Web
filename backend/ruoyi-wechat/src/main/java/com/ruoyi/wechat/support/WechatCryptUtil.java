@@ -98,7 +98,7 @@ public final class WechatCryptUtil
 
     String encrypt(String randomStr, String plainText)
     {
-        ByteGroup byteCollector = new ByteGroup();
+        com.ruoyi.wechat.support.WechatCryptUtil.ByteGroup byteCollector = new ByteGroup();
         byte[] randomStringBytes = randomStr.getBytes(StandardCharsets.UTF_8);
         byte[] plainTextBytes = plainText.getBytes(StandardCharsets.UTF_8);
         byte[] bytesOfSizeInNetworkOrder = number2BytesInNetworkOrder(plainTextBytes.length);
