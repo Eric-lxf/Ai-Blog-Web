@@ -57,11 +57,11 @@ export default {
   /**
    * 是否显示底部版权
    */
-  footerVisible: false,
+  footerVisible: true,
 
   /**
    * 底部版权文本内容
    */
-  footerContent: 'Copyright © 2018-2026 RuoYi. All Rights Reserved.'
+  footerContent: 'Copyright © 2026 Ai-Blog-Web. All Rights Reserved.'
 }
 

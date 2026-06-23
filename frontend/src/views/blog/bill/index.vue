@@ -172,8 +172,6 @@
             <el-progress :percentage="recognizeResult.aiConfidence || 0" />
           </el-form-item>
         </el-form>
-        <template #footer>
-        </template>
       </div>
 
       <template #footer>

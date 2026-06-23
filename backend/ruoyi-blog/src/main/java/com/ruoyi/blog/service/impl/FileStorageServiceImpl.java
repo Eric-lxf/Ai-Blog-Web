@@ -10,6 +10,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Set;
 import java.util.UUID;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -23,10 +24,11 @@ import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
+@ConditionalOnProperty(prefix = "blog.oss", name = "enabled", havingValue = "false", matchIfMissing = true)
 public class FileStorageServiceImpl implements FileStorageService
 {
 
-    private static final Set<String> ALLOWED_EXT = Set.of("jpg", "jpeg", "png", "gif", "webp");
+    private static final Set<String> ALLOWED_IMAGE_EXT = Set.of("jpg", "jpeg", "png", "gif", "webp");
 
     private final BlogFileProperties properties;
 
@@ -38,7 +40,7 @@ public class FileStorageServiceImpl implements FileStorageService
             throw new ServiceException("上传文件不能为空", HttpStatus.BAD_REQUEST);
         }
         String ext = StringUtils.getFilenameExtension(file.getOriginalFilename());
-        if (ext == null || !ALLOWED_EXT.contains(ext.toLowerCase()))
+        if (ext == null || !ALLOWED_IMAGE_EXT.contains(ext.toLowerCase()))
         {
             throw new ServiceException("仅支持 jpg/png/gif/webp 图片", HttpStatus.BAD_REQUEST);
         }
@@ -47,20 +49,31 @@ public class FileStorageServiceImpl implements FileStorageService
         {
             throw new ServiceException("文件内容与扩展名不匹配", HttpStatus.BAD_REQUEST);
         }
+        return store(file, ext.toLowerCase());
+    }
 
-        String dateDir = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd"));
-        String filename = UUID.randomUUID().toString().replace("-", "") + "." + ext.toLowerCase();
-        Path dir = Paths.get(properties.getUploadDir(), dateDir);
+    @Override
+    public String storeFile(MultipartFile file)
+    {
+        if (file == null || file.isEmpty())
+        {
+            throw new ServiceException("上传文件不能为空", HttpStatus.BAD_REQUEST);
+        }
+        String ext = StringUtils.getFilenameExtension(file.getOriginalFilename());
+        return store(file, ext != null ? ext.toLowerCase() : "bin");
+    }
+
+    private String store(MultipartFile file, String ext)
+    {
+        String dateDir  = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd"));
+        String filename = UUID.randomUUID().toString().replace("-", "") + "." + ext;
+        Path dir        = Paths.get(properties.getUploadDir(), dateDir);
         try
         {
             Files.createDirectories(dir);
-            Path target = dir.resolve(filename);
-            file.transferTo(target.toFile());
+            file.transferTo(dir.resolve(filename).toFile());
             String prefix = properties.getUrlPrefix();
-            if (!prefix.startsWith("/"))
-            {
-                prefix = "/" + prefix;
-            }
+            if (!prefix.startsWith("/")) prefix = "/" + prefix;
             return prefix + "/" + dateDir + "/" + filename;
         }
         catch (IOException e)
@@ -73,12 +86,9 @@ public class FileStorageServiceImpl implements FileStorageService
     {
         try (InputStream in = file.getInputStream())
         {
-            byte[] buf = new byte[len];
-            int read = in.read(buf);
-            if (read <= 0)
-            {
-                return new byte[0];
-            }
+            byte[] buf  = new byte[len];
+            int    read = in.read(buf);
+            if (read <= 0) return new byte[0];
             if (read < len)
             {
                 byte[] actual = new byte[read];
@@ -95,18 +105,17 @@ public class FileStorageServiceImpl implements FileStorageService
 
     private boolean isValidImageHeader(byte[] header, String ext)
     {
-        if (header.length < 3)
-        {
-            return false;
-        }
+        if (header.length < 3) return false;
         return switch (ext)
         {
             case "jpg", "jpeg" -> (header[0] & 0xFF) == 0xFF && (header[1] & 0xFF) == 0xD8;
-            case "png" ->
-                header.length >= 8 && header[0] == (byte) 0x89 && header[1] == 0x50 && header[2] == 0x4E && header[3] == 0x47;
-            case "gif" -> header.length >= 6 && header[0] == 'G' && header[1] == 'I' && header[2] == 'F';
-            case "webp" -> header.length >= 12 && header[0] == 'R' && header[1] == 'I' && header[2] == 'F' && header[3] == 'F'
-                    && header[8] == 'W' && header[9] == 'E' && header[10] == 'B' && header[11] == 'P';
+            case "png"  -> header.length >= 8 && header[0] == (byte) 0x89 && header[1] == 0x50
+                                              && header[2] == 0x4E && header[3] == 0x47;
+            case "gif"  -> header.length >= 3 && header[0] == 'G' && header[1] == 'I' && header[2] == 'F';
+            case "webp" -> header.length >= 12 && header[0] == 'R' && header[1] == 'I'
+                                               && header[2] == 'F' && header[3] == 'F'
+                                               && header[8] == 'W' && header[9] == 'E'
+                                               && header[10] == 'B' && header[11] == 'P';
             default -> false;
         };
     }

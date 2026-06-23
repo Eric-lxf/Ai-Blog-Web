@@ -158,6 +158,14 @@ blog:
   file:
     upload-dir: ./uploads
     url-prefix: /uploads
+  oss:
+    enabled: ${BLOG_OSS_ENABLED:false}
+    endpoint: ${BLOG_OSS_ENDPOINT:oss-cn-hangzhou.aliyuncs.com}
+    access-key-id: ${BLOG_OSS_KEY_ID:}
+    access-key-secret: ${BLOG_OSS_KEY_SECRET:}
+    bucket-name: ${BLOG_OSS_BUCKET:}
+    custom-domain: ${BLOG_OSS_DOMAIN:}
+    object-prefix: uploads/
   notification:
     from: ${MAIL_FROM:noreply@localhost}
     email:
