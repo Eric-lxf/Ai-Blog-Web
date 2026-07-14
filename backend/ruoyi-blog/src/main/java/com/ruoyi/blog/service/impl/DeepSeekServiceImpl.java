@@ -66,7 +66,7 @@ public class DeepSeekServiceImpl implements DeepSeekService
         AiProvider provider = aiProviderService.resolveActiveProvider();
         if (provider == null)
         {
-            sendErrorAndComplete(emitter, "未配置 AI API Key，请在「AI模型配置」中添加，或设置环境变量 DEEPSEEK_API_KEY");
+            sendErrorAndComplete(emitter, "未配置 AI API Key，请在「AI模型配置」中添加并启用");
             return;
         }
 
@@ -117,7 +117,7 @@ public class DeepSeekServiceImpl implements DeepSeekService
         AiProvider provider = aiProviderService.resolveActiveProvider();
         if (provider == null)
         {
-            throw new ServiceException("未配置 AI API Key，请在「AI模型配置」中添加，或设置环境变量 DEEPSEEK_API_KEY",
+            throw new ServiceException("未配置 AI API Key，请在「AI模型配置」中添加并启用",
                     HttpStatus.ERROR);
         }
         return provider;

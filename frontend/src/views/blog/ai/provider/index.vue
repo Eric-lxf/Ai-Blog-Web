@@ -1,6 +1,6 @@
 <template>
   <div class="app-container">
-    <el-alert :closable="false" type="info" class="mb12" title="在此配置多个 AI 服务商（OpenAI / ChatGPT、Claude、DeepSeek 及兼容接口）。调用时使用下方「默认 Provider」，未设置则取第一个启用项。仍兼容环境变量 DEEPSEEK_API_KEY 作为回退。" />
+    <el-alert :closable="false" type="info" class="mb12" title="在此配置多个 AI 服务商（OpenAI / ChatGPT、Claude、DeepSeek 及兼容接口）。调用时使用下方「默认 Provider」，未设置则取第一个启用项。" />
 
     <el-card class="mb12" shadow="never">
       <template #header><span>默认 Provider</span></template>
