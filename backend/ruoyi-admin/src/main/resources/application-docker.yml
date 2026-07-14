@@ -20,9 +20,6 @@ blog:
     upload-dir: ${RUOYI_PROFILE:/data/uploads}
     url-prefix: /uploads
 
-deepseek:
-  api-key: ${DEEPSEEK_API_KEY:}
-
 management:
   endpoints:
     web:

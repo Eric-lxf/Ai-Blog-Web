@@ -58,5 +58,5 @@
 
 ### AI 功能
 
-- 推荐在管理后台 **AI博客 → AI模型配置** 中配置多个 Provider（OpenAI / Claude / DeepSeek 等）。
-- 仍兼容环境变量 `DEEPSEEK_API_KEY`（`.env`）作为回退；未配置时非 AI 流程仍可用。
+- 在管理后台 **AI博客 → AI模型配置** 中配置多个 Provider（OpenAI / Claude / DeepSeek 等）。
+- 未配置时非 AI 流程仍可用。

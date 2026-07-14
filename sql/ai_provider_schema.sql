@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS `ai_provider` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='AI 模型服务商配置';
 
 INSERT INTO sys_config (config_name, config_key, config_value, config_type, create_by, create_time, remark)
-SELECT 'AI默认Provider', 'ai.defaultProviderId', '', 'Y', 'admin', sysdate(), '为空时使用首个启用的 Provider；仍兼容环境变量 DEEPSEEK_API_KEY'
+SELECT 'AI默认Provider', 'ai.defaultProviderId', '', 'Y', 'admin', sysdate(), '为空时使用首个启用的 Provider'
 WHERE NOT EXISTS (SELECT 1 FROM sys_config WHERE config_key = 'ai.defaultProviderId');
 
 -- 菜单：挂在 AI博客(2000) 下

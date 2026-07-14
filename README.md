@@ -135,7 +135,7 @@ docker build -f frontend/Dockerfile \
 
 ```bash
 cp .env.example .env
-# 可选：编辑 DEEPSEEK_API_KEY 作为回退；推荐登录后台「AI博客 → AI模型配置」添加多厂商 Key
+# AI Key 请登录后台「AI博客 → AI模型配置」添加（OpenAI / Claude / DeepSeek 等）
 docker compose --env-file .env up -d --build
 # 或（云主机 / CI 推荐，失败会 exit 1 并打印后端日志）
 chmod +x deploy.sh && ./deploy.sh

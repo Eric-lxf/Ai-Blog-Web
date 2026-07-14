@@ -10,7 +10,7 @@ import org.springframework.util.StringUtils;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.ruoyi.blog.config.DeepSeekProperties;
+import com.ruoyi.blog.config.HttpClientConfig;
 import com.ruoyi.blog.constant.AiProviderType;
 import com.ruoyi.blog.domain.AiProvider;
 import com.ruoyi.blog.dto.AiProviderPageQuery;
@@ -35,7 +35,6 @@ public class AiProviderServiceImpl implements AiProviderService
 
     private final AiProviderMapper aiProviderMapper;
     private final AiConfigService aiConfigService;
-    private final DeepSeekProperties deepSeekProperties;
     private final LlmClient llmClient;
     private final OkHttpClient deepSeekOkHttpClient;
 
@@ -180,32 +179,13 @@ public class AiProviderServiceImpl implements AiProviderService
         {
             return first;
         }
-        return fallbackFromYaml();
+        return null;
     }
 
     @Override
     public boolean isConfigured()
     {
         return resolveActiveProvider() != null;
-    }
-
-    private AiProvider fallbackFromYaml()
-    {
-        if (!deepSeekProperties.isConfigured())
-        {
-            return null;
-        }
-        AiProvider fallback = new AiProvider();
-        fallback.setId(null);
-        fallback.setName("DeepSeek (环境变量)");
-        fallback.setProviderType(AiProviderType.OPENAI_COMPATIBLE);
-        fallback.setApiKey(deepSeekProperties.getApiKey());
-        fallback.setBaseUrl(trimSlash(deepSeekProperties.getBaseUrl()));
-        fallback.setDefaultModel(deepSeekProperties.getModel());
-        fallback.setVisionModel(deepSeekProperties.getVisionModel());
-        fallback.setTimeoutSeconds(deepSeekProperties.getTimeoutSeconds());
-        fallback.setEnabled(1);
-        return fallback;
     }
 
     private AiProvider requireById(Long id)
@@ -274,8 +254,10 @@ public class AiProviderServiceImpl implements AiProviderService
     @Override
     public OkHttpClient httpClient(AiProvider provider)
     {
-        int timeout = provider.getTimeoutSeconds() == null ? 300 : provider.getTimeoutSeconds();
-        if (timeout == deepSeekProperties.getTimeoutSeconds())
+        int timeout = provider.getTimeoutSeconds() == null
+                ? HttpClientConfig.DEFAULT_READ_TIMEOUT_SECONDS
+                : provider.getTimeoutSeconds();
+        if (timeout == HttpClientConfig.DEFAULT_READ_TIMEOUT_SECONDS)
         {
             return deepSeekOkHttpClient;
         }
