@@ -47,7 +47,7 @@ services:
       retries: 5
 
   backend:
-    image: ${BACKEND_IMAGE:-crpi-skinyl3l0124ry6m.cn-beijing.personal.cr.aliyuncs.com/blog_private/ai-blog-backend:latest}
+    image: ${BACKEND_IMAGE:-crpi-skinyl3l0124ry6m.cn-beijing.personal.cr.aliyuncs.com/blog_private/ai-blog-backend:${IMAGE_TAG}}
     container_name: ai-blog-web-backend
     restart: unless-stopped
     depends_on:
@@ -78,7 +78,7 @@ services:
       start_period: 120s
 
   frontend:
-    image: ${FRONTEND_IMAGE:-crpi-skinyl3l0124ry6m.cn-beijing.personal.cr.aliyuncs.com/blog_private/ai-blog-frontend:latest}
+    image: ${FRONTEND_IMAGE:-crpi-skinyl3l0124ry6m.cn-beijing.personal.cr.aliyuncs.com/blog_private/ai-blog-frontend:${IMAGE_TAG}}
     container_name: ai-blog-web-frontend
     restart: unless-stopped
     depends_on:
