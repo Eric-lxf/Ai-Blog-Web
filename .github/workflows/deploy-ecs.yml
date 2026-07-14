@@ -1,0 +1,46 @@
+deploy-ecs:
+  name: Deploy to ECS
+  needs: [build-backend, build-frontend]
+  runs-on: ubuntu-latest
+  environment: production
+
+  permissions:
+    contents: read
+
+  steps:
+    - name: Deploy images on ECS
+      uses: appleboy/ssh-action@v1.2.1
+      env:
+        ACR_REGISTRY: ${{ env.ACR_REGISTRY }}
+        ACR_NAMESPACE: ${{ env.ACR_NAMESPACE }}
+        BACKEND_IMAGE_NAME: ${{ env.BACKEND_IMAGE_NAME }}
+        FRONTEND_IMAGE_NAME: ${{ env.FRONTEND_IMAGE_NAME }}
+        IMAGE_TAG: ${{ github.sha }}
+        ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
+        ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
+      with:
+        host: ${{ secrets.ECS_HOST }}
+        username: ${{ secrets.ECS_USER }}
+        key: ${{ secrets.ECS_SSH_PRIVATE_KEY }}
+        fingerprint: ${{ secrets.ECS_SSH_FINGERPRINT }}
+        port: 22
+        envs: ACR_REGISTRY,ACR_NAMESPACE,BACKEND_IMAGE_NAME,FRONTEND_IMAGE_NAME,IMAGE_TAG,ACR_USERNAME,ACR_PASSWORD
+        script_stop: true
+        script: |
+          set -euo pipefail
+
+          cd /opt/ai-blog
+
+          echo "$ACR_PASSWORD" | docker login "$ACR_REGISTRY" \
+            --username "$ACR_USERNAME" \
+            --password-stdin
+
+          export ACR_REGISTRY ACR_NAMESPACE
+          export BACKEND_IMAGE_NAME FRONTEND_IMAGE_NAME IMAGE_TAG
+
+          docker compose -f docker-compose.prod.yml config -q
+          docker compose -f docker-compose.prod.yml pull
+          docker compose -f docker-compose.prod.yml up -d --remove-orphans
+
+          docker image prune -f
+          docker compose -f docker-compose.prod.yml ps
