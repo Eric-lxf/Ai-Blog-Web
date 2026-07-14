@@ -146,7 +146,7 @@ xss:
   # 匹配链接
   urlPatterns: /system/*,/monitor/*,/tool/*
 
-# DeepSeek（博客 AI）
+# AI 回退配置（优先使用管理后台「AI模型配置」表 ai_provider；未配置时回退到本项）
 deepseek:
   api-key: ${DEEPSEEK_API_KEY:}
   base-url: https://api.deepseek.com

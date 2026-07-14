@@ -30,6 +30,7 @@ mysql -u root -p < sql/blog_analytics_schema.sql
 mysql -u root -p < sql/blog_menu_seed.sql
 mysql -u root -p < sql/wechat_schema.sql
 mysql -u root -p < sql/wechat_menu_route_fix.sql
+mysql -u root -p < sql/ai_provider_schema.sql
 ```
 
 修改 `backend/ruoyi-admin/src/main/resources/application-druid.yml` 中的数据库账号，库名建议 `ai_blog`。
@@ -134,7 +135,7 @@ docker build -f frontend/Dockerfile \
 
 ```bash
 cp .env.example .env
-# 编辑 DEEPSEEK_API_KEY
+# 可选：编辑 DEEPSEEK_API_KEY 作为回退；推荐登录后台「AI博客 → AI模型配置」添加多厂商 Key
 docker compose --env-file .env up -d --build
 # 或（云主机 / CI 推荐，失败会 exit 1 并打印后端日志）
 chmod +x deploy.sh && ./deploy.sh
