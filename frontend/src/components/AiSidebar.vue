@@ -20,6 +20,7 @@ const scene = ref('CHAT')
 const templates = ref([])
 const aiConfigured = ref(false)
 const aiModel = ref('')
+const providerName = ref('')
 
 const { messages, loading, send, stop, clear } = useAiChat()
 
@@ -35,6 +36,7 @@ async function loadMeta() {
     const [statusRes, tplRes] = await Promise.all([fetchAiStatus(), fetchAiTemplates()])
     aiConfigured.value = statusRes?.data?.configured ?? false
     aiModel.value = statusRes?.data?.model ?? ''
+    providerName.value = statusRes?.data?.providerName ?? ''
     const list = tplRes?.data
     templates.value = Array.isArray(list) ? list : []
     if (templates.value.length && !templates.value.find(t => t.sceneType === scene.value)) {
@@ -66,7 +68,8 @@ function handleInsert(content) {
 const statusTag = computed(() => {
   if (!aiConfigured.value) return { type: 'warning', text: '未配置 API Key' }
   if (loading.value) return { type: 'primary', text: '生成中...' }
-  return { type: 'success', text: aiModel.value || 'DeepSeek 就绪' }
+  if (providerName.value) return { type: 'success', text: `${providerName.value} · ${aiModel.value || '就绪'}` }
+  return { type: 'success', text: aiModel.value || 'AI 就绪' }
 })
 
 onMounted(loadMeta)

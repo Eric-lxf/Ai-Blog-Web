@@ -16,10 +16,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import com.ruoyi.blog.config.DeepSeekProperties;
 import com.ruoyi.blog.domain.AiPromptTemplate;
+import com.ruoyi.blog.domain.AiProvider;
 import com.ruoyi.blog.dto.AiChatRequest;
 import com.ruoyi.blog.service.AiPromptTemplateService;
+import com.ruoyi.blog.service.AiProviderService;
 import com.ruoyi.blog.service.AiTaskService;
 import com.ruoyi.blog.service.DeepSeekService;
 import com.ruoyi.blog.vo.AiPromptTemplateDetailVO;
@@ -41,7 +42,7 @@ public class AiController extends BlogControllerSupport
 
     private final AiTaskService aiTaskService;
 
-    private final DeepSeekProperties deepSeekProperties;
+    private final AiProviderService aiProviderService;
 
     @PreAuthorize("@ss.hasPermi('blog:ai:chat')")
     @GetMapping("/templates")
@@ -76,7 +77,16 @@ public class AiController extends BlogControllerSupport
     @GetMapping("/status")
     public AjaxResult status()
     {
-        return AjaxResult.success(Map.of("configured", deepSeekProperties.isConfigured(), "model", deepSeekProperties.getModel()));
+        AiProvider provider = aiProviderService.resolveActiveProvider();
+        boolean configured = provider != null;
+        String model = configured ? provider.getDefaultModel() : "";
+        String providerName = configured ? provider.getName() : "";
+        String providerType = configured ? provider.getProviderType() : "";
+        return AjaxResult.success(Map.of(
+                "configured", configured,
+                "model", model == null ? "" : model,
+                "providerName", providerName == null ? "" : providerName,
+                "providerType", providerType == null ? "" : providerType));
     }
 
     @PreAuthorize("@ss.hasPermi('blog:ai:chat')")

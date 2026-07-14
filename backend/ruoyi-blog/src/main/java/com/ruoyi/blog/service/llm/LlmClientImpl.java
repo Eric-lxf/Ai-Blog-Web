@@ -1,0 +1,520 @@
+package com.ruoyi.blog.service.llm;
+
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.ruoyi.blog.constant.AiProviderType;
+import com.ruoyi.blog.domain.AiProvider;
+import com.ruoyi.blog.domain.AiPromptTemplate;
+import com.ruoyi.blog.dto.AiChatRequest;
+import com.ruoyi.blog.dto.AiCompletionRequest;
+import com.ruoyi.blog.dto.ChatMessageDTO;
+import com.ruoyi.common.constant.HttpStatus;
+import com.ruoyi.common.exception.ServiceException;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
+import okhttp3.ResponseBody;
+
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class LlmClientImpl implements LlmClient
+{
+    private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
+
+    private static final String ANTHROPIC_VERSION = "2023-06-01";
+
+    private final ObjectMapper objectMapper;
+
+    @Override
+    public String chatCompletion(AiProvider provider, AiCompletionRequest request, AiPromptTemplate template,
+            OkHttpClient client)
+    {
+        try
+        {
+            if (AiProviderType.isAnthropic(provider.getProviderType()))
+            {
+                return anthropicCompletion(provider, request, template, client);
+            }
+            return openAiCompletion(provider, request, template, client);
+        }
+        catch (ServiceException e)
+        {
+            throw e;
+        }
+        catch (Exception e)
+        {
+            log.error("LLM completion error provider={}", provider.getName(), e);
+            throw new ServiceException("AI 服务异常，请稍后重试", HttpStatus.ERROR);
+        }
+    }
+
+    @Override
+    public void streamChat(AiProvider provider, AiChatRequest request, AiPromptTemplate template, OkHttpClient client,
+            SseEmitter emitter) throws Exception
+    {
+        if (AiProviderType.isAnthropic(provider.getProviderType()))
+        {
+            anthropicStream(provider, request, template, client, emitter);
+            return;
+        }
+        openAiStream(provider, request, template, client, emitter);
+    }
+
+    @Override
+    public String recognizeImage(AiProvider provider, String imageUrl, String textPrompt, OkHttpClient client)
+    {
+        if (AiProviderType.isAnthropic(provider.getProviderType()))
+        {
+            return anthropicVision(provider, imageUrl, textPrompt, client);
+        }
+        return openAiVision(provider, imageUrl, textPrompt, client);
+    }
+
+    @Override
+    public void testConnection(AiProvider provider, OkHttpClient client)
+    {
+        AiCompletionRequest request = new AiCompletionRequest();
+        request.setScene("CHAT");
+        request.setPrompt("ping");
+        request.setCustomSystemPrompt("Reply with exactly: ok");
+        AiPromptTemplate template = new AiPromptTemplate();
+        template.setSystemPrompt("Reply with exactly: ok");
+        template.setModelName(provider.getDefaultModel());
+        String result = chatCompletion(provider, request, template, client);
+        if (!StringUtils.hasText(result))
+        {
+            throw new ServiceException("AI 返回为空，请检查 Key 与模型配置", HttpStatus.ERROR);
+        }
+    }
+
+    // -------------------- OpenAI Compatible --------------------
+
+    private String openAiCompletion(AiProvider provider, AiCompletionRequest request, AiPromptTemplate template,
+            OkHttpClient client) throws Exception
+    {
+        String body = buildOpenAiCompletionBody(provider, request, template, false);
+        Request httpRequest = openAiRequest(provider, body);
+        try (Response response = client.newCall(httpRequest).execute())
+        {
+            assertSuccess(response, "OpenAI");
+            JsonNode node = objectMapper.readTree(response.body().string());
+            return node.path("choices").get(0).path("message").path("content").asText("");
+        }
+    }
+
+    private void openAiStream(AiProvider provider, AiChatRequest request, AiPromptTemplate template, OkHttpClient client,
+            SseEmitter emitter) throws Exception
+    {
+        String body = buildOpenAiChatBody(provider, request, template);
+        Request httpRequest = openAiRequest(provider, body);
+        try (Response response = client.newCall(httpRequest).execute())
+        {
+            if (!response.isSuccessful())
+            {
+                log.warn("OpenAI stream HTTP error: {}", response.code());
+                throw new ServiceException("AI 服务暂时不可用，请稍后重试", HttpStatus.ERROR);
+            }
+            ResponseBody responseBody = response.body();
+            if (responseBody == null)
+            {
+                throw new ServiceException("AI 服务返回为空", HttpStatus.ERROR);
+            }
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(responseBody.byteStream(), StandardCharsets.UTF_8)))
+            {
+                String line;
+                while ((line = reader.readLine()) != null)
+                {
+                    if (!line.startsWith("data: "))
+                    {
+                        continue;
+                    }
+                    String data = line.substring(6).trim();
+                    if ("[DONE]".equals(data))
+                    {
+                        break;
+                    }
+                    JsonNode node = objectMapper.readTree(data);
+                    JsonNode choices = node.path("choices");
+                    if (!choices.isArray() || choices.isEmpty())
+                    {
+                        continue;
+                    }
+                    String content = choices.get(0).path("delta").path("content").asText("");
+                    if (StringUtils.hasText(content))
+                    {
+                        emitter.send(content);
+                    }
+                }
+            }
+        }
+    }
+
+    private String openAiVision(AiProvider provider, String imageUrl, String textPrompt, OkHttpClient client)
+    {
+        try
+        {
+            ObjectNode root = objectMapper.createObjectNode();
+            String model = StringUtils.hasText(provider.getVisionModel()) ? provider.getVisionModel()
+                    : provider.getDefaultModel();
+            root.put("model", model);
+            root.put("stream", false);
+            ArrayNode messages = root.putArray("messages");
+            ObjectNode userMsg = objectMapper.createObjectNode();
+            userMsg.put("role", "user");
+            ArrayNode content = userMsg.putArray("content");
+            ObjectNode imgPart = objectMapper.createObjectNode();
+            imgPart.put("type", "image_url");
+            ObjectNode imgUrlNode = objectMapper.createObjectNode();
+            imgUrlNode.put("url", imageUrl);
+            imgPart.set("image_url", imgUrlNode);
+            content.add(imgPart);
+            ObjectNode textPart = objectMapper.createObjectNode();
+            textPart.put("type", "text");
+            textPart.put("text", textPrompt);
+            content.add(textPart);
+            messages.add(userMsg);
+
+            Request httpRequest = openAiRequest(provider, objectMapper.writeValueAsString(root));
+            try (Response response = client.newCall(httpRequest).execute())
+            {
+                assertSuccess(response, "OpenAI vision");
+                JsonNode node = objectMapper.readTree(response.body().string());
+                return node.path("choices").get(0).path("message").path("content").asText("");
+            }
+        }
+        catch (ServiceException e)
+        {
+            throw e;
+        }
+        catch (Exception e)
+        {
+            log.error("OpenAI vision error", e);
+            throw new ServiceException("AI 识别服务异常，请稍后重试", HttpStatus.ERROR);
+        }
+    }
+
+    private Request openAiRequest(AiProvider provider, String body)
+    {
+        return new Request.Builder().url(provider.getBaseUrl() + "/v1/chat/completions")
+                .header("Authorization", "Bearer " + provider.getApiKey())
+                .header("Content-Type", "application/json")
+                .post(RequestBody.create(body, JSON))
+                .build();
+    }
+
+    private String buildOpenAiCompletionBody(AiProvider provider, AiCompletionRequest request, AiPromptTemplate template,
+            boolean stream) throws Exception
+    {
+        ObjectNode root = objectMapper.createObjectNode();
+        root.put("model", resolveModel(provider, template));
+        root.put("stream", stream);
+        applyTemperature(root, request.getTemperature(), template.getTemperature());
+        ArrayNode messages = root.putArray("messages");
+        String system = StringUtils.hasText(request.getCustomSystemPrompt()) ? request.getCustomSystemPrompt()
+                : template.getSystemPrompt();
+        messages.add(objectMapper.createObjectNode().put("role", "system").put("content", system));
+        messages.add(objectMapper.createObjectNode().put("role", "user").put("content", request.getPrompt()));
+        return objectMapper.writeValueAsString(root);
+    }
+
+    private String buildOpenAiChatBody(AiProvider provider, AiChatRequest request, AiPromptTemplate template)
+            throws Exception
+    {
+        ObjectNode root = objectMapper.createObjectNode();
+        root.put("model", resolveModel(provider, template));
+        root.put("stream", true);
+        applyTemperature(root, null, template.getTemperature());
+        ArrayNode messages = root.putArray("messages");
+        messages.add(objectMapper.createObjectNode().put("role", "system").put("content", template.getSystemPrompt()));
+        if (Boolean.TRUE.equals(request.getIncludeContext()))
+        {
+            String context = buildArticleContext(request);
+            if (StringUtils.hasText(context))
+            {
+                messages.add(objectMapper.createObjectNode().put("role", "system")
+                        .put("content", "当前用户正在编辑的博客文章上下文：\n" + context));
+            }
+        }
+        if (!CollectionUtils.isEmpty(request.getHistory()))
+        {
+            for (ChatMessageDTO msg : request.getHistory())
+            {
+                messages.add(objectMapper.createObjectNode().put("role", msg.getRole()).put("content", msg.getContent()));
+            }
+        }
+        messages.add(objectMapper.createObjectNode().put("role", "user").put("content", request.getPrompt()));
+        return objectMapper.writeValueAsString(root);
+    }
+
+    // -------------------- Anthropic Claude --------------------
+
+    private String anthropicCompletion(AiProvider provider, AiCompletionRequest request, AiPromptTemplate template,
+            OkHttpClient client) throws Exception
+    {
+        String system = StringUtils.hasText(request.getCustomSystemPrompt()) ? request.getCustomSystemPrompt()
+                : template.getSystemPrompt();
+        ObjectNode root = objectMapper.createObjectNode();
+        root.put("model", resolveModel(provider, template));
+        root.put("max_tokens", 4096);
+        root.put("stream", false);
+        if (StringUtils.hasText(system))
+        {
+            root.put("system", system);
+        }
+        applyTemperature(root, request.getTemperature(), template.getTemperature());
+        ArrayNode messages = root.putArray("messages");
+        messages.add(objectMapper.createObjectNode().put("role", "user").put("content", request.getPrompt()));
+
+        Request httpRequest = anthropicRequest(provider, objectMapper.writeValueAsString(root));
+        try (Response response = client.newCall(httpRequest).execute())
+        {
+            assertSuccess(response, "Anthropic");
+            JsonNode node = objectMapper.readTree(response.body().string());
+            return extractAnthropicText(node);
+        }
+    }
+
+    private void anthropicStream(AiProvider provider, AiChatRequest request, AiPromptTemplate template,
+            OkHttpClient client, SseEmitter emitter) throws Exception
+    {
+        ObjectNode root = objectMapper.createObjectNode();
+        root.put("model", resolveModel(provider, template));
+        root.put("max_tokens", 4096);
+        root.put("stream", true);
+        StringBuilder system = new StringBuilder();
+        if (StringUtils.hasText(template.getSystemPrompt()))
+        {
+            system.append(template.getSystemPrompt());
+        }
+        if (Boolean.TRUE.equals(request.getIncludeContext()))
+        {
+            String context = buildArticleContext(request);
+            if (StringUtils.hasText(context))
+            {
+                if (system.length() > 0)
+                {
+                    system.append("\n\n");
+                }
+                system.append("当前用户正在编辑的博客文章上下文：\n").append(context);
+            }
+        }
+        if (system.length() > 0)
+        {
+            root.put("system", system.toString());
+        }
+        applyTemperature(root, null, template.getTemperature());
+        ArrayNode messages = root.putArray("messages");
+        if (!CollectionUtils.isEmpty(request.getHistory()))
+        {
+            for (ChatMessageDTO msg : request.getHistory())
+            {
+                String role = "assistant".equalsIgnoreCase(msg.getRole()) ? "assistant" : "user";
+                messages.add(objectMapper.createObjectNode().put("role", role).put("content", msg.getContent()));
+            }
+        }
+        messages.add(objectMapper.createObjectNode().put("role", "user").put("content", request.getPrompt()));
+
+        Request httpRequest = anthropicRequest(provider, objectMapper.writeValueAsString(root));
+        try (Response response = client.newCall(httpRequest).execute())
+        {
+            if (!response.isSuccessful())
+            {
+                log.warn("Anthropic stream HTTP error: {}", response.code());
+                throw new ServiceException("AI 服务暂时不可用，请稍后重试", HttpStatus.ERROR);
+            }
+            ResponseBody responseBody = response.body();
+            if (responseBody == null)
+            {
+                throw new ServiceException("AI 服务返回为空", HttpStatus.ERROR);
+            }
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(responseBody.byteStream(), StandardCharsets.UTF_8)))
+            {
+                String line;
+                while ((line = reader.readLine()) != null)
+                {
+                    if (!line.startsWith("data: "))
+                    {
+                        continue;
+                    }
+                    String data = line.substring(6).trim();
+                    if (!StringUtils.hasText(data))
+                    {
+                        continue;
+                    }
+                    JsonNode node = objectMapper.readTree(data);
+                    String type = node.path("type").asText("");
+                    if ("content_block_delta".equals(type))
+                    {
+                        String text = node.path("delta").path("text").asText("");
+                        if (StringUtils.hasText(text))
+                        {
+                            emitter.send(text);
+                        }
+                    }
+                    else if ("message_stop".equals(type))
+                    {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    private String anthropicVision(AiProvider provider, String imageUrl, String textPrompt, OkHttpClient client)
+    {
+        try
+        {
+            ObjectNode root = objectMapper.createObjectNode();
+            String model = StringUtils.hasText(provider.getVisionModel()) ? provider.getVisionModel()
+                    : provider.getDefaultModel();
+            root.put("model", model);
+            root.put("max_tokens", 2048);
+            ArrayNode messages = root.putArray("messages");
+            ObjectNode userMsg = objectMapper.createObjectNode();
+            userMsg.put("role", "user");
+            ArrayNode content = userMsg.putArray("content");
+
+            ObjectNode imgPart = objectMapper.createObjectNode();
+            imgPart.put("type", "image");
+            ObjectNode source = objectMapper.createObjectNode();
+            if (imageUrl.startsWith("data:"))
+            {
+                int comma = imageUrl.indexOf(',');
+                String meta = imageUrl.substring(5, comma);
+                String mediaType = meta.contains(";") ? meta.substring(0, meta.indexOf(';')) : "image/jpeg";
+                source.put("type", "base64");
+                source.put("media_type", mediaType);
+                source.put("data", imageUrl.substring(comma + 1));
+            }
+            else
+            {
+                source.put("type", "url");
+                source.put("url", imageUrl);
+            }
+            imgPart.set("source", source);
+            content.add(imgPart);
+
+            ObjectNode textPart = objectMapper.createObjectNode();
+            textPart.put("type", "text");
+            textPart.put("text", textPrompt);
+            content.add(textPart);
+            messages.add(userMsg);
+
+            Request httpRequest = anthropicRequest(provider, objectMapper.writeValueAsString(root));
+            try (Response response = client.newCall(httpRequest).execute())
+            {
+                assertSuccess(response, "Anthropic vision");
+                return extractAnthropicText(objectMapper.readTree(response.body().string()));
+            }
+        }
+        catch (ServiceException e)
+        {
+            throw e;
+        }
+        catch (Exception e)
+        {
+            log.error("Anthropic vision error", e);
+            throw new ServiceException("AI 识别服务异常，请稍后重试", HttpStatus.ERROR);
+        }
+    }
+
+    private Request anthropicRequest(AiProvider provider, String body)
+    {
+        return new Request.Builder().url(provider.getBaseUrl() + "/v1/messages")
+                .header("x-api-key", provider.getApiKey())
+                .header("anthropic-version", ANTHROPIC_VERSION)
+                .header("Content-Type", "application/json")
+                .post(RequestBody.create(body, JSON))
+                .build();
+    }
+
+    private String extractAnthropicText(JsonNode node)
+    {
+        JsonNode content = node.path("content");
+        if (!content.isArray() || content.isEmpty())
+        {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        for (JsonNode block : content)
+        {
+            if ("text".equals(block.path("type").asText()))
+            {
+                sb.append(block.path("text").asText(""));
+            }
+        }
+        return sb.toString();
+    }
+
+    // -------------------- Shared --------------------
+
+    private String resolveModel(AiProvider provider, AiPromptTemplate template)
+    {
+        if (template != null && StringUtils.hasText(template.getModelName()))
+        {
+            return template.getModelName();
+        }
+        return provider.getDefaultModel();
+    }
+
+    private String buildArticleContext(AiChatRequest request)
+    {
+        StringBuilder sb = new StringBuilder();
+        if (StringUtils.hasText(request.getArticleTitle()))
+        {
+            sb.append("标题：").append(request.getArticleTitle()).append("\n");
+        }
+        if (StringUtils.hasText(request.getArticleContent()))
+        {
+            String content = request.getArticleContent();
+            if (content.length() > 12000)
+            {
+                content = content.substring(0, 12000) + "\n...(内容已截断)";
+            }
+            sb.append("正文：\n").append(content);
+        }
+        return sb.toString().trim();
+    }
+
+    private void applyTemperature(ObjectNode root, java.math.BigDecimal override, java.math.BigDecimal templateTemp)
+    {
+        java.math.BigDecimal temperature = override != null ? override : templateTemp;
+        if (temperature != null)
+        {
+            root.put("temperature", temperature.doubleValue());
+        }
+    }
+
+    private void assertSuccess(Response response, String label) throws Exception
+    {
+        if (!response.isSuccessful())
+        {
+            String errBody = response.body() != null ? response.body().string() : "";
+            log.warn("{} HTTP error: {} body={}", label, response.code(),
+                    errBody.length() > 300 ? errBody.substring(0, 300) : errBody);
+            throw new ServiceException("AI 服务暂时不可用，请稍后重试", HttpStatus.ERROR);
+        }
+        if (response.body() == null)
+        {
+            throw new ServiceException("AI 服务返回为空", HttpStatus.ERROR);
+        }
+    }
+}
