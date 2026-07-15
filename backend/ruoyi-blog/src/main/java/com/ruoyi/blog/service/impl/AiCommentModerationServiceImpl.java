@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ruoyi.blog.constant.AiModuleCode;
 import com.ruoyi.blog.constant.BlogCommentConstants;
 import com.ruoyi.blog.domain.BlogComment;
 import com.ruoyi.blog.dto.AiCompletionRequest;
@@ -58,7 +59,7 @@ public class AiCommentModerationServiceImpl implements AiCommentModerationServic
             AiCompletionRequest request = new AiCompletionRequest();
             request.setScene("COMMENT_MODERATE");
             request.setPrompt("评论内容：" + comment.getContent());
-            String raw = deepSeekService.chatCompletion(request);
+            String raw = deepSeekService.chatCompletion(request, AiModuleCode.COMMENT_MODERATE);
             JsonNode node = parseJson(raw);
             int aiScore = node.path("riskScore").asInt(ruleScore);
             int finalScore = Math.max(ruleScore, aiScore);

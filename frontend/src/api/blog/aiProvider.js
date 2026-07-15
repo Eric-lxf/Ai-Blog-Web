@@ -58,3 +58,25 @@ export function saveAiModuleConfig(data) {
     data
   })
 }
+
+export function listFeatureModuleConfigs() {
+  return request({
+    url: '/blog/ai/provider/module-configs',
+    method: 'get'
+  })
+}
+
+export function saveFeatureModuleOverride(moduleCode, data) {
+  return request({
+    url: `/blog/ai/provider/module-configs/${moduleCode}`,
+    method: 'put',
+    data
+  })
+}
+
+export function deleteFeatureModuleOverride(moduleCode) {
+  return request({
+    url: `/blog/ai/provider/module-configs/${moduleCode}`,
+    method: 'delete'
+  })
+}

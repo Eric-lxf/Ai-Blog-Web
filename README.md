@@ -31,6 +31,7 @@ mysql -u root -p < sql/blog_menu_seed.sql
 mysql -u root -p < sql/wechat_schema.sql
 mysql -u root -p < sql/wechat_menu_route_fix.sql
 mysql -u root -p < sql/ai_provider_schema.sql
+mysql -u root -p < sql/ai_module_config_schema.sql
 mysql -u root -p < sql/ai_provider_auth_mode.sql
 ```
 

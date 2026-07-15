@@ -26,9 +26,11 @@ public interface AiProviderService
     void testConnection(Long id);
 
     /**
-     * 解析当前生效的 Provider：优先默认 ID，其次首个启用行，最后回退 YAML/环境变量。
+     * 解析当前生效的 Provider：优先默认 ID，其次首个启用行（仅数据库）。
      */
     AiProvider resolveActiveProvider();
+
+    AiResolvedModelConfig resolveForModule(String moduleCode);
 
     boolean isConfigured();
 

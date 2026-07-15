@@ -21,6 +21,7 @@ services:
       - ./sql/wechat_schema.sql:/docker-entrypoint-initdb.d/08-wechat_schema.sql:ro
       - ./sql/wechat_menu_route_fix.sql:/docker-entrypoint-initdb.d/09-wechat_menu_route_fix.sql:ro
       - ./sql/ai_provider_schema.sql:/docker-entrypoint-initdb.d/10-ai_provider_schema.sql:ro
+      - ./sql/ai_module_config_schema.sql:/docker-entrypoint-initdb.d/11-ai_module_config_schema.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" || exit 1"]
       interval: 10s
@@ -62,7 +63,6 @@ services:
       MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       RUOYI_PROFILE: /data/uploads
     volumes:
       - uploads_data:/data/uploads

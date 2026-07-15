@@ -1,5 +1,7 @@
 package com.ruoyi.blog.service.llm;
 
+import java.math.BigDecimal;
+
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.ruoyi.blog.domain.AiProvider;
@@ -14,12 +16,13 @@ import okhttp3.OkHttpClient;
  */
 public interface LlmClient
 {
-    String chatCompletion(AiProvider provider, AiCompletionRequest request, AiPromptTemplate template, OkHttpClient client);
+    String chatCompletion(AiProvider provider, AiCompletionRequest request, AiPromptTemplate template, String textModel,
+            BigDecimal effectiveTemperature, OkHttpClient client);
 
-    void streamChat(AiProvider provider, AiChatRequest request, AiPromptTemplate template, OkHttpClient client,
-            SseEmitter emitter) throws Exception;
+    void streamChat(AiProvider provider, AiChatRequest request, AiPromptTemplate template, String textModel,
+            BigDecimal effectiveTemperature, OkHttpClient client, SseEmitter emitter) throws Exception;
 
-    String recognizeImage(AiProvider provider, String imageUrl, String textPrompt, OkHttpClient client);
+    String recognizeImage(AiProvider provider, String imageUrl, String textPrompt, String visionModel, OkHttpClient client);
 
     void testConnection(AiProvider provider, OkHttpClient client);
 }

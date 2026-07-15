@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
+import com.ruoyi.blog.constant.AiModuleCode;
 import com.ruoyi.blog.dto.AiCompletionRequest;
 import com.ruoyi.blog.dto.AiWriteWizardRequest;
 import com.ruoyi.blog.dto.OutlineNodeDTO;
@@ -65,7 +66,7 @@ public class AiWriteServiceImpl implements AiWriteService
                 请生成 5 个适合技术博客的标题，以 JSON 字符串数组返回，例如：["标题1","标题2"]
                 只输出 JSON，不要其他文字。
                 """.formatted(request.getTopic(), audienceLabel(request.getAudience()), lengthLabel(request.getLength()));
-        String raw = deepSeekService.chatCompletion(completion("TITLE_GEN", prompt));
+        String raw = deepSeekService.chatCompletion(completion("TITLE_GEN", prompt), AiModuleCode.WRITE);
         return parseStringList(raw);
     }
 
@@ -78,7 +79,7 @@ public class AiWriteServiceImpl implements AiWriteService
                 目标读者：%s
                 请写一段 80-150 字的中文摘要，适合作为博客 SEO 描述。只输出摘要正文。
                 """.formatted(request.getTopic(), request.getTitle(), audienceLabel(request.getAudience()));
-        return deepSeekService.chatCompletion(completion("SUMMARY", prompt)).trim();
+        return deepSeekService.chatCompletion(completion("SUMMARY", prompt), AiModuleCode.WRITE).trim();
     }
 
     @Override
@@ -95,7 +96,7 @@ public class AiWriteServiceImpl implements AiWriteService
                 至少 3 个一级章节，技术博客结构清晰。只输出 JSON。
                 """.formatted(request.getTopic(), request.getTitle(), request.getSummary(),
                 audienceLabel(request.getAudience()), lengthLabel(request.getLength()));
-        String raw = deepSeekService.chatCompletion(completion("OUTLINE_GEN", prompt));
+        String raw = deepSeekService.chatCompletion(completion("OUTLINE_GEN", prompt), AiModuleCode.WRITE);
         return parseOutline(raw);
     }
 
@@ -138,7 +139,7 @@ public class AiWriteServiceImpl implements AiWriteService
                     %s
                     要求：包含代码示例与必要的 ```mermaid 图表；段落清晰；不要输出标题以外的多余说明。
                     """.formatted(request.getTitle(), request.getTopic(), request.getSummary(), outlineText);
-            String content = deepSeekService.chatCompletion(completion("FULL_ARTICLE", prompt)).trim();
+            String content = deepSeekService.chatCompletion(completion("FULL_ARTICLE", prompt), AiModuleCode.WRITE).trim();
             Long articleId = aiWriteArticlePersistence.saveGeneratedDraft(request, content);
             aiTaskService.markSuccess(taskId, articleId, content);
         }
