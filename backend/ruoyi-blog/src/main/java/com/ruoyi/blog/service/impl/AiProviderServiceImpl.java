@@ -11,6 +11,7 @@ import org.springframework.util.StringUtils;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.ruoyi.blog.config.HttpClientConfig;
+import com.ruoyi.blog.constant.AiAuthMode;
 import com.ruoyi.blog.constant.AiProviderType;
 import com.ruoyi.blog.domain.AiProvider;
 import com.ruoyi.blog.dto.AiProviderPageQuery;
@@ -97,6 +98,7 @@ public class AiProviderServiceImpl implements AiProviderService
             throw new ServiceException("不支持的厂商类型，请使用 openai_compatible 或 anthropic", HttpStatus.BAD_REQUEST);
         }
         normalizeBaseUrl(request);
+        request.setAuthMode(AiAuthMode.normalize(request.getProviderType(), request.getAuthMode()));
 
         if (request.getId() == null)
         {
@@ -108,6 +110,7 @@ public class AiProviderServiceImpl implements AiProviderService
             BeanUtils.copyProperties(request, provider);
             provider.setApiKey(request.getApiKey().trim());
             provider.setBaseUrl(trimSlash(request.getBaseUrl()));
+            provider.setAuthMode(request.getAuthMode());
             aiProviderMapper.insert(provider);
             return provider.getId();
         }
@@ -115,6 +118,7 @@ public class AiProviderServiceImpl implements AiProviderService
         AiProvider existing = requireById(request.getId());
         existing.setName(request.getName());
         existing.setProviderType(request.getProviderType());
+        existing.setAuthMode(request.getAuthMode());
         existing.setBaseUrl(trimSlash(request.getBaseUrl()));
         existing.setDefaultModel(request.getDefaultModel());
         existing.setVisionModel(request.getVisionModel());

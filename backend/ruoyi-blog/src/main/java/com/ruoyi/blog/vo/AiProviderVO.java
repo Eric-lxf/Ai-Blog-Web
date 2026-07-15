@@ -10,6 +10,8 @@ public class AiProviderVO
     private Long id;
     private String name;
     private String providerType;
+    /** api_key | auth_token */
+    private String authMode;
     /** 脱敏后的 Key，如 sk-****xxxx */
     private String apiKeyMasked;
     private String baseUrl;
