@@ -3,9 +3,9 @@
     <el-alert :closable="false" type="info" class="mb12" title="在此配置多个 AI 服务商（OpenAI / ChatGPT、Claude、DeepSeek 及兼容接口）。调用时使用下方「默认 Provider」，未设置则取第一个启用项。" />
 
     <el-card class="mb12" shadow="never">
-      <template #header><span>默认 Provider</span></template>
+      <template #header><span>全局默认配置</span></template>
       <el-form :inline="true">
-        <el-form-item label="当前默认">
+        <el-form-item label="全局数据库默认（模块未覆盖时使用）">
           <el-select v-model="defaultProviderId" clearable placeholder="使用首个启用项" style="width: 280px">
             <el-option
               v-for="item in enabledOptions"
@@ -19,6 +19,114 @@
           <el-button type="primary" :loading="configLoading" v-hasPermi="['blog:ai:provider:edit']" @click="saveDefault">保存默认</el-button>
         </el-form-item>
       </el-form>
+    </el-card>
+
+    <el-card class="mb12" shadow="never">
+      <template #header><span>按功能模块配置</span></template>
+      <el-table v-loading="moduleLoading" :data="moduleConfigs" border>
+        <el-table-column label="模块" min-width="220">
+          <template #default="{ row }">
+            <div class="module-name">{{ moduleMeta(row.moduleCode).name }}</div>
+            <div class="module-desc">{{ moduleMeta(row.moduleCode).desc }}</div>
+          </template>
+        </el-table-column>
+        <el-table-column label="状态" width="120" align="center">
+          <template #default="{ row }">
+            <el-tag :type="row.inherited ? 'info' : 'success'">
+              {{ row.inherited ? '继承全局默认' : '已覆盖' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="Provider" min-width="260">
+          <template #default="{ row }">
+            <el-select v-model="row.providerId" :disabled="!isModuleEditing(row)" placeholder="请选择 Provider" style="width: 100%">
+              <el-option
+                v-for="provider in moduleProviderOptions"
+                :key="provider.id"
+                :label="`${provider.name}（${provider.defaultModel}）`"
+                :value="provider.id"
+              />
+            </el-select>
+          </template>
+        </el-table-column>
+        <el-table-column label="模型" min-width="260">
+          <template #default="{ row }">
+            <el-input
+              v-if="isVisionModule(row)"
+              v-model="row.visionModel"
+              :disabled="!isModuleEditing(row)"
+              placeholder="视觉模型（可留空继承 Provider 视觉模型）"
+            />
+            <el-input
+              v-else
+              v-model="row.textModel"
+              :disabled="!isModuleEditing(row)"
+              placeholder="文本模型（可留空继承 Provider 默认模型）"
+            />
+          </template>
+        </el-table-column>
+        <el-table-column label="温度" width="170" align="center">
+          <template #default="{ row }">
+            <span v-if="isVisionModule(row)" class="muted-text">视觉模块不适用</span>
+            <el-input-number
+              v-else
+              v-model="row.temperature"
+              :disabled="!isModuleEditing(row)"
+              :min="0"
+              :max="2"
+              :precision="2"
+              :step="0.1"
+              controls-position="right"
+              style="width: 130px"
+            />
+          </template>
+        </el-table-column>
+        <el-table-column label="备注" min-width="220">
+          <template #default="{ row }">
+            <el-input v-model="row.remark" :disabled="!isModuleEditing(row)" maxlength="255" placeholder="可选备注" />
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="220" align="center" fixed="right">
+          <template #default="{ row }">
+            <el-button
+              v-if="row.inherited && !isModuleEditing(row)"
+              link
+              type="primary"
+              v-hasPermi="['blog:ai:provider:edit']"
+              @click="enableModuleEdit(row)"
+            >
+              编辑配置
+            </el-button>
+            <el-button
+              v-if="isModuleEditing(row)"
+              link
+              type="primary"
+              :loading="moduleSavingCode === row.moduleCode"
+              v-hasPermi="['blog:ai:provider:edit']"
+              @click="saveModule(row)"
+            >
+              保存
+            </el-button>
+            <el-button
+              v-if="row.inherited && isModuleEditing(row)"
+              link
+              v-hasPermi="['blog:ai:provider:edit']"
+              @click="cancelModuleEdit(row)"
+            >
+              取消
+            </el-button>
+            <el-button
+              v-if="!row.inherited"
+              link
+              type="danger"
+              v-hasPermi="['blog:ai:provider:remove']"
+              @click="restoreInheritance(row)"
+            >
+              恢复继承
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
     </el-card>
 
     <el-form :inline="true" :model="queryParams" class="mb8">
@@ -139,7 +247,10 @@ import {
   testAiProvider,
   getAiModuleConfig,
   saveAiModuleConfig,
-  listAiProviderOptions
+  listAiProviderOptions,
+  listFeatureModuleConfigs,
+  saveFeatureModuleOverride,
+  deleteFeatureModuleOverride
 } from '@/api/blog/aiProvider'
 
 defineOptions({ name: 'BlogAiProvider' })
@@ -154,6 +265,12 @@ const list = ref([])
 const total = ref(0)
 const defaultProviderId = ref('')
 const enabledOptions = ref([])
+const moduleLoading = ref(false)
+const moduleConfigs = ref([])
+const moduleProviderOptions = ref([])
+const moduleSavingCode = ref('')
+const inheritedEditingCodes = ref([])
+const inheritedEditingSnapshot = reactive({})
 const preset = ref('')
 
 const presets = [
@@ -163,6 +280,15 @@ const presets = [
   { key: 'moonshot', label: 'Moonshot (Kimi)', providerType: 'openai_compatible', baseUrl: 'https://api.moonshot.cn', defaultModel: 'moonshot-v1-8k', visionModel: '' },
   { key: 'qwen', label: '通义千问（兼容模式）', providerType: 'openai_compatible', baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode', defaultModel: 'qwen-plus', visionModel: 'qwen-vl-plus' }
 ]
+
+const moduleMetaMap = {
+  editor: { name: '编辑器增强', desc: '用于文章编辑器中的润色和续写。' },
+  write: { name: '博客智写', desc: '用于博客标题、摘要与正文生成。' },
+  optimize: { name: '文本优化', desc: '用于内容改写、提炼与增强。' },
+  comment_moderate: { name: '评论审核', desc: '用于评论智能审核。' },
+  bill_vision: { name: '账单识别', desc: '用于账单图片视觉识别。' },
+  bill_advice: { name: '账单建议', desc: '用于账单分析建议生成。' }
+}
 
 const queryParams = ref({
   pageNum: 1,
@@ -241,10 +367,107 @@ function getList() {
   })
 }
 
-function loadConfig() {
-  Promise.all([getAiModuleConfig(), listAiProviderOptions()]).then(([cfgRes, optRes]) => {
+function moduleMeta(moduleCode) {
+  return moduleMetaMap[moduleCode] || { name: moduleCode, desc: '未识别的模块编码' }
+}
+
+function isVisionModule(row) {
+  return row.moduleCode === 'bill_vision'
+}
+
+function isModuleEditing(row) {
+  return !row.inherited || inheritedEditingCodes.value.includes(row.moduleCode)
+}
+
+function clearInheritedEdit(moduleCode) {
+  inheritedEditingCodes.value = inheritedEditingCodes.value.filter(code => code !== moduleCode)
+  delete inheritedEditingSnapshot[moduleCode]
+}
+
+function preferredModuleProviderId() {
+  const preferred = moduleProviderOptions.value.find(item => String(item.id) === String(defaultProviderId.value))
+  if (preferred) return preferred.id
+  return moduleProviderOptions.value[0]?.id
+}
+
+async function loadConfig() {
+  try {
+    const [cfgRes, optRes] = await Promise.all([getAiModuleConfig(), listAiProviderOptions()])
     defaultProviderId.value = cfgRes.data?.defaultProviderId || ''
     enabledOptions.value = (optRes.data || []).filter(i => i.enabled === 1)
+  } catch (error) {
+    // ignore
+  }
+}
+
+async function loadFeatureModuleConfigs() {
+  moduleLoading.value = true
+  try {
+    const { data = {} } = await listFeatureModuleConfigs()
+    moduleConfigs.value = (data.items || data.modules || []).map(item => ({ ...item }))
+    moduleProviderOptions.value = (data.providerOptions || []).filter(item => item.enabled === 1)
+    inheritedEditingCodes.value = []
+    Object.keys(inheritedEditingSnapshot).forEach(key => delete inheritedEditingSnapshot[key])
+  } finally {
+    moduleLoading.value = false
+  }
+}
+
+function enableModuleEdit(row) {
+  if (!row.inherited || inheritedEditingCodes.value.includes(row.moduleCode)) {
+    return
+  }
+  inheritedEditingSnapshot[row.moduleCode] = { ...row }
+  inheritedEditingCodes.value.push(row.moduleCode)
+  if (!row.providerId) {
+    row.providerId = preferredModuleProviderId()
+  }
+  if (!isVisionModule(row) && row.temperature == null) {
+    row.temperature = 1
+  }
+}
+
+function cancelModuleEdit(row) {
+  if (!row.inherited) return
+  const snapshot = inheritedEditingSnapshot[row.moduleCode]
+  if (snapshot) {
+    Object.assign(row, snapshot)
+  }
+  clearInheritedEdit(row.moduleCode)
+}
+
+async function saveModule(row) {
+  if (!row.providerId) {
+    proxy.$modal.msgError('请选择 Provider')
+    return
+  }
+  const payload = {
+    providerId: row.providerId,
+    remark: row.remark || ''
+  }
+  if (isVisionModule(row)) {
+    payload.visionModel = row.visionModel || ''
+  } else {
+    payload.textModel = row.textModel || ''
+    payload.temperature = row.temperature
+  }
+  moduleSavingCode.value = row.moduleCode
+  try {
+    await saveFeatureModuleOverride(row.moduleCode, payload)
+    proxy.$modal.msgSuccess('模块配置已保存')
+    await loadFeatureModuleConfigs()
+    clearInheritedEdit(row.moduleCode)
+  } finally {
+    moduleSavingCode.value = ''
+  }
+}
+
+function restoreInheritance(row) {
+  proxy.$modal.confirm(`确定恢复模块「${moduleMeta(row.moduleCode).name}」为继承全局默认吗？`).then(() => {
+    return deleteFeatureModuleOverride(row.moduleCode)
+  }).then(() => {
+    proxy.$modal.msgSuccess('已恢复继承全局默认')
+    loadFeatureModuleConfigs()
   }).catch(() => {})
 }
 
@@ -302,7 +525,7 @@ function submitForm() {
       proxy.$modal.msgSuccess('保存成功')
       dialogVisible.value = false
       getList()
-      loadConfig()
+      Promise.all([loadConfig(), loadFeatureModuleConfigs()])
     }).finally(() => {
       submitLoading.value = false
     })
@@ -315,7 +538,7 @@ function handleDelete(row) {
   }).then(() => {
     proxy.$modal.msgSuccess('删除成功')
     getList()
-    loadConfig()
+    Promise.all([loadConfig(), loadFeatureModuleConfigs()])
   }).catch(() => {})
 }
 
@@ -326,10 +549,15 @@ function handleTest(row) {
 }
 
 getList()
-loadConfig()
+loadConfig().then(() => {
+  loadFeatureModuleConfigs()
+})
 </script>
 
 <style scoped>
 .mb12 { margin-bottom: 12px; }
 .mb8 { margin-bottom: 8px; }
+.module-name { font-weight: 600; margin-bottom: 2px; }
+.module-desc { color: #909399; font-size: 12px; line-height: 1.3; }
+.muted-text { color: #909399; font-size: 12px; }
 </style>
