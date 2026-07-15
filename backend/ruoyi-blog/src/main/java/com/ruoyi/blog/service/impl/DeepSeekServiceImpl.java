@@ -9,12 +9,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import com.ruoyi.blog.domain.AiProvider;
 import com.ruoyi.blog.domain.AiPromptTemplate;
 import com.ruoyi.blog.dto.AiChatRequest;
 import com.ruoyi.blog.dto.AiCompletionRequest;
 import com.ruoyi.blog.service.AiPromptTemplateService;
 import com.ruoyi.blog.service.AiProviderService;
+import com.ruoyi.blog.service.AiResolvedModelConfig;
 import com.ruoyi.blog.service.DeepSeekService;
 import com.ruoyi.blog.service.llm.LlmClient;
 import com.ruoyi.common.constant.HttpStatus;
@@ -31,6 +31,8 @@ import okhttp3.OkHttpClient;
 @Service
 public class DeepSeekServiceImpl implements DeepSeekService
 {
+    private static final String NO_PROVIDER_MESSAGE = "未配置可用 AI Provider，请在「AI模型配置」中添加并启用 Provider";
+
     private final AiProviderService aiProviderService;
 
     private final AiPromptTemplateService aiPromptTemplateService;
@@ -52,38 +54,41 @@ public class DeepSeekServiceImpl implements DeepSeekService
     }
 
     @Override
-    public String chatCompletion(AiCompletionRequest request)
+    public String chatCompletion(AiCompletionRequest request, String moduleCode)
     {
-        AiProvider provider = requireProvider();
-        AiPromptTemplate template = requireTemplate(
-                StringUtils.hasText(request.getScene()) ? request.getScene() : "CHAT");
-        OkHttpClient client = aiProviderService.httpClient(provider);
-        BigDecimal effectiveTemperature = request.getTemperature() != null ? request.getTemperature() : template.getTemperature();
-        return llmClient.chatCompletion(provider, request, template, provider.getDefaultModel(), effectiveTemperature, client);
+        AiResolvedModelConfig resolved = requireResolvedConfig(moduleCode);
+        AiPromptTemplate template = requireTemplate(StringUtils.hasText(request.getScene()) ? request.getScene() : "CHAT");
+        OkHttpClient client = aiProviderService.httpClient(resolved.getProvider());
+        BigDecimal effectiveTemperature = resolveEffectiveTemperature(
+                request.getTemperature(), resolved.getTemperatureOverride(), template.getTemperature());
+        return llmClient.chatCompletion(
+                resolved.getProvider(), request, template, resolved.getTextModel(), effectiveTemperature, client);
     }
 
     @Override
-    public void streamChat(AiChatRequest request, SseEmitter emitter)
+    public void streamChat(AiChatRequest request, SseEmitter emitter, String moduleCode)
     {
-        AiProvider provider = aiProviderService.resolveActiveProvider();
-        if (provider == null)
+        AiResolvedModelConfig resolved;
+        try
         {
-            sendErrorAndComplete(emitter, "未配置 AI API Key，请在「AI模型配置」中添加，或设置环境变量 DEEPSEEK_API_KEY");
+            resolved = requireResolvedConfig(moduleCode);
+        }
+        catch (ServiceException e)
+        {
+            sendErrorAndComplete(emitter, e.getMessage());
             return;
         }
 
         aiTaskExecutor.execute(() -> {
             try
             {
-                AiPromptTemplate template = aiPromptTemplateService.getByScene(
+                AiPromptTemplate template = requireTemplate(
                         StringUtils.hasText(request.getScene()) ? request.getScene() : "CHAT");
-                if (template == null)
-                {
-                    sendErrorAndComplete(emitter, "未找到可用的 AI 提示词模板");
-                    return;
-                }
-                OkHttpClient client = aiProviderService.httpClient(provider);
-                llmClient.streamChat(provider, request, template, provider.getDefaultModel(), template.getTemperature(), client,
+                OkHttpClient client = aiProviderService.httpClient(resolved.getProvider());
+                BigDecimal effectiveTemperature = resolveEffectiveTemperature(
+                        null, resolved.getTemperatureOverride(), template.getTemperature());
+                llmClient.streamChat(
+                        resolved.getProvider(), request, template, resolved.getTextModel(), effectiveTemperature, client,
                         emitter);
                 emitter.send("[DONE]");
                 emitter.complete();
@@ -94,7 +99,7 @@ public class DeepSeekServiceImpl implements DeepSeekService
             }
             catch (Exception e)
             {
-                log.error("AI stream error provider={}", provider.getName(), e);
+                log.error("AI stream error provider={}", resolved.getProvider().getName(), e);
                 try
                 {
                     sendErrorAndComplete(emitter, "AI 服务异常，请稍后重试");
@@ -108,32 +113,56 @@ public class DeepSeekServiceImpl implements DeepSeekService
     }
 
     @Override
-    public String recognizeImage(String imageUrl, String textPrompt)
+    public String recognizeImage(String imageUrl, String textPrompt, String moduleCode)
     {
-        AiProvider provider = requireProvider();
-        OkHttpClient client = aiProviderService.httpClient(provider);
-        return llmClient.recognizeImage(provider, imageUrl, textPrompt, provider.getVisionModel(), client);
+        AiResolvedModelConfig resolved = requireResolvedConfig(moduleCode);
+        OkHttpClient client = aiProviderService.httpClient(resolved.getProvider());
+        return llmClient.recognizeImage(resolved.getProvider(), imageUrl, textPrompt, resolved.getVisionModel(), client);
     }
 
-    private AiProvider requireProvider()
+    private AiResolvedModelConfig requireResolvedConfig(String moduleCode)
     {
-        AiProvider provider = aiProviderService.resolveActiveProvider();
-        if (provider == null)
+        try
         {
-            throw new ServiceException("未配置 AI API Key，请在「AI模型配置」中添加，或设置环境变量 DEEPSEEK_API_KEY",
-                    HttpStatus.ERROR);
+            return aiProviderService.resolveForModule(moduleCode);
         }
-        return provider;
+        catch (ServiceException e)
+        {
+            if ("未配置可用 AI Provider".equals(e.getMessage()))
+            {
+                throw new ServiceException(NO_PROVIDER_MESSAGE, HttpStatus.ERROR);
+            }
+            throw e;
+        }
     }
 
     private AiPromptTemplate requireTemplate(String scene)
     {
         AiPromptTemplate template = aiPromptTemplateService.getByScene(scene);
-        if (template == null)
+        if (template == null || isBillAdviceFallback(scene, template))
         {
             throw new ServiceException("未找到可用的 AI 提示词模板", HttpStatus.ERROR);
         }
         return template;
+    }
+
+    private boolean isBillAdviceFallback(String scene, AiPromptTemplate template)
+    {
+        return "BILL_ADVICE".equals(scene) && !scene.equals(template.getSceneType());
+    }
+
+    private BigDecimal resolveEffectiveTemperature(
+            BigDecimal requestTemperature, BigDecimal moduleTemperature, BigDecimal templateTemperature)
+    {
+        if (requestTemperature != null)
+        {
+            return requestTemperature;
+        }
+        if (moduleTemperature != null)
+        {
+            return moduleTemperature;
+        }
+        return templateTemperature;
     }
 
     private void sendErrorAndComplete(SseEmitter emitter, String message)

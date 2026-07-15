@@ -3,6 +3,7 @@ package com.ruoyi.blog.service.impl;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import com.ruoyi.blog.constant.AiModuleCode;
 import com.ruoyi.blog.dto.AiCompletionRequest;
 import com.ruoyi.blog.dto.AiOptimizeRequest;
 import com.ruoyi.blog.service.AiOptimizeService;
@@ -25,6 +26,6 @@ public class AiOptimizeServiceImpl implements AiOptimizeService
         completion.setPrompt(request.getContent());
         completion.setCustomSystemPrompt(request.getCustomSystemPrompt());
         completion.setTemperature(request.getTemperature());
-        return deepSeekService.chatCompletion(completion).trim();
+        return deepSeekService.chatCompletion(completion, AiModuleCode.OPTIMIZE).trim();
     }
 }

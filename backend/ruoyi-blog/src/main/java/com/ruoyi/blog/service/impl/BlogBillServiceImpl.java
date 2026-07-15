@@ -22,6 +22,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ruoyi.blog.constant.AiModuleCode;
 import com.ruoyi.blog.domain.BlogBill;
 import com.ruoyi.blog.dto.AiCompletionRequest;
 import com.ruoyi.blog.dto.BillPageQuery;
@@ -151,7 +152,7 @@ public class BlogBillServiceImpl implements BlogBillService
     @Override
     public BillVO recognize(BillRecognizeRequest request)
     {
-        String raw = deepSeekService.recognizeImage(request.getImageUrl(), RECOGNIZE_PROMPT);
+        String raw = deepSeekService.recognizeImage(request.getImageUrl(), RECOGNIZE_PROMPT, AiModuleCode.BILL_VISION);
         return parseRecognizeResult(raw);
     }
 
@@ -276,9 +277,9 @@ public class BlogBillServiceImpl implements BlogBillService
                     "[{\"tone\":\"warning|info|success|danger\",\"title\":\"标题（10字内）\",\"detail\":\"建议内容（60字内）\"}]\n" +
                     "只输出 JSON 数组，不要其他文字。";
             AiCompletionRequest req = new AiCompletionRequest();
-            req.setScene("CHAT");
+            req.setScene("BILL_ADVICE");
             req.setPrompt(prompt);
-            String raw = deepSeekService.chatCompletion(req);
+            String raw = deepSeekService.chatCompletion(req, AiModuleCode.BILL_ADVICE);
             Matcher m = JSON_ARRAY.matcher(raw);
             if (!m.find()) return List.of();
             return objectMapper.readValue(m.group(), new TypeReference<List<BillAnalysisVO.AdviceItem>>() {});

@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import com.ruoyi.blog.constant.AiModuleCode;
 import com.ruoyi.blog.domain.AiPromptTemplate;
 import com.ruoyi.blog.domain.AiProvider;
 import com.ruoyi.blog.dto.AiChatRequest;
@@ -98,7 +99,7 @@ public class AiController extends BlogControllerSupport
         });
         emitter.onTimeout(emitter::complete);
         emitter.onError(e -> emitter.complete());
-        deepSeekService.streamChat(request, emitter);
+        deepSeekService.streamChat(request, emitter, AiModuleCode.EDITOR);
         return emitter;
     }
 }
