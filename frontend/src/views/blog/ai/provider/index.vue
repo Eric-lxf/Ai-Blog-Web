@@ -67,9 +67,8 @@
         </el-table-column>
         <el-table-column label="温度" width="170" align="center">
           <template #default="{ row }">
-            <span v-if="isVisionModule(row)" class="muted-text">视觉模块不适用</span>
             <el-input-number
-              v-else
+              v-if="!isVisionModule(row)"
               v-model="row.temperature"
               :disabled="!isModuleEditing(row)"
               :min="0"
@@ -559,5 +558,4 @@ loadConfig().then(() => {
 .mb8 { margin-bottom: 8px; }
 .module-name { font-weight: 600; margin-bottom: 2px; }
 .module-desc { color: #909399; font-size: 12px; line-height: 1.3; }
-.muted-text { color: #909399; font-size: 12px; }
 </style>
