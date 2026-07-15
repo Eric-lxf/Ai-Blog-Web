@@ -31,6 +31,7 @@ mysql -u root -p < sql/blog_menu_seed.sql
 mysql -u root -p < sql/wechat_schema.sql
 mysql -u root -p < sql/wechat_menu_route_fix.sql
 mysql -u root -p < sql/ai_provider_schema.sql
+mysql -u root -p < sql/ai_provider_auth_mode.sql
 ```
 
 修改 `backend/ruoyi-admin/src/main/resources/application-druid.yml` 中的数据库账号，库名建议 `ai_blog`。

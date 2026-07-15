@@ -98,6 +98,7 @@ public class AiProviderServiceImpl implements AiProviderService
             throw new ServiceException("不支持的厂商类型，请使用 openai_compatible 或 anthropic", HttpStatus.BAD_REQUEST);
         }
         normalizeBaseUrl(request);
+        normalizeAuthMode(request);
 
         if (request.getId() == null)
         {
@@ -116,6 +117,7 @@ public class AiProviderServiceImpl implements AiProviderService
         AiProvider existing = requireById(request.getId());
         existing.setName(request.getName());
         existing.setProviderType(request.getProviderType());
+        existing.setAuthMode(request.getAuthMode());
         existing.setBaseUrl(trimSlash(request.getBaseUrl()));
         existing.setDefaultModel(request.getDefaultModel());
         existing.setVisionModel(request.getVisionModel());
@@ -255,6 +257,26 @@ public class AiProviderServiceImpl implements AiProviderService
         {
             request.setBaseUrl("https://api.anthropic.com");
         }
+    }
+
+    private void normalizeAuthMode(AiProviderSaveRequest request)
+    {
+        if (!AiProviderType.isAnthropic(request.getProviderType()))
+        {
+            request.setAuthMode(AiProviderType.AUTH_MODE_API_KEY);
+            return;
+        }
+        if (!StringUtils.hasText(request.getAuthMode()))
+        {
+            request.setAuthMode(AiProviderType.AUTH_MODE_API_KEY);
+            return;
+        }
+        String authMode = request.getAuthMode().trim().toLowerCase();
+        if (!AiProviderType.isSupportedAnthropicAuthMode(authMode))
+        {
+            throw new ServiceException("Claude 认证方式仅支持 api_key 或 auth_token", HttpStatus.BAD_REQUEST);
+        }
+        request.setAuthMode(authMode);
     }
 
     private static String trimSlash(String url)

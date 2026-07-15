@@ -22,6 +22,9 @@ public class AiProvider
 
     private String apiKey;
 
+    /** api_key | auth_token，仅 Anthropic 使用 */
+    private String authMode;
+
     private String baseUrl;
 
     private String defaultModel;

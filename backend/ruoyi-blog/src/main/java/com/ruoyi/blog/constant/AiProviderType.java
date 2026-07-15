@@ -13,6 +13,10 @@ public final class AiProviderType
 
     public static final String ANTHROPIC = "anthropic";
 
+    public static final String AUTH_MODE_API_KEY = "api_key";
+
+    public static final String AUTH_MODE_AUTH_TOKEN = "auth_token";
+
     private AiProviderType()
     {
     }
@@ -30,5 +34,10 @@ public final class AiProviderType
     public static boolean isSupported(String type)
     {
         return isOpenAiCompatible(type) || isAnthropic(type);
+    }
+
+    public static boolean isSupportedAnthropicAuthMode(String authMode)
+    {
+        return AUTH_MODE_API_KEY.equalsIgnoreCase(authMode) || AUTH_MODE_AUTH_TOKEN.equalsIgnoreCase(authMode);
     }
 }

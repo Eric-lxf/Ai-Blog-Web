@@ -20,6 +20,9 @@ public class AiProviderSaveRequest
     /** 新增必填；编辑留空表示不修改 */
     private String apiKey;
 
+    /** api_key | auth_token，仅 Anthropic 使用 */
+    private String authMode;
+
     @NotBlank(message = "Base URL 不能为空")
     private String baseUrl;
 
