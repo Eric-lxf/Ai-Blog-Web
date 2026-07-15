@@ -142,6 +142,21 @@ public class AiProviderServiceImpl implements AiProviderService
     @Transactional
     public void delete(Long id)
     {
+        List<AiModuleConfig> references = aiModuleConfigMapper.selectList(new LambdaQueryWrapper<AiModuleConfig>()
+                .eq(AiModuleConfig::getProviderId, id));
+        if (!references.isEmpty())
+        {
+            String modules = references.stream()
+                    .map(AiModuleConfig::getModuleCode)
+                    .filter(StringUtils::hasText)
+                    .distinct()
+                    .collect(java.util.stream.Collectors.joining(", "));
+            if (!StringUtils.hasText(modules))
+            {
+                modules = "unknown";
+            }
+            throw new ServiceException("该 Provider 正被模块配置使用：" + modules, HttpStatus.BAD_REQUEST);
+        }
         if (aiProviderMapper.deleteById(id) == 0)
         {
             throw new ServiceException("AI Provider 不存在", HttpStatus.NOT_FOUND);
