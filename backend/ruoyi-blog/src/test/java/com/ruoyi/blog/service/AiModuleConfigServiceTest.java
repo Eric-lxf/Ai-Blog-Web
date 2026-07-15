@@ -28,7 +28,6 @@ import com.ruoyi.blog.service.impl.AiConfigServiceImpl;
 import com.ruoyi.blog.service.impl.AiProviderServiceImpl;
 import com.ruoyi.blog.service.llm.LlmClient;
 import com.ruoyi.blog.vo.AiFeatureModuleConfigsVO;
-import com.ruoyi.blog.vo.AiProviderOptionVO;
 import com.ruoyi.common.exception.ServiceException;
 import com.ruoyi.system.service.ISysConfigService;
 
@@ -47,9 +46,6 @@ class AiModuleConfigServiceTest
     private AiProviderMapper providerMapper;
 
     @Mock
-    private AiProviderService aiProviderService;
-
-    @Mock
     private AiConfigService aiConfigService;
 
     @Mock
@@ -64,7 +60,7 @@ class AiModuleConfigServiceTest
     @BeforeEach
     void setUp()
     {
-        configService = new AiConfigServiceImpl(sysConfigService, moduleConfigMapper, providerMapper, aiProviderService);
+        configService = new AiConfigServiceImpl(sysConfigService, moduleConfigMapper, providerMapper);
         providerService = new AiProviderServiceImpl(moduleConfigMapper, providerMapper, aiConfigService, llmClient,
                 deepSeekOkHttpClient);
     }
@@ -116,8 +112,11 @@ class AiModuleConfigServiceTest
         writeOverride.setVisionModel("write-vision");
         writeOverride.setTemperature(new BigDecimal("0.70"));
         writeOverride.setRemark("write-remark");
+        AiProvider provider = provider(9L, 1, "sk-provider");
+        provider.setName("Provider-9");
+        provider.setProviderType("openai_compatible");
         when(moduleConfigMapper.selectList(any())).thenReturn(List.of(writeOverride));
-        when(aiProviderService.listOptions()).thenReturn(List.of(providerOption(9L, "Provider-9")));
+        when(providerMapper.selectList(any())).thenReturn(List.of(provider));
 
         AiFeatureModuleConfigsVO result = configService.listFeatureModuleConfigs();
 
@@ -164,14 +163,4 @@ class AiModuleConfigServiceTest
         return provider;
     }
 
-    private static AiProviderOptionVO providerOption(Long id, String name)
-    {
-        AiProviderOptionVO option = new AiProviderOptionVO();
-        option.setId(id);
-        option.setName(name);
-        option.setEnabled(1);
-        option.setDefaultModel("model");
-        option.setProviderType("openai_compatible");
-        return option;
-    }
 }

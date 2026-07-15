@@ -18,10 +18,10 @@ import com.ruoyi.blog.dto.AiModuleOverrideSaveRequest;
 import com.ruoyi.blog.mapper.AiModuleConfigMapper;
 import com.ruoyi.blog.mapper.AiProviderMapper;
 import com.ruoyi.blog.service.AiConfigService;
-import com.ruoyi.blog.service.AiProviderService;
 import com.ruoyi.blog.vo.AiFeatureModuleConfigItemVO;
 import com.ruoyi.blog.vo.AiFeatureModuleConfigsVO;
 import com.ruoyi.blog.vo.AiModuleConfigVO;
+import com.ruoyi.blog.vo.AiProviderOptionVO;
 import com.ruoyi.common.constant.HttpStatus;
 import com.ruoyi.common.exception.ServiceException;
 import com.ruoyi.system.domain.SysConfig;
@@ -38,7 +38,6 @@ public class AiConfigServiceImpl implements AiConfigService
     private final ISysConfigService sysConfigService;
     private final AiModuleConfigMapper aiModuleConfigMapper;
     private final AiProviderMapper aiProviderMapper;
-    private final AiProviderService aiProviderService;
 
     @Override
     public AiModuleConfigVO getModuleConfig()
@@ -68,7 +67,7 @@ public class AiConfigServiceImpl implements AiConfigService
                 .collect(Collectors.toMap(AiModuleConfig::getModuleCode, Function.identity(), (left, right) -> left));
         AiFeatureModuleConfigsVO vo = new AiFeatureModuleConfigsVO();
         vo.setModules(AiModuleCode.all().stream().map(moduleCode -> toModuleItem(moduleCode, overrideMap.get(moduleCode))).toList());
-        vo.setProviderOptions(aiProviderService.listOptions());
+        vo.setProviderOptions(listProviderOptions());
         return vo;
     }
 
@@ -170,6 +169,22 @@ public class AiConfigServiceImpl implements AiConfigService
     {
         return provider != null && provider.getEnabled() != null && provider.getEnabled() == 1
                 && StringUtils.hasText(provider.getApiKey());
+    }
+
+    private List<AiProviderOptionVO> listProviderOptions()
+    {
+        return aiProviderMapper.selectList(new LambdaQueryWrapper<AiProvider>().orderByDesc(AiProvider::getUpdateTime))
+                .stream()
+                .map(provider -> {
+                    AiProviderOptionVO option = new AiProviderOptionVO();
+                    option.setId(provider.getId());
+                    option.setName(provider.getName());
+                    option.setProviderType(provider.getProviderType());
+                    option.setDefaultModel(provider.getDefaultModel());
+                    option.setEnabled(provider.getEnabled());
+                    return option;
+                })
+                .toList();
     }
 
     private static void validateModuleCode(String moduleCode)
