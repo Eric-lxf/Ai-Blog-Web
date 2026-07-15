@@ -39,6 +39,8 @@ public class LlmClientImpl implements LlmClient
 
     private static final String ANTHROPIC_VERSION = "2023-06-01";
 
+    private static final String ANTHROPIC_OAUTH_BETA = "oauth-2025-04-20";
+
     private final ObjectMapper objectMapper;
 
     @Override
@@ -438,12 +440,19 @@ public class LlmClientImpl implements LlmClient
 
     private Request anthropicRequest(AiProvider provider, String body)
     {
-        return new Request.Builder().url(provider.getBaseUrl() + "/v1/messages")
-                .header("x-api-key", provider.getApiKey())
+        Request.Builder builder = new Request.Builder().url(provider.getBaseUrl() + "/v1/messages")
                 .header("anthropic-version", ANTHROPIC_VERSION)
-                .header("Content-Type", "application/json")
-                .post(RequestBody.create(body, JSON))
-                .build();
+                .header("Content-Type", "application/json");
+        if (AiProviderType.AUTH_MODE_AUTH_TOKEN.equalsIgnoreCase(provider.getAuthMode()))
+        {
+            builder.header("Authorization", "Bearer " + provider.getApiKey())
+                    .header("anthropic-beta", ANTHROPIC_OAUTH_BETA);
+        }
+        else
+        {
+            builder.header("x-api-key", provider.getApiKey());
+        }
+        return builder.post(RequestBody.create(body, JSON)).build();
     }
 
     private String extractAnthropicText(JsonNode node)

@@ -54,7 +54,7 @@
       </el-table-column>
       <el-table-column label="Base URL" prop="baseUrl" min-width="200" show-overflow-tooltip />
       <el-table-column label="默认模型" prop="defaultModel" min-width="140" show-overflow-tooltip />
-      <el-table-column label="API Key" prop="apiKeyMasked" width="160" show-overflow-tooltip />
+      <el-table-column label="凭据" prop="apiKeyMasked" width="160" show-overflow-tooltip />
       <el-table-column label="状态" width="90" align="center">
         <template #default="{ row }">
           <el-tag :type="row.enabled === 1 ? 'success' : 'info'">{{ row.enabled === 1 ? '启用' : '停用' }}</el-tag>
@@ -94,8 +94,14 @@
             <el-radio label="anthropic">Anthropic Claude</el-radio>
           </el-radio-group>
         </el-form-item>
-        <el-form-item label="API Key" :prop="form.id ? undefined : 'apiKey'">
-          <el-input v-model="form.apiKey" type="password" show-password maxlength="512" :placeholder="form.id ? '留空则不修改' : '必填'" />
+        <el-form-item v-if="form.providerType === 'anthropic'" label="认证方式">
+          <el-radio-group v-model="form.authMode">
+            <el-radio label="api_key">API Key</el-radio>
+            <el-radio label="auth_token">ANTHROPIC_AUTH_TOKEN</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item :label="form.providerType === 'anthropic' && form.authMode === 'auth_token' ? 'Auth Token' : 'API Key'" :prop="form.id ? undefined : 'apiKey'">
+          <el-input v-model="form.apiKey" type="password" show-password maxlength="512" :placeholder="form.id ? '留空则不修改' : form.authMode === 'auth_token' ? '填写 ANTHROPIC_AUTH_TOKEN' : '必填'" />
         </el-form-item>
         <el-form-item label="Base URL" prop="baseUrl">
           <el-input v-model="form.baseUrl" maxlength="255" placeholder="https://api.openai.com" />
@@ -153,7 +159,7 @@ const preset = ref('')
 const presets = [
   { key: 'openai', label: 'OpenAI / ChatGPT', providerType: 'openai_compatible', baseUrl: 'https://api.openai.com', defaultModel: 'gpt-4o-mini', visionModel: 'gpt-4o' },
   { key: 'deepseek', label: 'DeepSeek', providerType: 'openai_compatible', baseUrl: 'https://api.deepseek.com', defaultModel: 'deepseek-chat', visionModel: 'deepseek-vl2' },
-  { key: 'claude', label: 'Anthropic Claude', providerType: 'anthropic', baseUrl: 'https://api.anthropic.com', defaultModel: 'claude-sonnet-4-5', visionModel: 'claude-sonnet-4-5' },
+  { key: 'claude', label: 'Anthropic Claude', providerType: 'anthropic', authMode: 'api_key', baseUrl: 'https://api.anthropic.com', defaultModel: 'claude-sonnet-4-5', visionModel: 'claude-sonnet-4-5' },
   { key: 'moonshot', label: 'Moonshot (Kimi)', providerType: 'openai_compatible', baseUrl: 'https://api.moonshot.cn', defaultModel: 'moonshot-v1-8k', visionModel: '' },
   { key: 'qwen', label: '通义千问（兼容模式）', providerType: 'openai_compatible', baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode', defaultModel: 'qwen-plus', visionModel: 'qwen-vl-plus' }
 ]
@@ -171,6 +177,7 @@ const form = reactive({
   name: '',
   providerType: 'openai_compatible',
   apiKey: '',
+  authMode: 'api_key',
   baseUrl: 'https://api.openai.com',
   defaultModel: 'gpt-4o-mini',
   visionModel: '',
@@ -197,6 +204,7 @@ function applyPreset(key) {
   const p = presets.find(item => item.key === key)
   if (!p) return
   form.providerType = p.providerType
+  form.authMode = p.authMode || 'api_key'
   form.baseUrl = p.baseUrl
   form.defaultModel = p.defaultModel
   form.visionModel = p.visionModel
@@ -211,6 +219,7 @@ function resetForm() {
     name: '',
     providerType: 'openai_compatible',
     apiKey: '',
+    authMode: 'api_key',
     baseUrl: 'https://api.openai.com',
     defaultModel: 'gpt-4o-mini',
     visionModel: '',
@@ -269,6 +278,7 @@ function openDialog(row) {
         name: data.name,
         providerType: data.providerType,
         apiKey: '',
+        authMode: data.authMode || 'api_key',
         baseUrl: data.baseUrl,
         defaultModel: data.defaultModel,
         visionModel: data.visionModel || '',
