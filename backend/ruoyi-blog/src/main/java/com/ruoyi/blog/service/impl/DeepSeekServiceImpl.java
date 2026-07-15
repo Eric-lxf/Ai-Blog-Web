@@ -1,5 +1,6 @@
 package com.ruoyi.blog.service.impl;
 
+import java.math.BigDecimal;
 import java.util.concurrent.Executor;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -57,7 +58,8 @@ public class DeepSeekServiceImpl implements DeepSeekService
         AiPromptTemplate template = requireTemplate(
                 StringUtils.hasText(request.getScene()) ? request.getScene() : "CHAT");
         OkHttpClient client = aiProviderService.httpClient(provider);
-        return llmClient.chatCompletion(provider, request, template, client);
+        BigDecimal effectiveTemperature = request.getTemperature() != null ? request.getTemperature() : template.getTemperature();
+        return llmClient.chatCompletion(provider, request, template, provider.getDefaultModel(), effectiveTemperature, client);
     }
 
     @Override
@@ -81,7 +83,8 @@ public class DeepSeekServiceImpl implements DeepSeekService
                     return;
                 }
                 OkHttpClient client = aiProviderService.httpClient(provider);
-                llmClient.streamChat(provider, request, template, client, emitter);
+                llmClient.streamChat(provider, request, template, provider.getDefaultModel(), template.getTemperature(), client,
+                        emitter);
                 emitter.send("[DONE]");
                 emitter.complete();
             }
@@ -109,7 +112,7 @@ public class DeepSeekServiceImpl implements DeepSeekService
     {
         AiProvider provider = requireProvider();
         OkHttpClient client = aiProviderService.httpClient(provider);
-        return llmClient.recognizeImage(provider, imageUrl, textPrompt, client);
+        return llmClient.recognizeImage(provider, imageUrl, textPrompt, provider.getVisionModel(), client);
     }
 
     private AiProvider requireProvider()

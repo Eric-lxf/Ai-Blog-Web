@@ -2,6 +2,7 @@ package com.ruoyi.blog.service.llm;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
@@ -45,15 +46,15 @@ public class LlmClientImpl implements LlmClient
 
     @Override
     public String chatCompletion(AiProvider provider, AiCompletionRequest request, AiPromptTemplate template,
-            OkHttpClient client)
+            String textModel, BigDecimal effectiveTemperature, OkHttpClient client)
     {
         try
         {
             if (AiProviderType.isAnthropic(provider.getProviderType()))
             {
-                return anthropicCompletion(provider, request, template, client);
+                return anthropicCompletion(provider, request, template, textModel, effectiveTemperature, client);
             }
-            return openAiCompletion(provider, request, template, client);
+            return openAiCompletion(provider, request, template, textModel, effectiveTemperature, client);
         }
         catch (ServiceException e)
         {
@@ -67,25 +68,26 @@ public class LlmClientImpl implements LlmClient
     }
 
     @Override
-    public void streamChat(AiProvider provider, AiChatRequest request, AiPromptTemplate template, OkHttpClient client,
-            SseEmitter emitter) throws Exception
+    public void streamChat(AiProvider provider, AiChatRequest request, AiPromptTemplate template, String textModel,
+            BigDecimal effectiveTemperature, OkHttpClient client, SseEmitter emitter) throws Exception
     {
         if (AiProviderType.isAnthropic(provider.getProviderType()))
         {
-            anthropicStream(provider, request, template, client, emitter);
+            anthropicStream(provider, request, template, textModel, effectiveTemperature, client, emitter);
             return;
         }
-        openAiStream(provider, request, template, client, emitter);
+        openAiStream(provider, request, template, textModel, effectiveTemperature, client, emitter);
     }
 
     @Override
-    public String recognizeImage(AiProvider provider, String imageUrl, String textPrompt, OkHttpClient client)
+    public String recognizeImage(AiProvider provider, String imageUrl, String textPrompt, String visionModel,
+            OkHttpClient client)
     {
         if (AiProviderType.isAnthropic(provider.getProviderType()))
         {
-            return anthropicVision(provider, imageUrl, textPrompt, client);
+            return anthropicVision(provider, imageUrl, textPrompt, visionModel, client);
         }
-        return openAiVision(provider, imageUrl, textPrompt, client);
+        return openAiVision(provider, imageUrl, textPrompt, visionModel, client);
     }
 
     @Override
@@ -97,8 +99,8 @@ public class LlmClientImpl implements LlmClient
         request.setCustomSystemPrompt("Reply with exactly: ok");
         AiPromptTemplate template = new AiPromptTemplate();
         template.setSystemPrompt("Reply with exactly: ok");
-        template.setModelName(provider.getDefaultModel());
-        String result = chatCompletion(provider, request, template, client);
+        String result = chatCompletion(provider, request, template, provider.getDefaultModel(), request.getTemperature(),
+                client);
         if (!StringUtils.hasText(result))
         {
             throw new ServiceException("AI 返回为空，请检查 Key 与模型配置", HttpStatus.ERROR);
@@ -108,9 +110,9 @@ public class LlmClientImpl implements LlmClient
     // -------------------- OpenAI Compatible --------------------
 
     private String openAiCompletion(AiProvider provider, AiCompletionRequest request, AiPromptTemplate template,
-            OkHttpClient client) throws Exception
+            String textModel, BigDecimal effectiveTemperature, OkHttpClient client) throws Exception
     {
-        String body = buildOpenAiCompletionBody(provider, request, template, false);
+        String body = buildOpenAiCompletionBody(provider, request, template, textModel, effectiveTemperature, false);
         Request httpRequest = openAiRequest(provider, body);
         try (Response response = client.newCall(httpRequest).execute())
         {
@@ -120,10 +122,10 @@ public class LlmClientImpl implements LlmClient
         }
     }
 
-    private void openAiStream(AiProvider provider, AiChatRequest request, AiPromptTemplate template, OkHttpClient client,
-            SseEmitter emitter) throws Exception
+    private void openAiStream(AiProvider provider, AiChatRequest request, AiPromptTemplate template, String textModel,
+            BigDecimal effectiveTemperature, OkHttpClient client, SseEmitter emitter) throws Exception
     {
-        String body = buildOpenAiChatBody(provider, request, template);
+        String body = buildOpenAiChatBody(provider, request, template, textModel, effectiveTemperature);
         Request httpRequest = openAiRequest(provider, body);
         try (Response response = client.newCall(httpRequest).execute())
         {
@@ -168,14 +170,13 @@ public class LlmClientImpl implements LlmClient
         }
     }
 
-    private String openAiVision(AiProvider provider, String imageUrl, String textPrompt, OkHttpClient client)
+    private String openAiVision(AiProvider provider, String imageUrl, String textPrompt, String visionModel,
+            OkHttpClient client)
     {
         try
         {
             ObjectNode root = objectMapper.createObjectNode();
-            String model = StringUtils.hasText(provider.getVisionModel()) ? provider.getVisionModel()
-                    : provider.getDefaultModel();
-            root.put("model", model);
+            root.put("model", resolveVisionModel(visionModel, provider));
             root.put("stream", false);
             ArrayNode messages = root.putArray("messages");
             ObjectNode userMsg = objectMapper.createObjectNode();
@@ -222,12 +223,12 @@ public class LlmClientImpl implements LlmClient
     }
 
     private String buildOpenAiCompletionBody(AiProvider provider, AiCompletionRequest request, AiPromptTemplate template,
-            boolean stream) throws Exception
+            String textModel, BigDecimal effectiveTemperature, boolean stream) throws Exception
     {
         ObjectNode root = objectMapper.createObjectNode();
-        root.put("model", resolveModel(provider, template));
+        root.put("model", resolveTextModel(textModel, provider, template));
         root.put("stream", stream);
-        applyTemperature(root, request.getTemperature(), template.getTemperature());
+        applyTemperature(root, effectiveTemperature);
         ArrayNode messages = root.putArray("messages");
         String system = StringUtils.hasText(request.getCustomSystemPrompt()) ? request.getCustomSystemPrompt()
                 : template.getSystemPrompt();
@@ -236,13 +237,13 @@ public class LlmClientImpl implements LlmClient
         return objectMapper.writeValueAsString(root);
     }
 
-    private String buildOpenAiChatBody(AiProvider provider, AiChatRequest request, AiPromptTemplate template)
-            throws Exception
+    private String buildOpenAiChatBody(AiProvider provider, AiChatRequest request, AiPromptTemplate template, String textModel,
+            BigDecimal effectiveTemperature) throws Exception
     {
         ObjectNode root = objectMapper.createObjectNode();
-        root.put("model", resolveModel(provider, template));
+        root.put("model", resolveTextModel(textModel, provider, template));
         root.put("stream", true);
-        applyTemperature(root, null, template.getTemperature());
+        applyTemperature(root, effectiveTemperature);
         ArrayNode messages = root.putArray("messages");
         messages.add(objectMapper.createObjectNode().put("role", "system").put("content", template.getSystemPrompt()));
         if (Boolean.TRUE.equals(request.getIncludeContext()))
@@ -268,19 +269,19 @@ public class LlmClientImpl implements LlmClient
     // -------------------- Anthropic Claude --------------------
 
     private String anthropicCompletion(AiProvider provider, AiCompletionRequest request, AiPromptTemplate template,
-            OkHttpClient client) throws Exception
+            String textModel, BigDecimal effectiveTemperature, OkHttpClient client) throws Exception
     {
         String system = StringUtils.hasText(request.getCustomSystemPrompt()) ? request.getCustomSystemPrompt()
                 : template.getSystemPrompt();
         ObjectNode root = objectMapper.createObjectNode();
-        root.put("model", resolveModel(provider, template));
+        root.put("model", resolveTextModel(textModel, provider, template));
         root.put("max_tokens", 4096);
         root.put("stream", false);
         if (StringUtils.hasText(system))
         {
             root.put("system", system);
         }
-        applyTemperature(root, request.getTemperature(), template.getTemperature());
+        applyTemperature(root, effectiveTemperature);
         ArrayNode messages = root.putArray("messages");
         messages.add(objectMapper.createObjectNode().put("role", "user").put("content", request.getPrompt()));
 
@@ -294,10 +295,10 @@ public class LlmClientImpl implements LlmClient
     }
 
     private void anthropicStream(AiProvider provider, AiChatRequest request, AiPromptTemplate template,
-            OkHttpClient client, SseEmitter emitter) throws Exception
+            String textModel, BigDecimal effectiveTemperature, OkHttpClient client, SseEmitter emitter) throws Exception
     {
         ObjectNode root = objectMapper.createObjectNode();
-        root.put("model", resolveModel(provider, template));
+        root.put("model", resolveTextModel(textModel, provider, template));
         root.put("max_tokens", 4096);
         root.put("stream", true);
         StringBuilder system = new StringBuilder();
@@ -321,7 +322,7 @@ public class LlmClientImpl implements LlmClient
         {
             root.put("system", system.toString());
         }
-        applyTemperature(root, null, template.getTemperature());
+        applyTemperature(root, effectiveTemperature);
         ArrayNode messages = root.putArray("messages");
         if (!CollectionUtils.isEmpty(request.getHistory()))
         {
@@ -380,14 +381,13 @@ public class LlmClientImpl implements LlmClient
         }
     }
 
-    private String anthropicVision(AiProvider provider, String imageUrl, String textPrompt, OkHttpClient client)
+    private String anthropicVision(AiProvider provider, String imageUrl, String textPrompt, String visionModel,
+            OkHttpClient client)
     {
         try
         {
             ObjectNode root = objectMapper.createObjectNode();
-            String model = StringUtils.hasText(provider.getVisionModel()) ? provider.getVisionModel()
-                    : provider.getDefaultModel();
-            root.put("model", model);
+            root.put("model", resolveVisionModel(visionModel, provider));
             root.put("max_tokens", 2048);
             ArrayNode messages = root.putArray("messages");
             ObjectNode userMsg = objectMapper.createObjectNode();
@@ -475,11 +475,24 @@ public class LlmClientImpl implements LlmClient
 
     // -------------------- Shared --------------------
 
-    private String resolveModel(AiProvider provider, AiPromptTemplate template)
+    static String resolveTextModel(String resolvedTextModel, AiProvider provider, AiPromptTemplate ignoredTemplate)
     {
-        if (template != null && StringUtils.hasText(template.getModelName()))
+        if (StringUtils.hasText(resolvedTextModel))
         {
-            return template.getModelName();
+            return resolvedTextModel;
+        }
+        return provider.getDefaultModel();
+    }
+
+    static String resolveVisionModel(String resolvedVisionModel, AiProvider provider)
+    {
+        if (StringUtils.hasText(resolvedVisionModel))
+        {
+            return resolvedVisionModel;
+        }
+        if (StringUtils.hasText(provider.getVisionModel()))
+        {
+            return provider.getVisionModel();
         }
         return provider.getDefaultModel();
     }
@@ -503,12 +516,11 @@ public class LlmClientImpl implements LlmClient
         return sb.toString().trim();
     }
 
-    private void applyTemperature(ObjectNode root, java.math.BigDecimal override, java.math.BigDecimal templateTemp)
+    private void applyTemperature(ObjectNode root, BigDecimal effectiveTemperature)
     {
-        java.math.BigDecimal temperature = override != null ? override : templateTemp;
-        if (temperature != null)
+        if (effectiveTemperature != null)
         {
-            root.put("temperature", temperature.doubleValue());
+            root.put("temperature", effectiveTemperature.doubleValue());
         }
     }
 
