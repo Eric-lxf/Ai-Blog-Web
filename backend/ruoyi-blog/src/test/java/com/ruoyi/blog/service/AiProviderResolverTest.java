@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
@@ -126,6 +127,15 @@ class AiProviderResolverTest
         ServiceException ex = assertThrows(ServiceException.class, () -> service.resolveForModule(AiModuleCode.EDITOR));
 
         assertEquals("未配置可用 AI Provider", ex.getMessage());
+    }
+
+    @Test
+    void rejectsUnsupportedModuleCodeBeforeAnyDatabaseLookup()
+    {
+        ServiceException ex = assertThrows(ServiceException.class, () -> service.resolveForModule("chat"));
+
+        assertEquals("非法模块编码: chat", ex.getMessage());
+        verifyNoInteractions(moduleConfigMapper, providerMapper, aiConfigService);
     }
 
     private static AiProvider enabledProvider(Long id, String defaultModel, String visionModel)

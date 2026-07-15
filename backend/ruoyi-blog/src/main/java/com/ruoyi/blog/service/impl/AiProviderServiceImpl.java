@@ -11,6 +11,7 @@ import org.springframework.util.StringUtils;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.ruoyi.blog.config.DeepSeekProperties;
+import com.ruoyi.blog.constant.AiModuleCode;
 import com.ruoyi.blog.constant.AiProviderType;
 import com.ruoyi.blog.domain.AiModuleConfig;
 import com.ruoyi.blog.domain.AiProvider;
@@ -174,6 +175,10 @@ public class AiProviderServiceImpl implements AiProviderService
     @Override
     public AiResolvedModelConfig resolveForModule(String moduleCode)
     {
+        if (!AiModuleCode.isSupported(moduleCode))
+        {
+            throw new ServiceException("非法模块编码: " + moduleCode, HttpStatus.BAD_REQUEST);
+        }
         AiModuleConfig moduleConfig = aiModuleConfigMapper.selectOne(new LambdaQueryWrapper<AiModuleConfig>()
                 .eq(AiModuleConfig::getModuleCode, moduleCode)
                 .last("LIMIT 1"));
