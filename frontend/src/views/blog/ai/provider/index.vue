@@ -1,6 +1,6 @@
 <template>
   <div class="app-container">
-    <el-alert :closable="false" type="info" class="mb12" title="在此配置多个 AI 服务商（OpenAI / ChatGPT、Claude、DeepSeek 及兼容接口）。调用时使用下方「默认 Provider」，未设置则取第一个启用项。" />
+    <el-alert :closable="false" type="info" class="mb12" title="在此配置多个 AI 服务商（OpenAI / ChatGPT、Claude、DeepSeek 及兼容接口）。Claude 支持 API Key（x-api-key）与 Auth Token（Bearer / ANTHROPIC_AUTH_TOKEN）两种鉴权。调用时使用下方「默认 Provider」，未设置则取第一个启用项。" />
 
     <el-card class="mb12" shadow="never">
       <template #header><span>默认 Provider</span></template>
@@ -52,6 +52,11 @@
           {{ typeLabel(row.providerType) }}
         </template>
       </el-table-column>
+      <el-table-column label="鉴权" width="120">
+        <template #default="{ row }">
+          {{ authModeLabel(row) }}
+        </template>
+      </el-table-column>
       <el-table-column label="Base URL" prop="baseUrl" min-width="200" show-overflow-tooltip />
       <el-table-column label="默认模型" prop="defaultModel" min-width="140" show-overflow-tooltip />
       <el-table-column label="API Key" prop="apiKeyMasked" width="160" show-overflow-tooltip />
@@ -94,7 +99,13 @@
             <el-radio label="anthropic">Anthropic Claude</el-radio>
           </el-radio-group>
         </el-form-item>
-        <el-form-item label="API Key" :prop="form.id ? undefined : 'apiKey'">
+        <el-form-item v-if="form.providerType === 'anthropic'" label="鉴权方式" prop="authMode">
+          <el-radio-group v-model="form.authMode">
+            <el-radio label="api_key">API Key（x-api-key）</el-radio>
+            <el-radio label="auth_token">Auth Token（Bearer / ANTHROPIC_AUTH_TOKEN）</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item :label="credentialLabel" :prop="form.id ? undefined : 'apiKey'">
           <el-input v-model="form.apiKey" type="password" show-password maxlength="512" :placeholder="form.id ? '留空则不修改' : '必填'" />
         </el-form-item>
         <el-form-item label="Base URL" prop="baseUrl">
@@ -170,6 +181,7 @@ const form = reactive({
   id: undefined,
   name: '',
   providerType: 'openai_compatible',
+  authMode: 'api_key',
   apiKey: '',
   baseUrl: 'https://api.openai.com',
   defaultModel: 'gpt-4o-mini',
@@ -179,10 +191,17 @@ const form = reactive({
   remark: ''
 })
 
+const credentialLabel = computed(() => {
+  if (form.providerType === 'anthropic' && form.authMode === 'auth_token') {
+    return 'Auth Token'
+  }
+  return 'API Key'
+})
+
 const rules = {
   name: [{ required: true, message: '请输入名称', trigger: 'blur' }],
   providerType: [{ required: true, message: '请选择类型', trigger: 'change' }],
-  apiKey: [{ required: true, message: '请输入 API Key', trigger: 'blur' }],
+  apiKey: [{ required: true, message: '请输入密钥', trigger: 'blur' }],
   baseUrl: [{ required: true, message: '请输入 Base URL', trigger: 'blur' }],
   defaultModel: [{ required: true, message: '请输入默认模型', trigger: 'blur' }],
   timeoutSeconds: [{ required: true, message: '请输入超时', trigger: 'change' }]
@@ -193,10 +212,16 @@ function typeLabel(type) {
   return 'OpenAI 兼容'
 }
 
+function authModeLabel(row) {
+  if (row.providerType !== 'anthropic') return '—'
+  return row.authMode === 'auth_token' ? 'Auth Token' : 'API Key'
+}
+
 function applyPreset(key) {
   const p = presets.find(item => item.key === key)
   if (!p) return
   form.providerType = p.providerType
+  form.authMode = 'api_key'
   form.baseUrl = p.baseUrl
   form.defaultModel = p.defaultModel
   form.visionModel = p.visionModel
@@ -210,6 +235,7 @@ function resetForm() {
     id: undefined,
     name: '',
     providerType: 'openai_compatible',
+    authMode: 'api_key',
     apiKey: '',
     baseUrl: 'https://api.openai.com',
     defaultModel: 'gpt-4o-mini',
@@ -268,6 +294,7 @@ function openDialog(row) {
         id: data.id,
         name: data.name,
         providerType: data.providerType,
+        authMode: data.authMode || 'api_key',
         apiKey: '',
         baseUrl: data.baseUrl,
         defaultModel: data.defaultModel,

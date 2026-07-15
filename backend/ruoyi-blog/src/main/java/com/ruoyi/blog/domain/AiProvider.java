@@ -20,6 +20,12 @@ public class AiProvider
     /** openai_compatible | anthropic */
     private String providerType;
 
+    /**
+     * 鉴权方式：api_key（x-api-key）| auth_token（Authorization Bearer，同 ANTHROPIC_AUTH_TOKEN）。
+     * 仅 anthropic 生效；openai_compatible 忽略。
+     */
+    private String authMode;
+
     private String apiKey;
 
     private String baseUrl;

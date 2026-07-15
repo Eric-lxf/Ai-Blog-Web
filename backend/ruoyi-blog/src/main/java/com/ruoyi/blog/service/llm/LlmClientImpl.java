@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.ruoyi.blog.constant.AiAuthMode;
 import com.ruoyi.blog.constant.AiProviderType;
 import com.ruoyi.blog.domain.AiProvider;
 import com.ruoyi.blog.domain.AiPromptTemplate;
@@ -438,12 +439,18 @@ public class LlmClientImpl implements LlmClient
 
     private Request anthropicRequest(AiProvider provider, String body)
     {
-        return new Request.Builder().url(provider.getBaseUrl() + "/v1/messages")
-                .header("x-api-key", provider.getApiKey())
+        Request.Builder builder = new Request.Builder().url(provider.getBaseUrl() + "/v1/messages")
                 .header("anthropic-version", ANTHROPIC_VERSION)
-                .header("Content-Type", "application/json")
-                .post(RequestBody.create(body, JSON))
-                .build();
+                .header("Content-Type", "application/json");
+        if (AiAuthMode.isAuthToken(provider.getAuthMode()))
+        {
+            builder.header("Authorization", "Bearer " + provider.getApiKey());
+        }
+        else
+        {
+            builder.header("x-api-key", provider.getApiKey());
+        }
+        return builder.post(RequestBody.create(body, JSON)).build();
     }
 
     private String extractAnthropicText(JsonNode node)

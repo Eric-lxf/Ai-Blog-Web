@@ -17,6 +17,11 @@ public class AiProviderSaveRequest
     @NotBlank(message = "厂商类型不能为空")
     private String providerType;
 
+    /**
+     * api_key | auth_token；仅 anthropic 有效，默认 api_key。
+     */
+    private String authMode;
+
     /** 新增必填；编辑留空表示不修改 */
     private String apiKey;
 

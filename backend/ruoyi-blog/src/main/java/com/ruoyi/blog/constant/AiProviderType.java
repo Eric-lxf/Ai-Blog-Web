@@ -4,7 +4,7 @@ package com.ruoyi.blog.constant;
  * AI 服务商协议类型。
  * <ul>
  *   <li>{@link #OPENAI_COMPATIBLE} — OpenAI / ChatGPT / DeepSeek / 通义兼容等，Bearer + /v1/chat/completions</li>
- *   <li>{@link #ANTHROPIC} — Claude，x-api-key + /v1/messages</li>
+ *   <li>{@link #ANTHROPIC} — Claude，/v1/messages；鉴权见 {@link AiAuthMode}</li>
  * </ul>
  */
 public final class AiProviderType
