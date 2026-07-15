@@ -1,5 +1,7 @@
 package com.ruoyi.blog.service;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
@@ -25,6 +27,7 @@ import com.ruoyi.blog.dto.AiCompletionRequest;
 import com.ruoyi.blog.mapper.BlogBillMapper;
 import com.ruoyi.blog.service.impl.BlogBillServiceImpl;
 import com.ruoyi.blog.vo.BillCategoryAmountVO;
+import com.ruoyi.common.exception.ServiceException;
 import com.ruoyi.common.core.domain.entity.SysUser;
 import com.ruoyi.common.core.domain.model.LoginUser;
 
@@ -78,5 +81,23 @@ class BlogBillAdviceSceneTest
         verify(deepSeekService).chatCompletion(
                 argThat((AiCompletionRequest request) -> "BILL_ADVICE".equals(request.getScene())),
                 eq(AiModuleCode.BILL_ADVICE));
+    }
+
+    @Test
+    void analysisPropagatesServiceExceptionFromBillAdvice()
+    {
+        BillCategoryAmountVO category = new BillCategoryAmountVO();
+        category.setName("餐饮食品");
+        category.setValue(new BigDecimal("188.80"));
+
+        when(billMapper.selectCategoryTotals(eq(USER_ID), any(), any())).thenReturn(List.of(category));
+        when(billMapper.selectMonthlyTotals(eq(USER_ID), any(), any())).thenReturn(List.of());
+        when(billMapper.selectCount(any())).thenReturn(1L);
+        when(deepSeekService.chatCompletion(any(AiCompletionRequest.class), eq(AiModuleCode.BILL_ADVICE)))
+                .thenThrow(new ServiceException("未找到可用的 AI 提示词模板"));
+
+        ServiceException ex = assertThrows(ServiceException.class, () -> service.analysis(6));
+
+        assertEquals("未找到可用的 AI 提示词模板", ex.getMessage());
     }
 }

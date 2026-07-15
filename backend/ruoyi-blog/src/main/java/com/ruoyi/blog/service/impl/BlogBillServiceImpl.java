@@ -284,6 +284,10 @@ public class BlogBillServiceImpl implements BlogBillService
             if (!m.find()) return List.of();
             return objectMapper.readValue(m.group(), new TypeReference<List<BillAnalysisVO.AdviceItem>>() {});
         }
+        catch (ServiceException e)
+        {
+            throw e;
+        }
         catch (Exception e) { log.warn("生成账单建议失败", e); return List.of(); }
     }
 }
