@@ -123,3 +123,9 @@ WHERE NOT EXISTS (SELECT 1 FROM `ai_prompt_template` WHERE `scene_type` = 'OUTLI
 INSERT INTO `ai_prompt_template` (`template_name`, `scene_type`, `system_prompt`, `model_name`, `temperature`, `is_active`)
 SELECT '全文生成', 'FULL_ARTICLE', '你是资深技术作者，根据大纲撰写 Markdown 博客，含代码与 mermaid 图。只输出正文 Markdown。', 'deepseek-chat', 0.70, 1
 WHERE NOT EXISTS (SELECT 1 FROM `ai_prompt_template` WHERE `scene_type` = 'FULL_ARTICLE');
+
+INSERT INTO `ai_prompt_template` (`template_name`, `scene_type`, `system_prompt`, `model_name`, `temperature`, `is_active`)
+SELECT '账单理财建议', 'BILL_ADVICE',
+       '你是专业且审慎的理财助手。基于用户提供的账单统计生成建议，只返回 JSON 数组，每项包含 tone、title、detail；不得编造账单中不存在的数据。',
+       'deepseek-chat', 0.70, 1
+WHERE NOT EXISTS (SELECT 1 FROM `ai_prompt_template` WHERE `scene_type` = 'BILL_ADVICE' LIMIT 1);
