@@ -12,12 +12,16 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.ruoyi.blog.config.DeepSeekProperties;
 import com.ruoyi.blog.constant.AiProviderType;
+import com.ruoyi.blog.domain.AiModuleConfig;
 import com.ruoyi.blog.domain.AiProvider;
 import com.ruoyi.blog.dto.AiProviderPageQuery;
 import com.ruoyi.blog.dto.AiProviderSaveRequest;
+import com.ruoyi.blog.mapper.AiModuleConfigMapper;
 import com.ruoyi.blog.mapper.AiProviderMapper;
 import com.ruoyi.blog.service.AiConfigService;
 import com.ruoyi.blog.service.AiProviderService;
+import com.ruoyi.blog.service.AiResolvedModelConfig;
+import com.ruoyi.blog.service.AiResolvedModelConfig.ConfigSource;
 import com.ruoyi.blog.service.llm.LlmClient;
 import com.ruoyi.blog.vo.AiProviderOptionVO;
 import com.ruoyi.blog.vo.AiProviderVO;
@@ -33,6 +37,7 @@ public class AiProviderServiceImpl implements AiProviderService
 {
     private static final String MASK_PLACEHOLDER = "********";
 
+    private final AiModuleConfigMapper aiModuleConfigMapper;
     private final AiProviderMapper aiProviderMapper;
     private final AiConfigService aiConfigService;
     private final DeepSeekProperties deepSeekProperties;
@@ -163,51 +168,36 @@ public class AiProviderServiceImpl implements AiProviderService
     @Override
     public AiProvider resolveActiveProvider()
     {
-        Long defaultId = aiConfigService.getDefaultProviderId();
-        if (defaultId != null)
+        return resolveDatabaseProvider().provider();
+    }
+
+    @Override
+    public AiResolvedModelConfig resolveForModule(String moduleCode)
+    {
+        AiModuleConfig moduleConfig = aiModuleConfigMapper.selectOne(new LambdaQueryWrapper<AiModuleConfig>()
+                .eq(AiModuleConfig::getModuleCode, moduleCode)
+                .last("LIMIT 1"));
+        if (moduleConfig != null && moduleConfig.getProviderId() != null)
         {
-            AiProvider preferred = aiProviderMapper.selectOne(new LambdaQueryWrapper<AiProvider>()
-                    .eq(AiProvider::getId, defaultId)
-                    .eq(AiProvider::getEnabled, 1));
-            if (preferred != null && StringUtils.hasText(preferred.getApiKey()))
+            AiProvider moduleProvider = aiProviderMapper.selectById(moduleConfig.getProviderId());
+            if (isProviderUsable(moduleProvider))
             {
-                return preferred;
+                return buildResolvedConfig(moduleConfig, moduleProvider, ConfigSource.MODULE_OVERRIDE);
             }
         }
-        AiProvider first = aiProviderMapper.selectOne(new LambdaQueryWrapper<AiProvider>()
-                .eq(AiProvider::getEnabled, 1)
-                .orderByAsc(AiProvider::getId)
-                .last("LIMIT 1"));
-        if (first != null && StringUtils.hasText(first.getApiKey()))
+
+        ProviderSelection selection = resolveDatabaseProvider();
+        if (selection.provider() == null)
         {
-            return first;
+            throw new ServiceException("未配置可用 AI Provider", HttpStatus.ERROR);
         }
-        return fallbackFromYaml();
+        return buildResolvedConfig(null, selection.provider(), selection.source());
     }
 
     @Override
     public boolean isConfigured()
     {
         return resolveActiveProvider() != null;
-    }
-
-    private AiProvider fallbackFromYaml()
-    {
-        if (!deepSeekProperties.isConfigured())
-        {
-            return null;
-        }
-        AiProvider fallback = new AiProvider();
-        fallback.setId(null);
-        fallback.setName("DeepSeek (环境变量)");
-        fallback.setProviderType(AiProviderType.OPENAI_COMPATIBLE);
-        fallback.setApiKey(deepSeekProperties.getApiKey());
-        fallback.setBaseUrl(trimSlash(deepSeekProperties.getBaseUrl()));
-        fallback.setDefaultModel(deepSeekProperties.getModel());
-        fallback.setVisionModel(deepSeekProperties.getVisionModel());
-        fallback.setTimeoutSeconds(deepSeekProperties.getTimeoutSeconds());
-        fallback.setEnabled(1);
-        return fallback;
     }
 
     private AiProvider requireById(Long id)
@@ -302,5 +292,49 @@ public class AiProviderServiceImpl implements AiProviderService
             return deepSeekOkHttpClient;
         }
         return deepSeekOkHttpClient.newBuilder().readTimeout(timeout, TimeUnit.SECONDS).build();
+    }
+
+    private ProviderSelection resolveDatabaseProvider()
+    {
+        Long defaultId = aiConfigService.getDefaultProviderId();
+        if (defaultId != null)
+        {
+            AiProvider preferred = aiProviderMapper.selectOne(new LambdaQueryWrapper<AiProvider>()
+                    .eq(AiProvider::getId, defaultId)
+                    .eq(AiProvider::getEnabled, 1));
+            if (isProviderUsable(preferred))
+            {
+                return new ProviderSelection(preferred, ConfigSource.GLOBAL_DEFAULT);
+            }
+        }
+        AiProvider first = aiProviderMapper.selectOne(new LambdaQueryWrapper<AiProvider>()
+                .eq(AiProvider::getEnabled, 1)
+                .orderByAsc(AiProvider::getId)
+                .last("LIMIT 1"));
+        if (isProviderUsable(first))
+        {
+            return new ProviderSelection(first, ConfigSource.FIRST_ENABLED);
+        }
+        return new ProviderSelection(null, null);
+    }
+
+    private AiResolvedModelConfig buildResolvedConfig(AiModuleConfig moduleConfig, AiProvider provider, ConfigSource source)
+    {
+        AiModuleConfig config = moduleConfig == null ? new AiModuleConfig() : moduleConfig;
+        String textModel = StringUtils.hasText(config.getTextModel()) ? config.getTextModel() : provider.getDefaultModel();
+        String visionModel = StringUtils.hasText(config.getVisionModel()) ? config.getVisionModel()
+                : StringUtils.hasText(provider.getVisionModel()) ? provider.getVisionModel() : provider.getDefaultModel();
+        return new AiResolvedModelConfig(provider, textModel, visionModel,
+                moduleConfig == null ? null : moduleConfig.getTemperature(), source);
+    }
+
+    private boolean isProviderUsable(AiProvider provider)
+    {
+        return provider != null && provider.getEnabled() != null && provider.getEnabled() == 1
+                && StringUtils.hasText(provider.getApiKey());
+    }
+
+    private record ProviderSelection(AiProvider provider, ConfigSource source)
+    {
     }
 }
