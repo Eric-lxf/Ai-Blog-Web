@@ -206,7 +206,7 @@ watch(
   <div ref="wrapperRef" class="enhanced-editor">
     <MarkdownEditor :model-value="modelValue" @update:model-value="updateContent" />
     <p v-if="!aiConfigured" class="ai-tip">
-      配置「AI模型配置」或环境变量 <code>DEEPSEEK_API_KEY</code> 后可使用划词润色与 <code>/</code> 指令
+      请先在管理后台完成「AI模型配置」，然后可使用划词润色与 <code>/</code> 指令
     </p>
     <p v-else class="ai-tip">
       选中文字可润色/扩写；行首输入 <code>/</code> 唤起 AI 指令菜单

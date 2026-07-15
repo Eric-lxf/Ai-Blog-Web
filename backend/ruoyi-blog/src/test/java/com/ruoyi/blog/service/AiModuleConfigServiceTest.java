@@ -18,7 +18,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.ruoyi.blog.config.DeepSeekProperties;
 import com.ruoyi.blog.constant.AiModuleCode;
 import com.ruoyi.blog.domain.AiModuleConfig;
 import com.ruoyi.blog.domain.AiProvider;
@@ -54,9 +53,6 @@ class AiModuleConfigServiceTest
     private AiConfigService aiConfigService;
 
     @Mock
-    private DeepSeekProperties deepSeekProperties;
-
-    @Mock
     private LlmClient llmClient;
 
     @Mock
@@ -69,8 +65,8 @@ class AiModuleConfigServiceTest
     void setUp()
     {
         configService = new AiConfigServiceImpl(sysConfigService, moduleConfigMapper, providerMapper, aiProviderService);
-        providerService = new AiProviderServiceImpl(moduleConfigMapper, providerMapper, aiConfigService, deepSeekProperties,
-                llmClient, deepSeekOkHttpClient);
+        providerService = new AiProviderServiceImpl(moduleConfigMapper, providerMapper, aiConfigService, llmClient,
+                deepSeekOkHttpClient);
     }
 
     @Test

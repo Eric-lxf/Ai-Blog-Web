@@ -10,7 +10,6 @@ import org.springframework.util.StringUtils;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.ruoyi.blog.config.DeepSeekProperties;
 import com.ruoyi.blog.constant.AiModuleCode;
 import com.ruoyi.blog.constant.AiProviderType;
 import com.ruoyi.blog.domain.AiModuleConfig;
@@ -37,11 +36,11 @@ import okhttp3.OkHttpClient;
 public class AiProviderServiceImpl implements AiProviderService
 {
     private static final String MASK_PLACEHOLDER = "********";
+    private static final int DEFAULT_TIMEOUT_SECONDS = 300;
 
     private final AiModuleConfigMapper aiModuleConfigMapper;
     private final AiProviderMapper aiProviderMapper;
     private final AiConfigService aiConfigService;
-    private final DeepSeekProperties deepSeekProperties;
     private final LlmClient llmClient;
     private final OkHttpClient deepSeekOkHttpClient;
 
@@ -306,8 +305,8 @@ public class AiProviderServiceImpl implements AiProviderService
     @Override
     public OkHttpClient httpClient(AiProvider provider)
     {
-        int timeout = provider.getTimeoutSeconds() == null ? 300 : provider.getTimeoutSeconds();
-        if (timeout == deepSeekProperties.getTimeoutSeconds())
+        int timeout = provider.getTimeoutSeconds() == null ? DEFAULT_TIMEOUT_SECONDS : provider.getTimeoutSeconds();
+        if (timeout == DEFAULT_TIMEOUT_SECONDS)
         {
             return deepSeekOkHttpClient;
         }
