@@ -10,5 +10,6 @@ CREATE TABLE IF NOT EXISTS `ai_module_config` (
   `update_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_ai_module_config_code` (`module_code`),
-  KEY `idx_ai_module_config_provider` (`provider_id`)
+  KEY `idx_ai_module_config_provider` (`provider_id`),
+  CONSTRAINT `chk_ai_module_config_module_code` CHECK (`module_code` IN ('editor', 'write', 'optimize', 'comment_moderate', 'bill_vision', 'bill_advice'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='AI 功能模块模型配置';
