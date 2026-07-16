@@ -25,10 +25,23 @@ export function deleteBill(id) {
   return request({ url: `/blog/bill/${id}`, method: 'delete' })
 }
 
-/** AI 识别账单图片（不写库，返回解析结果） */
+/** AI 识别账单图片（不写库，返回解析结果；Base64 data URL / 公网 URL） */
 export function recognizeBill(data) {
   // OCR 通常超过默认 10s；本地图以 Base64 上传体积更大，适当放宽超时
   return request({ url: '/blog/bill/recognize', method: 'post', data, timeout: 120000 })
+}
+
+/** 文件识别账单（图片 / PDF / Excel，multipart，不写库） */
+export function recognizeBillFile(file) {
+  const formData = new FormData()
+  formData.append('file', file)
+  return request({
+    url: '/blog/bill/recognize/file',
+    method: 'post',
+    data: formData,
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 180000
+  })
 }
 
 /** 获取消费分析数据，months 为近几个月（3/6/12） */
