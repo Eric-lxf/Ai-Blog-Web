@@ -175,9 +175,12 @@ public class LlmClientImpl implements LlmClient
     {
         try
         {
+            String model = resolveVisionModel(visionModel, provider);
             ObjectNode root = objectMapper.createObjectNode();
-            root.put("model", resolveVisionModel(visionModel, provider));
+            root.put("model", model);
             root.put("stream", false);
+            // 多行交易明细 JSON 较长；未设置时部分 OCR 模型会截断，导致只能解析出第一笔
+            root.put("max_tokens", 8192);
             ArrayNode messages = root.putArray("messages");
             ObjectNode userMsg = objectMapper.createObjectNode();
             userMsg.put("role", "user");
@@ -199,7 +202,15 @@ public class LlmClientImpl implements LlmClient
             {
                 assertSuccess(response, "OpenAI vision");
                 JsonNode node = objectMapper.readTree(response.body().string());
-                return node.path("choices").get(0).path("message").path("content").asText("");
+                String finishReason = node.path("choices").path(0).path("finish_reason").asText("");
+                String text = extractOpenAiMessageContent(node);
+                log.info("OpenAI vision done provider={} model={} finishReason={} contentLen={}",
+                        provider.getName(), model, finishReason, text != null ? text.length() : 0);
+                if ("length".equalsIgnoreCase(finishReason))
+                {
+                    log.warn("OpenAI vision output truncated by max_tokens, model={}", model);
+                }
+                return text;
             }
         }
         catch (ServiceException e)
@@ -211,6 +222,36 @@ public class LlmClientImpl implements LlmClient
             log.error("OpenAI vision error", e);
             throw new ServiceException("AI 识别服务异常，请稍后重试", HttpStatus.ERROR);
         }
+    }
+
+    public static String extractOpenAiMessageContent(JsonNode node)
+    {
+        JsonNode content = node.path("choices").path(0).path("message").path("content");
+        if (content.isMissingNode() || content.isNull())
+        {
+            return "";
+        }
+        if (content.isTextual())
+        {
+            return content.asText("");
+        }
+        if (content.isArray())
+        {
+            StringBuilder sb = new StringBuilder();
+            for (JsonNode part : content)
+            {
+                if (part.isTextual())
+                {
+                    sb.append(part.asText(""));
+                }
+                else if (part.has("text"))
+                {
+                    sb.append(part.path("text").asText(""));
+                }
+            }
+            return sb.toString();
+        }
+        return content.asText("");
     }
 
     private Request openAiRequest(AiProvider provider, String body)
@@ -388,7 +429,7 @@ public class LlmClientImpl implements LlmClient
         {
             ObjectNode root = objectMapper.createObjectNode();
             root.put("model", resolveVisionModel(visionModel, provider));
-            root.put("max_tokens", 2048);
+            root.put("max_tokens", 8192);
             ArrayNode messages = root.putArray("messages");
             ObjectNode userMsg = objectMapper.createObjectNode();
             userMsg.put("role", "user");

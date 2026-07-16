@@ -3,21 +3,27 @@
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS blog_bill (
-  id             BIGINT        NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  bill_date      DATE          NOT NULL                              COMMENT '消费日期',
-  merchant       VARCHAR(200)                                        COMMENT '商户名称',
-  category       VARCHAR(50)   NOT NULL                              COMMENT '消费类目',
-  amount         DECIMAL(12,2) NOT NULL                              COMMENT '消费金额',
-  payment_method VARCHAR(50)                                         COMMENT '支付方式',
-  note           VARCHAR(500)                                        COMMENT '备注',
-  image_url      VARCHAR(500)                                        COMMENT '账单图片 URL',
-  ai_confidence  TINYINT                                             COMMENT 'AI 识别置信度 0-100',
-  source         TINYINT       NOT NULL DEFAULT 0                    COMMENT '0-手动录入 1-AI识别',
-  user_id        BIGINT        NOT NULL                              COMMENT '所属用户',
-  create_time    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  update_time    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  is_deleted     TINYINT       NOT NULL DEFAULT 0,
-  INDEX idx_user_date (user_id, bill_date)
+  id                BIGINT        NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  trade_no          VARCHAR(64)                                         COMMENT '交易单号',
+  bill_date         DATE          NOT NULL                              COMMENT '消费日期',
+  trade_time        DATETIME                                            COMMENT '交易时间',
+  trade_type        VARCHAR(32)                                         COMMENT '交易类型：商户消费/转账等',
+  direction         VARCHAR(16)            DEFAULT '支出'               COMMENT '收/支/其他',
+  merchant          VARCHAR(200)                                        COMMENT '交易对方/商户名称',
+  category          VARCHAR(50)   NOT NULL                              COMMENT '消费类目',
+  amount            DECIMAL(12,2) NOT NULL                              COMMENT '金额',
+  payment_method    VARCHAR(100)                                        COMMENT '交易方式',
+  merchant_order_no VARCHAR(64)                                         COMMENT '商户单号',
+  note              VARCHAR(500)                                        COMMENT '备注',
+  image_url         VARCHAR(500)                                        COMMENT '账单图片 URL',
+  ai_confidence     TINYINT                                             COMMENT 'AI 识别置信度 0-100',
+  source            TINYINT       NOT NULL DEFAULT 0                    COMMENT '0-手动录入 1-AI识别',
+  user_id           BIGINT        NOT NULL                              COMMENT '所属用户',
+  create_time       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  update_time       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  is_deleted        TINYINT       NOT NULL DEFAULT 0,
+  INDEX idx_user_date (user_id, bill_date),
+  INDEX idx_user_trade_no (user_id, trade_no)
 ) COMMENT='个人消费账单' DEFAULT CHARSET=utf8mb4;
 
 INSERT IGNORE INTO sys_menu VALUES

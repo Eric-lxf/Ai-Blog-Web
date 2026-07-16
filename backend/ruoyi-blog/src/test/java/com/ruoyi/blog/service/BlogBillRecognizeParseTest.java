@@ -1,7 +1,7 @@
 package com.ruoyi.blog.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ruoyi.blog.service.impl.BlogBillServiceImpl;
+import com.ruoyi.blog.service.llm.LlmClientImpl;
 import com.ruoyi.blog.vo.BillVO;
 
 class BlogBillRecognizeParseTest
@@ -21,17 +22,30 @@ class BlogBillRecognizeParseTest
     {
         String raw = """
                 [
-                  {"billDate":"2026-07-14","merchant":"通行宝","category":"交通出行","amount":110.81,"paymentMethod":"招商银行信用卡(1683)","confidence":90},
+                  {"tradeNo":"42000001","tradeTime":"2026-07-14 09:31:21","billDate":"2026-07-14","tradeType":"商户消费","direction":"支出","merchant":"通行宝","category":"交通出行","amount":110.81,"paymentMethod":"招商银行信用卡(1683)","merchantOrderNo":"10001","confidence":90},
                   {"billDate":"2026-07-13 18:20:11","merchant":"通行宝","category":"交通出行","amount":"28.29","paymentMethod":"招商银行信用卡(1683)","confidence":88},
-                  {"billDate":"2026-07-11","merchant":"?","category":"其他","amount":400,"paymentMethod":"招商银行信用卡(1683)","note":"转账","confidence":70}
+                  {"billDate":"2026-07-11","merchant":"?","tradeType":"转账","amount":400,"paymentMethod":"招商银行信用卡(1683)","confidence":70}
                 ]
                 """;
         List<BillVO> list = BlogBillServiceImpl.parseRecognizeResults(raw, mapper);
         assertEquals(3, list.size());
         assertEquals(new BigDecimal("110.81"), list.get(0).getAmount());
         assertEquals("通行宝", list.get(0).getMerchant());
+        assertEquals("42000001", list.get(0).getTradeNo());
         assertEquals("2026-07-13", list.get(1).getBillDate().toString());
-        assertEquals("转账", list.get(2).getNote());
+        assertEquals("转账", list.get(2).getTradeType());
+        assertEquals("其他", list.get(2).getCategory());
+    }
+
+    @Test
+    void recoversMultipleObjectsFromTruncatedArray()
+    {
+        // 模拟 max_tokens 截断：缺少结尾 ]
+        String raw = "[{\"billDate\":\"2026-07-14\",\"merchant\":\"通行宝\",\"amount\":110.81},{\"billDate\":\"2026-07-13\",\"merchant\":\"通行宝\",\"amount\":28.29},{\"billDate\":\"2026-07-11\",\"merchant\":\"通行宝\",\"amount\":9.5";
+        List<BillVO> list = BlogBillServiceImpl.parseRecognizeResults(raw, mapper);
+        assertEquals(2, list.size());
+        assertEquals(new BigDecimal("110.81"), list.get(0).getAmount());
+        assertEquals(new BigDecimal("28.29"), list.get(1).getAmount());
     }
 
     @Test
@@ -45,12 +59,28 @@ class BlogBillRecognizeParseTest
     }
 
     @Test
-    void dropsEmptyObjects()
+    void dropsEmptyObjectsAndGuessesCategory()
     {
         String raw = "[{\"billDate\":\"\",\"merchant\":\"\",\"amount\":null},{\"billDate\":\"2026-07-14\",\"merchant\":\"通行宝\",\"amount\":9.5}]";
         List<BillVO> list = BlogBillServiceImpl.parseRecognizeResults(raw, mapper);
         assertEquals(1, list.size());
         assertEquals("通行宝", list.get(0).getMerchant());
-        assertNull(list.get(0).getCategory());
+        assertEquals("交通出行", list.get(0).getCategory());
+    }
+
+    @Test
+    void extractsOpenAiContentFromTextOrPartsArray()
+    {
+        String asText = "{\"choices\":[{\"message\":{\"content\":\"[{\\\"amount\\\":1}]\"}}]}";
+        String asParts = "{\"choices\":[{\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"[{\\\"amount\\\":2}]\"}]}}]}";
+        try
+        {
+            assertTrue(LlmClientImpl.extractOpenAiMessageContent(mapper.readTree(asText)).contains("amount"));
+            assertTrue(LlmClientImpl.extractOpenAiMessageContent(mapper.readTree(asParts)).contains("2"));
+        }
+        catch (Exception e)
+        {
+            throw new AssertionError(e);
+        }
     }
 }

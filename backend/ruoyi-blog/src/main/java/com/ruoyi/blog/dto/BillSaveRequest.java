@@ -2,6 +2,7 @@ package com.ruoyi.blog.dto;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
@@ -16,8 +17,15 @@ public class BillSaveRequest
     /** 非 null 时为更新 */
     private Long id;
 
+    private String tradeNo;
+
     @NotNull(message = "消费日期不能为空")
     private LocalDate billDate;
+
+    private LocalDateTime tradeTime;
+    private String tradeType;
+    /** 收/支/其他，默认支出 */
+    private String direction;
 
     private String merchant;
 
@@ -29,6 +37,7 @@ public class BillSaveRequest
     private BigDecimal amount;
 
     private String paymentMethod;
+    private String merchantOrderNo;
     private String note;
     private String imageUrl;
     private Integer aiConfidence;

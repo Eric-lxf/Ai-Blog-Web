@@ -3,6 +3,7 @@ package com.ruoyi.blog.service.impl;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -53,17 +54,23 @@ public class BlogBillServiceImpl implements BlogBillService
     private static final DateTimeFormatter MONTH_FMT = DateTimeFormatter.ofPattern("yyyy-MM");
 
     private static final String RECOGNIZE_PROMPT =
-            "请识别这张账单/收据/交易明细图片。若图片中有多笔交易（如微信支付交易明细、银行流水表），必须逐行全部提取，不要只返回第一笔。\n" +
-            "仅提取支出类记录；忽略收入、退款入账（若无法判断则保留并标注）。\n" +
-            "以 JSON 数组返回，每个元素包含：\n" +
-            "billDate（消费日期，格式 yyyy-MM-dd，取交易时间的日期部分）、\n" +
-            "merchant（商户/交易对方名称）、\n" +
-            "category（消费类目，从以下选择：餐饮食品/购物消费/交通出行/水电燃气/医疗健康/健身娱乐/服饰购物/其他；通行宝/ETC/地铁/打车等归交通出行，转账归其他）、\n" +
-            "amount（金额数字，不含货币符号）、\n" +
-            "paymentMethod（支付方式，如银行卡名+尾号、零钱等）、\n" +
-            "note（可选，交易类型如商户消费/转账）、\n" +
-            "confidence（识别置信度 0-100 整数）。\n" +
-            "只输出 JSON 数组；若仅一笔也用长度为 1 的数组。不要输出其他文字。";
+            "你是账单表格 OCR。图片可能是「微信支付交易明细证明」或银行流水表，表格中有多行交易。\n" +
+            "必须逐行提取「具体交易明细」下的每一行，禁止只返回第一行；行数应与表格数据行数一致。\n" +
+            "优先提取 direction=支出 的行；收入行可省略。\n" +
+            "只输出一个 JSON 数组（不要 markdown、不要解释）。数组元素字段：\n" +
+            "tradeNo（交易单号，长数字可原样拼接）、\n" +
+            "tradeTime（交易时间，yyyy-MM-dd HH:mm:ss）、\n" +
+            "billDate（yyyy-MM-dd，取交易时间日期）、\n" +
+            "tradeType（交易类型，如商户消费/转账）、\n" +
+            "direction（收/支/其他，如支出）、\n" +
+            "merchant（交易对方）、\n" +
+            "paymentMethod（交易方式，如招商银行信用卡(1683)）、\n" +
+            "amount（金额数字）、\n" +
+            "merchantOrderNo（商户单号）、\n" +
+            "category（餐饮食品/购物消费/交通出行/水电燃气/医疗健康/健身娱乐/服饰购物/其他；通行宝/ETC 归交通出行，转账归其他）、\n" +
+            "note（可选）、\n" +
+            "confidence（0-100）。\n" +
+            "示例：[{\"tradeNo\":\"4200...\",\"tradeTime\":\"2026-07-14 09:31:21\",\"billDate\":\"2026-07-14\",\"tradeType\":\"商户消费\",\"direction\":\"支出\",\"merchant\":\"通行宝\",\"paymentMethod\":\"招商银行信用卡(1683)\",\"amount\":110.81,\"merchantOrderNo\":\"4200...\",\"category\":\"交通出行\",\"confidence\":90}]";
 
     private final BlogBillMapper billMapper;
     private final DeepSeekService deepSeekService;
@@ -82,6 +89,14 @@ public class BlogBillServiceImpl implements BlogBillService
         {
             wrapper.eq(BlogBill::getCategory, query.getCategory());
         }
+        if (StringUtils.hasText(query.getMerchant()))
+        {
+            wrapper.like(BlogBill::getMerchant, query.getMerchant());
+        }
+        if (StringUtils.hasText(query.getDirection()))
+        {
+            wrapper.eq(BlogBill::getDirection, query.getDirection());
+        }
         if (query.getStartDate() != null)
         {
             wrapper.ge(BlogBill::getBillDate, query.getStartDate());
@@ -90,7 +105,7 @@ public class BlogBillServiceImpl implements BlogBillService
         {
             wrapper.le(BlogBill::getBillDate, query.getEndDate());
         }
-        wrapper.orderByDesc(BlogBill::getBillDate, BlogBill::getCreateTime);
+        wrapper.orderByDesc(BlogBill::getBillDate, BlogBill::getTradeTime, BlogBill::getCreateTime);
         billMapper.selectPage(rawPage, wrapper);
         Page<BillVO> voPage = new Page<>(rawPage.getCurrent(), rawPage.getSize(), rawPage.getTotal());
         voPage.setRecords(rawPage.getRecords().stream().map(this::toVO).toList());
@@ -122,10 +137,15 @@ public class BlogBillServiceImpl implements BlogBillService
             bill.setUserId(userId);
         }
         bill.setBillDate(request.getBillDate());
+        bill.setTradeNo(request.getTradeNo());
+        bill.setTradeTime(request.getTradeTime());
+        bill.setTradeType(request.getTradeType());
+        bill.setDirection(StringUtils.hasText(request.getDirection()) ? request.getDirection() : "支出");
         bill.setMerchant(request.getMerchant());
         bill.setCategory(request.getCategory());
         bill.setAmount(request.getAmount());
         bill.setPaymentMethod(request.getPaymentMethod());
+        bill.setMerchantOrderNo(request.getMerchantOrderNo());
         bill.setNote(request.getNote());
         bill.setImageUrl(request.getImageUrl());
         bill.setAiConfidence(request.getAiConfidence());
@@ -208,7 +228,10 @@ public class BlogBillServiceImpl implements BlogBillService
         long billCount = billMapper.selectCount(new LambdaQueryWrapper<BlogBill>()
                 .eq(BlogBill::getUserId, userId)
                 .ge(BlogBill::getBillDate, startDate)
-                .le(BlogBill::getBillDate, endDate));
+                .le(BlogBill::getBillDate, endDate)
+                .and(w -> w.isNull(BlogBill::getDirection)
+                        .or().eq(BlogBill::getDirection, "")
+                        .or().eq(BlogBill::getDirection, "支出")));
 
         BillAnalysisVO vo = new BillAnalysisVO();
         vo.setSummary(new BillAnalysisVO.SummaryData(total, avg, billCount, topCategory));
@@ -237,7 +260,8 @@ public class BlogBillServiceImpl implements BlogBillService
     }
 
     /**
-     * 解析 AI 返回：优先 JSON 数组（多行明细），兼容单对象。
+     * 解析 AI 返回：优先完整 JSON 数组；截断时按平衡括号提取多个对象；最后兼容单对象。
+     * 也支持 {"items":[...]} / {"transactions":[...]} / {"rows":[...]} 包装。
      */
     public static List<BillVO> parseRecognizeResults(String raw, ObjectMapper mapper)
     {
@@ -248,42 +272,216 @@ public class BlogBillServiceImpl implements BlogBillService
         }
         try
         {
-            Matcher arrayMatcher = JSON_ARRAY.matcher(raw);
+            String text = stripMarkdownFence(raw);
+            Matcher arrayMatcher = JSON_ARRAY.matcher(text);
             if (arrayMatcher.find())
             {
-                JsonNode arr = mapper.readTree(arrayMatcher.group());
-                if (arr.isArray())
+                try
                 {
-                    for (JsonNode node : arr)
+                    JsonNode arr = mapper.readTree(arrayMatcher.group());
+                    if (arr.isArray())
                     {
+                        addRecognizeNodes(list, arr);
+                        if (!list.isEmpty())
+                        {
+                            return list;
+                        }
+                    }
+                }
+                catch (Exception parseArrayEx)
+                {
+                    log.warn("完整 JSON 数组解析失败，尝试按对象片段恢复：{}", parseArrayEx.getMessage());
+                    list.addAll(parseObjectFragments(arrayMatcher.group(), mapper));
+                    if (!list.isEmpty())
+                    {
+                        return list;
+                    }
+                }
+            }
+
+            // 截断数组（无结尾 ]）时，Jackson 读单对象会只拿到第一笔；优先按平衡括号提取多对象
+            if (text.indexOf('{') != text.lastIndexOf('{'))
+            {
+                list.addAll(parseObjectFragments(text, mapper));
+                if (list.size() > 1)
+                {
+                    return list;
+                }
+                list.clear();
+            }
+
+            Matcher objectMatcher = JSON_OBJECT.matcher(text);
+            if (objectMatcher.find())
+            {
+                try
+                {
+                    JsonNode node = mapper.readTree(objectMatcher.group());
+                    if (node.isObject())
+                    {
+                        JsonNode nested = firstArrayChild(node, "items", "transactions", "rows", "bills", "data", "list");
+                        if (nested != null)
+                        {
+                            addRecognizeNodes(list, nested);
+                            if (!list.isEmpty())
+                            {
+                                return list;
+                            }
+                        }
                         BillVO vo = toRecognizeVo(node);
                         if (vo != null)
                         {
                             list.add(vo);
                         }
                     }
-                    return list;
+                }
+                catch (Exception objectEx)
+                {
+                    list.addAll(parseObjectFragments(text, mapper));
                 }
             }
-            Matcher objectMatcher = JSON_OBJECT.matcher(raw);
-            if (objectMatcher.find())
+            else
             {
-                BillVO vo = toRecognizeVo(mapper.readTree(objectMatcher.group()));
+                list.addAll(parseObjectFragments(text, mapper));
+            }
+            if (list.isEmpty())
+            {
+                log.warn("AI 识别结果无法解析为 JSON：{}", abbreviate(raw, 500));
+            }
+        }
+        catch (Exception e)
+        {
+            log.warn("解析 AI 识别 JSON 失败：{}", abbreviate(raw, 500), e);
+            list.addAll(parseObjectFragments(raw, mapper));
+        }
+        return list;
+    }
+
+    private static void addRecognizeNodes(List<BillVO> list, JsonNode arr)
+    {
+        for (JsonNode node : arr)
+        {
+            BillVO vo = toRecognizeVo(node);
+            if (vo != null)
+            {
+                list.add(vo);
+            }
+        }
+    }
+
+    private static JsonNode firstArrayChild(JsonNode node, String... fields)
+    {
+        for (String field : fields)
+        {
+            JsonNode child = node.get(field);
+            if (child != null && child.isArray() && !child.isEmpty())
+            {
+                return child;
+            }
+        }
+        return null;
+    }
+
+    /** 从可能被截断的文本中提取多个完整 {...} JSON 对象。 */
+    static List<BillVO> parseObjectFragments(String raw, ObjectMapper mapper)
+    {
+        List<BillVO> list = new ArrayList<>();
+        if (!StringUtils.hasText(raw) || mapper == null)
+        {
+            return list;
+        }
+        int i = 0;
+        while (i < raw.length())
+        {
+            int start = raw.indexOf('{', i);
+            if (start < 0)
+            {
+                break;
+            }
+            int end = findMatchingBrace(raw, start);
+            if (end < 0)
+            {
+                break;
+            }
+            String fragment = raw.substring(start, end + 1);
+            try
+            {
+                BillVO vo = toRecognizeVo(mapper.readTree(fragment));
                 if (vo != null)
                 {
                     list.add(vo);
                 }
             }
-            else
+            catch (Exception ignored)
             {
-                log.warn("AI 识别结果无法解析为 JSON：{}", raw);
+                // skip broken fragment
             }
-        }
-        catch (Exception e)
-        {
-            log.warn("解析 AI 识别 JSON 失败：{}", raw, e);
+            i = end + 1;
         }
         return list;
+    }
+
+    private static int findMatchingBrace(String text, int start)
+    {
+        int depth = 0;
+        boolean inString = false;
+        for (int i = start; i < text.length(); i++)
+        {
+            char c = text.charAt(i);
+            if (inString)
+            {
+                if (c == '\\' && i + 1 < text.length())
+                {
+                    i++;
+                    continue;
+                }
+                if (c == '"')
+                {
+                    inString = false;
+                }
+                continue;
+            }
+            if (c == '"')
+            {
+                inString = true;
+            }
+            else if (c == '{')
+            {
+                depth++;
+            }
+            else if (c == '}')
+            {
+                depth--;
+                if (depth == 0)
+                {
+                    return i;
+                }
+            }
+        }
+        return -1;
+    }
+
+    private static String stripMarkdownFence(String raw)
+    {
+        String text = raw.trim();
+        if (text.startsWith("```"))
+        {
+            int firstNl = text.indexOf('\n');
+            int lastFence = text.lastIndexOf("```");
+            if (firstNl > 0 && lastFence > firstNl)
+            {
+                return text.substring(firstNl + 1, lastFence).trim();
+            }
+        }
+        return text;
+    }
+
+    private static String abbreviate(String text, int max)
+    {
+        if (text == null || text.length() <= max)
+        {
+            return text;
+        }
+        return text.substring(0, max) + "...";
     }
 
     private static BillVO toRecognizeVo(JsonNode node)
@@ -293,7 +491,38 @@ public class BlogBillServiceImpl implements BlogBillService
             return null;
         }
         BillVO vo = new BillVO();
+        vo.setTradeNo(textOrNull(node, "tradeNo"));
+        vo.setTradeType(textOrNull(node, "tradeType"));
+        vo.setDirection(textOrNull(node, "direction"));
+        vo.setMerchantOrderNo(textOrNull(node, "merchantOrderNo"));
+
+        String tradeTimeStr = textOrNull(node, "tradeTime");
+        if (StringUtils.hasText(tradeTimeStr))
+        {
+            try
+            {
+                String normalized = tradeTimeStr.replace('T', ' ').trim();
+                if (normalized.length() >= 19)
+                {
+                    vo.setTradeTime(LocalDateTime.parse(normalized.substring(0, 19),
+                            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+                }
+                else if (normalized.length() >= 16)
+                {
+                    vo.setTradeTime(LocalDateTime.parse(normalized.substring(0, 16),
+                            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
+                }
+            }
+            catch (Exception ignored)
+            {
+            }
+        }
+
         String dateStr = node.path("billDate").asText("");
+        if (!StringUtils.hasText(dateStr) && vo.getTradeTime() != null)
+        {
+            dateStr = vo.getTradeTime().toLocalDate().toString();
+        }
         if (StringUtils.hasText(dateStr))
         {
             String normalized = dateStr.length() >= 10 ? dateStr.substring(0, 10) : dateStr;
@@ -303,26 +532,61 @@ public class BlogBillServiceImpl implements BlogBillService
             }
             catch (Exception ignored)
             {
-                // leave null for用户前端补全
             }
         }
+        if (vo.getBillDate() == null && vo.getTradeTime() != null)
+        {
+            vo.setBillDate(vo.getTradeTime().toLocalDate());
+        }
+
         String merchant = textOrNull(node, "merchant");
+        if (!StringUtils.hasText(merchant))
+        {
+            merchant = textOrNull(node, "counterparty");
+        }
         vo.setMerchant(merchant);
         vo.setCategory(textOrNull(node, "category"));
         BigDecimal amount = parseAmount(node.get("amount"));
         vo.setAmount(amount);
         vo.setPaymentMethod(textOrNull(node, "paymentMethod"));
-        vo.setNote(textOrNull(node, "note"));
+        String note = textOrNull(node, "note");
+        if (!StringUtils.hasText(note) && StringUtils.hasText(vo.getTradeType()))
+        {
+            note = vo.getTradeType();
+        }
+        vo.setNote(note);
         int conf = node.path("confidence").asInt(0);
         vo.setAiConfidence(conf > 0 ? conf : null);
         vo.setSource(1);
         vo.setSourceName("AI识别");
-        // 无金额且无商户的空对象丢弃
-        if (amount == null && !StringUtils.hasText(merchant))
+        if (!StringUtils.hasText(vo.getDirection()))
+        {
+            vo.setDirection("支出");
+        }
+        if (!StringUtils.hasText(vo.getCategory()))
+        {
+            vo.setCategory(guessCategory(merchant, vo.getTradeType()));
+        }
+        if (amount == null && !StringUtils.hasText(merchant) && !StringUtils.hasText(vo.getTradeNo()))
         {
             return null;
         }
         return vo;
+    }
+
+    private static String guessCategory(String merchant, String tradeType)
+    {
+        String m = merchant == null ? "" : merchant;
+        String t = tradeType == null ? "" : tradeType;
+        if (m.contains("通行宝") || m.contains("地铁") || m.contains("滴滴") || m.contains("高德") || m.contains("ETC"))
+        {
+            return "交通出行";
+        }
+        if (t.contains("转账"))
+        {
+            return "其他";
+        }
+        return "其他";
     }
 
     private static String textOrNull(JsonNode node, String field)
