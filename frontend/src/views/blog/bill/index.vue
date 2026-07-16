@@ -109,8 +109,8 @@
       </template>
     </el-dialog>
 
-    <!-- AI 识别 Dialog（三步：上传→预览→确认保存） -->
-    <el-dialog v-model="recognizeVisible" title="AI 识别账单" width="560px" append-to-body>
+    <!-- AI 识别 Dialog（三步：上传→识别→确认保存，支持多行明细） -->
+    <el-dialog v-model="recognizeVisible" title="AI 识别账单" width="920px" append-to-body>
       <el-steps :active="recognizeStep" align-center class="mb20">
         <el-step title="上传图片" />
         <el-step title="AI 识别" />
@@ -130,7 +130,7 @@
           <el-icon class="el-icon--upload"><Upload /></el-icon>
           <div class="el-upload__text">拖拽图片到此处，或 <em>点击上传</em></div>
           <template #tip>
-            <div class="el-upload__tip">支持 JPG / PNG，建议清晰原图（≤7MB）；本地图片会转为 Base64 后识别</div>
+            <div class="el-upload__tip">支持 JPG / PNG / 交易明细截图（≤7MB）；本地图片会转为 Base64 后识别全部行</div>
           </template>
         </el-upload>
         <div v-if="uploadPreviewUrl" class="preview-wrap">
@@ -145,38 +145,68 @@
       <!-- Step 1: 识别中 -->
       <div v-if="recognizeStep === 1" class="step-body center">
         <el-icon class="loading-icon" :size="48"><Loading /></el-icon>
-        <p class="mt10">AI 正在识别，请稍候…</p>
+        <p class="mt10">AI 正在识别全部明细，请稍候…</p>
       </div>
 
-      <!-- Step 2: 确认 -->
+      <!-- Step 2: 确认（多行可编辑） -->
       <div v-if="recognizeStep === 2" class="step-body">
-        <el-form :model="recognizeResult" label-width="90px">
-          <el-form-item label="消费日期">
-            <el-date-picker v-model="recognizeResult.billDate" type="date" value-format="YYYY-MM-DD" style="width:100%" />
-          </el-form-item>
-          <el-form-item label="商户名称">
-            <el-input v-model="recognizeResult.merchant" />
-          </el-form-item>
-          <el-form-item label="消费类目">
-            <el-select v-model="recognizeResult.category" style="width:100%">
-              <el-option v-for="c in categories" :key="c" :label="c" :value="c" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="金额">
-            <el-input-number v-model="recognizeResult.amount" :min="0.01" :precision="2" style="width:100%" />
-          </el-form-item>
-          <el-form-item label="支付方式">
-            <el-input v-model="recognizeResult.paymentMethod" />
-          </el-form-item>
-          <el-form-item label="AI 置信度">
-            <el-progress :percentage="recognizeResult.aiConfidence || 0" />
-          </el-form-item>
-        </el-form>
+        <div class="recognize-toolbar">
+          <span>共识别 {{ recognizeResults.length }} 笔，已选 {{ selectedRecognizeIndexes.length }} 笔</span>
+          <div>
+            <el-button link type="primary" @click="selectAllRecognize">全选</el-button>
+            <el-button link @click="selectedRecognizeIndexes = []">清空</el-button>
+          </div>
+        </div>
+        <el-table
+          :data="recognizeResults"
+          border
+          size="small"
+          max-height="420"
+          row-key="_key"
+          @selection-change="onRecognizeSelectionChange"
+          ref="recognizeTableRef"
+        >
+          <el-table-column type="selection" width="42" />
+          <el-table-column label="日期" width="150">
+            <template #default="{ row }">
+              <el-date-picker v-model="row.billDate" type="date" value-format="YYYY-MM-DD" style="width:130px" size="small" />
+            </template>
+          </el-table-column>
+          <el-table-column label="商户" min-width="120">
+            <template #default="{ row }">
+              <el-input v-model="row.merchant" size="small" />
+            </template>
+          </el-table-column>
+          <el-table-column label="类目" width="140">
+            <template #default="{ row }">
+              <el-select v-model="row.category" size="small" style="width:120px">
+                <el-option v-for="c in categories" :key="c" :label="c" :value="c" />
+              </el-select>
+            </template>
+          </el-table-column>
+          <el-table-column label="金额" width="130">
+            <template #default="{ row }">
+              <el-input-number v-model="row.amount" :min="0.01" :precision="2" size="small" controls-position="right" style="width:110px" />
+            </template>
+          </el-table-column>
+          <el-table-column label="支付方式" min-width="140">
+            <template #default="{ row }">
+              <el-input v-model="row.paymentMethod" size="small" />
+            </template>
+          </el-table-column>
+          <el-table-column label="备注" width="100">
+            <template #default="{ row }">
+              <el-input v-model="row.note" size="small" />
+            </template>
+          </el-table-column>
+        </el-table>
       </div>
 
       <template #footer>
         <el-button v-if="recognizeStep === 2" @click="recognizeStep = 0">重新识别</el-button>
-        <el-button v-if="recognizeStep === 2" type="primary" :loading="saving" @click="saveRecognized">保存账单</el-button>
+        <el-button v-if="recognizeStep === 2" type="primary" :loading="saving" :disabled="!selectedRecognizeIndexes.length" @click="saveRecognized">
+          保存选中（{{ selectedRecognizeIndexes.length }}）
+        </el-button>
         <el-button v-if="recognizeStep === 0" @click="recognizeVisible = false">取消</el-button>
       </template>
     </el-dialog>
@@ -184,7 +214,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Refresh, Plus, Edit, Delete, Camera, Upload, Loading } from '@element-plus/icons-vue'
 import { listBill, getBill, addBill, updateBill, deleteBill, recognizeBill } from '@/api/blog/bill'
@@ -279,16 +309,22 @@ async function handleDelete(row) {
   loadList()
 }
 
-// ── AI 识别 ───────────────────────────────────────────────────
+// ── AI 识别（支持多行明细） ───────────────────────────────────
 const recognizeVisible  = ref(false)
 const recognizeStep     = ref(0)
 const recognizeImageUrl = ref('')
 const uploadPreviewUrl  = ref('')
-const recognizeResult   = reactive({})
+const recognizeResults  = ref([])
+const selectedRecognizeIndexes = ref([])
+const recognizeTableRef = ref(null)
+const persistImageUrl   = ref(null)
 
 function openRecognize() {
   recognizeStep.value     = 0
   recognizeImageUrl.value = ''
+  recognizeResults.value  = []
+  selectedRecognizeIndexes.value = []
+  persistImageUrl.value   = null
   if (uploadPreviewUrl.value?.startsWith('blob:')) {
     URL.revokeObjectURL(uploadPreviewUrl.value)
   }
@@ -320,6 +356,30 @@ function onFileChange(file) {
   reader.readAsDataURL(raw)
 }
 
+function normalizeRecognizeList(data) {
+  const rows = Array.isArray(data) ? data : (data ? [data] : [])
+  return rows.map((row, index) => ({
+    _key: index,
+    billDate: row.billDate || '',
+    merchant: row.merchant || '',
+    category: row.category || '其他',
+    amount: row.amount != null ? Number(row.amount) : null,
+    paymentMethod: row.paymentMethod || '',
+    note: row.note || '',
+    aiConfidence: row.aiConfidence ?? null,
+    source: 1
+  }))
+}
+
+function onRecognizeSelectionChange(rows) {
+  selectedRecognizeIndexes.value = rows.map((row) => recognizeResults.value.indexOf(row)).filter((i) => i >= 0)
+}
+
+async function selectAllRecognize() {
+  await nextTick()
+  recognizeTableRef.value?.toggleAllSelection?.()
+}
+
 async function doRecognize() {
   const imageUrl = (recognizeImageUrl.value || '').trim()
   if (!imageUrl || imageUrl.startsWith('blob:') || imageUrl.startsWith('file:')) {
@@ -329,10 +389,12 @@ async function doRecognize() {
   recognizeStep.value = 1
   try {
     const res = await recognizeBill({ imageUrl })
-    Object.assign(recognizeResult, res.data)
-    // 不把超大 Base64 写入账单记录，仅保留可持久化的 http(s) URL
-    recognizeResult.imageUrl = imageUrl.startsWith('data:') ? null : imageUrl
+    recognizeResults.value = normalizeRecognizeList(res.data)
+    persistImageUrl.value = imageUrl.startsWith('data:') ? null : imageUrl
+    selectedRecognizeIndexes.value = []
     recognizeStep.value = 2
+    await nextTick()
+    recognizeTableRef.value?.toggleAllSelection?.()
   } catch (e) {
     // 全局拦截器已对业务错误弹过提示，这里只回退步骤
     recognizeStep.value = 0
@@ -340,10 +402,36 @@ async function doRecognize() {
 }
 
 async function saveRecognized() {
+  const selected = selectedRecognizeIndexes.value
+    .map((i) => recognizeResults.value[i])
+    .filter(Boolean)
+  if (!selected.length) {
+    ElMessage.warning('请至少选择一笔账单')
+    return
+  }
+  const invalid = selected.find((row) => !row.billDate || !row.category || row.amount == null || row.amount <= 0)
+  if (invalid) {
+    ElMessage.warning('选中明细存在未填日期/类目/金额，请补全后再保存')
+    return
+  }
   saving.value = true
   try {
-    await addBill({ ...recognizeResult, source: 1 })
-    ElMessage.success('账单已保存')
+    let ok = 0
+    for (const row of selected) {
+      await addBill({
+        billDate: row.billDate,
+        merchant: row.merchant,
+        category: row.category,
+        amount: row.amount,
+        paymentMethod: row.paymentMethod,
+        note: row.note,
+        aiConfidence: row.aiConfidence,
+        imageUrl: persistImageUrl.value,
+        source: 1
+      })
+      ok += 1
+    }
+    ElMessage.success(`已保存 ${ok} 笔账单`)
     recognizeVisible.value = false
     loadList()
   } finally {
@@ -364,4 +452,12 @@ async function saveRecognized() {
 @keyframes spin { to { transform: rotate(360deg); } }
 .mt10 { margin-top: 10px; }
 .mb20 { margin-bottom: 20px; }
+.recognize-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+}
 </style>
