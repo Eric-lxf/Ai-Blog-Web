@@ -12,8 +12,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
+import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.wechat.dto.WechatAccountSaveRequest;
 import com.ruoyi.wechat.dto.WechatPageQuery;
 import com.ruoyi.wechat.service.WechatAccountService;
@@ -54,6 +56,7 @@ public class WechatAccountController extends WechatControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('wechat:account:add') or @ss.hasPermi('wechat:account:edit')")
+    @Log(title = "微信账号", businessType = BusinessType.INSERT, excludeParamNames = {"apiKey", "secret", "appSecret", "accessToken", "token"})
     @PostMapping
     public AjaxResult save(@Valid @RequestBody WechatAccountSaveRequest request)
     {
@@ -61,6 +64,7 @@ public class WechatAccountController extends WechatControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('wechat:account:remove')")
+    @Log(title = "微信账号", businessType = BusinessType.DELETE)
     @DeleteMapping("/{id}")
     public AjaxResult delete(@PathVariable Long id)
     {
@@ -69,6 +73,7 @@ public class WechatAccountController extends WechatControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('wechat:account:query')")
+    @Log(title = "微信账号", businessType = BusinessType.TEST, isSaveResponseData = false)
     @PostMapping("/{id}/test")
     public AjaxResult test(@PathVariable Long id)
     {

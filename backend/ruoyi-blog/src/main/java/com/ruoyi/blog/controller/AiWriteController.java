@@ -14,7 +14,9 @@ import org.springframework.web.bind.annotation.RestController;
 import com.ruoyi.blog.dto.AiWriteWizardRequest;
 import com.ruoyi.blog.dto.OutlineNodeDTO;
 import com.ruoyi.blog.service.AiWriteService;
+import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.domain.AjaxResult;
+import com.ruoyi.common.enums.BusinessType;
 
 import lombok.RequiredArgsConstructor;
 
@@ -27,6 +29,7 @@ public class AiWriteController extends BlogControllerSupport
 
     private final AiWriteService aiWriteService;
 
+    @Log(title = "AI智写-标题", businessType = BusinessType.AI, isSaveRequestData = false, isSaveResponseData = false)
     @PostMapping("/titles")
     public AjaxResult titles(@Valid @RequestBody AiWriteWizardRequest request)
     {
@@ -34,6 +37,7 @@ public class AiWriteController extends BlogControllerSupport
         return AjaxResult.success(titles);
     }
 
+    @Log(title = "AI智写-摘要", businessType = BusinessType.AI, isSaveRequestData = false, isSaveResponseData = false)
     @PostMapping("/summary")
     public AjaxResult summary(@Valid @RequestBody AiWriteWizardRequest request)
     {
@@ -41,6 +45,7 @@ public class AiWriteController extends BlogControllerSupport
         return AjaxResult.success("操作成功", aiWriteService.generateSummary(request));
     }
 
+    @Log(title = "AI智写-大纲", businessType = BusinessType.AI, isSaveRequestData = false, isSaveResponseData = false)
     @PostMapping("/outline")
     public AjaxResult outline(@Valid @RequestBody AiWriteWizardRequest request)
     {
@@ -48,6 +53,7 @@ public class AiWriteController extends BlogControllerSupport
         return AjaxResult.success(outline);
     }
 
+    @Log(title = "AI智写-全文", businessType = BusinessType.AI, isSaveRequestData = false, isSaveResponseData = false)
     @PostMapping("/generate")
     public AjaxResult generate(@Valid @RequestBody AiWriteWizardRequest request)
     {

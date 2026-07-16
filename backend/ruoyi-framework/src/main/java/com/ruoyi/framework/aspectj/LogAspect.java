@@ -2,6 +2,7 @@ package com.ruoyi.framework.aspectj;
 
 import java.util.Collection;
 import java.util.Map;
+import java.util.Objects;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.lang3.ArrayUtils;
@@ -18,6 +19,8 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.multipart.MultipartFile;
 import com.alibaba.fastjson2.JSON;
 import com.ruoyi.common.annotation.Log;
+import com.ruoyi.common.constant.HttpStatus;
+import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.domain.entity.SysUser;
 import com.ruoyi.common.core.domain.model.LoginUser;
 import com.ruoyi.common.core.text.Convert;
@@ -45,7 +48,8 @@ public class LogAspect
     private static final Logger log = LoggerFactory.getLogger(LogAspect.class);
 
     /** 排除敏感属性字段 */
-    public static final String[] EXCLUDE_PROPERTIES = { "password", "oldPassword", "newPassword", "confirmPassword" };
+    public static final String[] EXCLUDE_PROPERTIES = { "password", "oldPassword", "newPassword", "confirmPassword",
+            "apiKey", "api_key", "secret", "appSecret", "accessToken", "token" };
 
     /** 计算操作消耗时间 */
     private static final ThreadLocal<Long> TIME_THREADLOCAL = new NamedThreadLocal<Long>("Cost Time");
@@ -113,6 +117,11 @@ public class LogAspect
             {
                 operLog.setStatus(BusinessStatus.FAIL.ordinal());
                 operLog.setErrorMsg(StringUtils.substring(Convert.toStr(e.getMessage(), ExceptionUtil.getExceptionMessage(e)), 0, 2000));
+            }
+            else if (jsonResult instanceof AjaxResult ajaxResult && !Objects.equals(HttpStatus.SUCCESS, ajaxResult.get(AjaxResult.CODE_TAG)))
+            {
+                operLog.setStatus(BusinessStatus.FAIL.ordinal());
+                operLog.setErrorMsg(StringUtils.substring(Convert.toStr(ajaxResult.get(AjaxResult.MSG_TAG)), 0, 2000));
             }
             // 设置方法名称
             String className = joinPoint.getTarget().getClass().getName();

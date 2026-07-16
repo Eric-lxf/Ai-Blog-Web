@@ -21,9 +21,11 @@ import com.ruoyi.blog.dto.AiProviderSaveRequest;
 import com.ruoyi.blog.service.AiConfigService;
 import com.ruoyi.blog.service.AiProviderService;
 import com.ruoyi.blog.vo.AiProviderVO;
+import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.constant.HttpStatus;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
+import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.common.exception.ServiceException;
 
 import lombok.RequiredArgsConstructor;
@@ -59,6 +61,7 @@ public class AiProviderController extends BlogControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('blog:ai:provider:edit')")
+    @Log(title = "AI模型配置", businessType = BusinessType.UPDATE)
     @PostMapping("/config")
     public AjaxResult updateModuleConfig(@Valid @RequestBody AiModuleConfigUpdateRequest request)
     {
@@ -74,6 +77,7 @@ public class AiProviderController extends BlogControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('blog:ai:provider:edit')")
+    @Log(title = "AI模块配置", businessType = BusinessType.UPDATE)
     @PutMapping("/module-configs/{moduleCode}")
     public AjaxResult saveFeatureModuleConfig(@PathVariable String moduleCode,
             @Valid @RequestBody AiModuleOverrideSaveRequest request)
@@ -84,6 +88,7 @@ public class AiProviderController extends BlogControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('blog:ai:provider:remove')")
+    @Log(title = "AI模块配置", businessType = BusinessType.DELETE)
     @DeleteMapping("/module-configs/{moduleCode}")
     public AjaxResult deleteFeatureModuleConfig(@PathVariable String moduleCode)
     {
@@ -100,6 +105,7 @@ public class AiProviderController extends BlogControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('blog:ai:provider:add') or @ss.hasPermi('blog:ai:provider:edit')")
+    @Log(title = "AI模型配置", businessType = BusinessType.INSERT, excludeParamNames = {"apiKey", "secret", "appSecret", "accessToken", "token"})
     @PostMapping
     public AjaxResult save(@Valid @RequestBody AiProviderSaveRequest request)
     {
@@ -107,6 +113,7 @@ public class AiProviderController extends BlogControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('blog:ai:provider:remove')")
+    @Log(title = "AI模型配置", businessType = BusinessType.DELETE)
     @DeleteMapping("/{id}")
     public AjaxResult delete(@PathVariable Long id)
     {
@@ -115,6 +122,7 @@ public class AiProviderController extends BlogControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('blog:ai:provider:test') or @ss.hasPermi('blog:ai:provider:query')")
+    @Log(title = "AI模型配置", businessType = BusinessType.TEST, isSaveResponseData = false)
     @PostMapping("/{id}/test")
     public AjaxResult test(@PathVariable Long id)
     {

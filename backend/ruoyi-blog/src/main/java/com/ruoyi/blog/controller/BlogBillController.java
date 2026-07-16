@@ -22,8 +22,10 @@ import com.ruoyi.blog.dto.BillSaveRequest;
 import com.ruoyi.blog.service.BlogBillService;
 import com.ruoyi.blog.vo.BillAnalysisVO;
 import com.ruoyi.blog.vo.BillVO;
+import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
+import com.ruoyi.common.enums.BusinessType;
 
 import lombok.RequiredArgsConstructor;
 
@@ -52,6 +54,7 @@ public class BlogBillController extends BlogControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('blog:bill:add') or @ss.hasPermi('blog:bill:edit')")
+    @Log(title = "账单", businessType = BusinessType.INSERT)
     @PostMapping
     public AjaxResult save(@Valid @RequestBody BillSaveRequest request)
     {
@@ -59,6 +62,7 @@ public class BlogBillController extends BlogControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('blog:bill:remove')")
+    @Log(title = "账单", businessType = BusinessType.DELETE)
     @DeleteMapping("/{id}")
     public AjaxResult delete(@PathVariable Long id)
     {
@@ -67,6 +71,7 @@ public class BlogBillController extends BlogControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('blog:bill:recognize')")
+    @Log(title = "AI账单识别", businessType = BusinessType.AI, isSaveRequestData = false, isSaveResponseData = false)
     @PostMapping("/recognize")
     public AjaxResult recognize(@Valid @RequestBody BillRecognizeRequest request)
     {

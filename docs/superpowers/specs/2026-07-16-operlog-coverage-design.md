@@ -1,8 +1,27 @@
 # 操作日志全覆盖设计
 
 日期：2026-07-16  
-状态：草案（待确认）  
+状态：已确认并实现（Phase 1）  
 分支：`cursor/operlog-coverage-design-a3cc`
+
+## 已确认决策
+
+| 项 | 决策 |
+|----|------|
+| GET 操作 | **不记录** |
+| AI 调用 | **只记场景**（`isSaveRequestData/isSaveResponseData = false`，场景体现在 `title`） |
+| BusinessType | **扩展** SYNC / TEST / PUBLISH / AI |
+| 保留策略 | **90 天**（定时任务 `operLogTask.cleanExpired(90)`） |
+
+## 实现摘要
+
+- `BusinessType` 新增 SYNC(10)、TEST(11)、PUBLISH(12)、AI(13)；字典与 `ry_base.sql` / `operlog_coverage.sql` 同步
+- `LogAspect`：敏感字段脱敏增强；`AjaxResult` 非 200 记失败
+- blog / wechat 管理端写操作补全 `@Log`（公开接口与纯 GET 不记）
+- `OperLogTask` + `sys_job`：每日 02:00 清理超 90 天日志
+- 存量库执行：`sql/operlog_coverage.sql`
+
+---
 
 ## 1. 问题陈述
 

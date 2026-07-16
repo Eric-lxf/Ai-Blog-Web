@@ -10,7 +10,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.domain.AjaxResult;
+import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.wechat.dto.WechatKefuSendRequest;
 import com.ruoyi.wechat.service.WechatKefuService;
 import com.ruoyi.wechat.vo.WechatKefuSessionVO;
@@ -33,6 +35,7 @@ public class WechatKefuController extends WechatControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('wechat:kefu:send')")
+    @Log(title = "微信客服消息", businessType = BusinessType.PUBLISH, isSaveResponseData = false)
     @PostMapping("/send")
     public AjaxResult send(@Valid @RequestBody WechatKefuSendRequest request)
     {

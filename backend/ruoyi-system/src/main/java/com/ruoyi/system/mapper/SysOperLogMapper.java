@@ -45,4 +45,12 @@ public interface SysOperLogMapper
      * 清空操作日志
      */
     public void cleanOperLog();
+
+    /**
+     * 删除指定天数之前的操作日志
+     *
+     * @param days 保留天数
+     * @return 删除条数
+     */
+    public int deleteOperLogByDays(int days);
 }

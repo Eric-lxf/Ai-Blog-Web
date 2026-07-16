@@ -10,7 +10,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.domain.AjaxResult;
+import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.wechat.dto.WechatDraftBatchRequest;
 import com.ruoyi.wechat.dto.WechatDraftDeleteRequest;
 import com.ruoyi.wechat.dto.WechatDraftGetRequest;
@@ -28,6 +30,7 @@ public class WechatDraftController extends WechatControllerSupport
     private final WechatDraftService wechatDraftService;
 
     @PreAuthorize("@ss.hasPermi('wechat:draft:list')")
+    @Log(title = "微信草稿", businessType = BusinessType.SYNC, isSaveResponseData = false)
     @PostMapping("/batchget")
     public AjaxResult batchGet(@Valid @RequestBody WechatDraftBatchRequest request)
     {
@@ -35,6 +38,7 @@ public class WechatDraftController extends WechatControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('wechat:draft:list')")
+    @Log(title = "微信草稿", businessType = BusinessType.SYNC, isSaveResponseData = false)
     @PostMapping("/get")
     public AjaxResult get(@Valid @RequestBody WechatDraftGetRequest request)
     {
@@ -49,6 +53,7 @@ public class WechatDraftController extends WechatControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('wechat:draft:add')")
+    @Log(title = "微信草稿", businessType = BusinessType.INSERT, isSaveResponseData = false)
     @PostMapping
     public AjaxResult add(@Valid @RequestBody WechatDraftSaveRequest request)
     {
@@ -56,6 +61,7 @@ public class WechatDraftController extends WechatControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('wechat:draft:edit')")
+    @Log(title = "微信草稿", businessType = BusinessType.UPDATE, isSaveResponseData = false)
     @PostMapping("/update")
     public AjaxResult update(@Valid @RequestBody WechatDraftUpdateRequest request)
     {
@@ -64,6 +70,7 @@ public class WechatDraftController extends WechatControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('wechat:draft:remove')")
+    @Log(title = "微信草稿", businessType = BusinessType.DELETE)
     @PostMapping("/delete")
     public AjaxResult delete(@Valid @RequestBody WechatDraftDeleteRequest request)
     {

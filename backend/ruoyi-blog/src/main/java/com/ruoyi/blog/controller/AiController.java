@@ -27,7 +27,9 @@ import com.ruoyi.blog.service.DeepSeekService;
 import com.ruoyi.blog.vo.AiPromptTemplateDetailVO;
 import com.ruoyi.blog.vo.AiPromptTemplateVO;
 import com.ruoyi.blog.vo.AiTaskVO;
+import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.domain.AjaxResult;
+import com.ruoyi.common.enums.BusinessType;
 
 import lombok.RequiredArgsConstructor;
 
@@ -91,6 +93,7 @@ public class AiController extends BlogControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('blog:ai:chat')")
+    @Log(title = "AI编辑器对话", businessType = BusinessType.AI, isSaveRequestData = false, isSaveResponseData = false)
     @PostMapping(value = "/stream/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter streamChat(@Valid @RequestBody AiChatRequest request)
     {

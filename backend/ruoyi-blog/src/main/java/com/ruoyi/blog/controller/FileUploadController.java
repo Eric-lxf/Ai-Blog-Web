@@ -10,7 +10,9 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.ruoyi.blog.service.FileStorageService;
+import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.domain.AjaxResult;
+import com.ruoyi.common.enums.BusinessType;
 
 import lombok.RequiredArgsConstructor;
 
@@ -23,6 +25,7 @@ public class FileUploadController extends BlogControllerSupport
     private final FileStorageService fileStorageService;
 
     @PreAuthorize("@ss.hasPermi('blog:upload:image')")
+    @Log(title = "图片上传", businessType = BusinessType.INSERT, isSaveRequestData = false, isSaveResponseData = false)
     @PostMapping("/image")
     public AjaxResult uploadImage(@RequestParam("file") MultipartFile file)
     {

@@ -14,7 +14,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.ruoyi.blog.domain.BlogSensitiveWord;
 import com.ruoyi.blog.service.BlogSensitiveWordService;
+import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.domain.AjaxResult;
+import com.ruoyi.common.enums.BusinessType;
 
 import lombok.RequiredArgsConstructor;
 
@@ -41,6 +43,7 @@ public class BlogSensitiveWordController
     }
 
     @PreAuthorize("@ss.hasPermi('blog:sensitive:add')")
+    @Log(title = "敏感词", businessType = BusinessType.INSERT)
     @PostMapping
     public AjaxResult add(@RequestBody BlogSensitiveWord word)
     {
@@ -48,6 +51,7 @@ public class BlogSensitiveWordController
     }
 
     @PreAuthorize("@ss.hasPermi('blog:sensitive:edit')")
+    @Log(title = "敏感词", businessType = BusinessType.UPDATE)
     @PutMapping
     public AjaxResult edit(@RequestBody BlogSensitiveWord word)
     {
@@ -55,6 +59,7 @@ public class BlogSensitiveWordController
     }
 
     @PreAuthorize("@ss.hasPermi('blog:sensitive:remove')")
+    @Log(title = "敏感词", businessType = BusinessType.DELETE)
     @DeleteMapping("/{ids}")
     public AjaxResult remove(@PathVariable Long[] ids)
     {

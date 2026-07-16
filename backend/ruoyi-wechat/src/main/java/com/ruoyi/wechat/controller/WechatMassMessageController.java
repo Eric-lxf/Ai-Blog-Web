@@ -13,8 +13,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
+import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.wechat.dto.WechatMassPreviewRequest;
 import com.ruoyi.wechat.dto.WechatMassSendRequest;
 import com.ruoyi.wechat.dto.WechatPageQuery;
@@ -39,6 +41,7 @@ public class WechatMassMessageController extends WechatControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('wechat:mass:preview')")
+    @Log(title = "微信群发", businessType = BusinessType.PUBLISH, isSaveResponseData = false)
     @PostMapping("/preview")
     public AjaxResult preview(@Valid @RequestBody WechatMassPreviewRequest request)
     {
@@ -47,6 +50,7 @@ public class WechatMassMessageController extends WechatControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('wechat:mass:send')")
+    @Log(title = "微信群发", businessType = BusinessType.PUBLISH, isSaveResponseData = false)
     @PostMapping("/send")
     public AjaxResult send(@Valid @RequestBody WechatMassSendRequest request)
     {
@@ -54,6 +58,7 @@ public class WechatMassMessageController extends WechatControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('wechat:mass:list')")
+    @Log(title = "微信群发", businessType = BusinessType.SYNC, isSaveResponseData = false)
     @PostMapping("/{id}/sync-status")
     public AjaxResult syncStatus(@PathVariable Long id)
     {

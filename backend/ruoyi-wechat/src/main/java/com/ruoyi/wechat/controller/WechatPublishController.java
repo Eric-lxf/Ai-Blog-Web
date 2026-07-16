@@ -10,8 +10,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
+import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.wechat.dto.WechatFreePublishArticleRequest;
 import com.ruoyi.wechat.dto.WechatFreePublishBatchRequest;
 import com.ruoyi.wechat.dto.WechatFreePublishDeleteRequest;
@@ -43,6 +45,7 @@ public class WechatPublishController extends WechatControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('wechat:publish:push')")
+    @Log(title = "微信发布", businessType = BusinessType.PUBLISH, isSaveResponseData = false)
     @PostMapping("/wechat/push")
     public AjaxResult push(@Valid @RequestBody WechatPushRequest request)
     {
@@ -51,6 +54,7 @@ public class WechatPublishController extends WechatControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('wechat:publish:push')")
+    @Log(title = "微信发布", businessType = BusinessType.PUBLISH, isSaveResponseData = false)
     @PostMapping("/wechat/publish/push")
     public AjaxResult pushViaPublish(@Valid @RequestBody WechatPushRequest request)
     {
@@ -59,6 +63,7 @@ public class WechatPublishController extends WechatControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('wechat:publish:push')")
+    @Log(title = "微信发布", businessType = BusinessType.PUBLISH, isSaveResponseData = false)
     @PostMapping("/wechat/publish/{id}/submit")
     public AjaxResult submitFromRecord(@PathVariable Long id)
     {
@@ -66,6 +71,7 @@ public class WechatPublishController extends WechatControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('wechat:publish:query')")
+    @Log(title = "微信发布", businessType = BusinessType.SYNC, isSaveResponseData = false)
     @PostMapping("/wechat/publish/{id}/sync-status")
     public AjaxResult syncStatus(@PathVariable Long id)
     {
@@ -73,6 +79,7 @@ public class WechatPublishController extends WechatControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('wechat:publish:list')")
+    @Log(title = "微信发布", businessType = BusinessType.SYNC, isSaveResponseData = false)
     @PostMapping("/wechat/publish/wechat/batchget")
     public AjaxResult batchGet(@Valid @RequestBody WechatFreePublishBatchRequest request)
     {
@@ -84,6 +91,7 @@ public class WechatPublishController extends WechatControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('wechat:publish:remove')")
+    @Log(title = "微信发布", businessType = BusinessType.DELETE)
     @PostMapping("/wechat/publish/wechat/delete")
     public AjaxResult deletePublished(@Valid @RequestBody WechatFreePublishDeleteRequest request)
     {
@@ -92,6 +100,7 @@ public class WechatPublishController extends WechatControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('wechat:publish:query')")
+    @Log(title = "微信发布", businessType = BusinessType.SYNC, isSaveResponseData = false)
     @PostMapping("/wechat/publish/wechat/status")
     public AjaxResult getPublishStatus(@Valid @RequestBody WechatFreePublishStatusRequest request)
     {
@@ -99,6 +108,7 @@ public class WechatPublishController extends WechatControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('wechat:publish:list')")
+    @Log(title = "微信发布", businessType = BusinessType.SYNC, isSaveResponseData = false)
     @PostMapping("/wechat/publish/wechat/article")
     public AjaxResult getPublishedArticle(@Valid @RequestBody WechatFreePublishArticleRequest request)
     {
@@ -106,6 +116,7 @@ public class WechatPublishController extends WechatControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('wechat:publish:push')")
+    @Log(title = "微信发布", businessType = BusinessType.PUBLISH, isSaveResponseData = false)
     @PostMapping("/wechat/publish/wechat/submit")
     public AjaxResult submitDraft(@Valid @RequestBody WechatFreePublishSubmitRequest request)
     {

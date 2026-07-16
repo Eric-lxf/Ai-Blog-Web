@@ -526,6 +526,10 @@ insert into sys_dict_data values(24, 6,  '导入',     '6',       'sys_oper_type
 insert into sys_dict_data values(25, 7,  '强退',     '7',       'sys_oper_type',       '',   'danger',  'N', '0', 'admin', sysdate(), '', null, '强退操作');
 insert into sys_dict_data values(26, 8,  '生成代码', '8',       'sys_oper_type',       '',   'warning', 'N', '0', 'admin', sysdate(), '', null, '生成操作');
 insert into sys_dict_data values(27, 9,  '清空数据', '9',       'sys_oper_type',       '',   'danger',  'N', '0', 'admin', sysdate(), '', null, '清空操作');
+insert into sys_dict_data values(30, 10, '同步',     '10',      'sys_oper_type',       '',   'info',    'N', '0', 'admin', sysdate(), '', null, '同步操作');
+insert into sys_dict_data values(31, 11, '连通测试', '11',      'sys_oper_type',       '',   'primary', 'N', '0', 'admin', sysdate(), '', null, '连通性测试');
+insert into sys_dict_data values(32, 12, '发布推送', '12',      'sys_oper_type',       '',   'warning', 'N', '0', 'admin', sysdate(), '', null, '发布推送操作');
+insert into sys_dict_data values(33, 13, 'AI调用',   '13',      'sys_oper_type',       '',   'success', 'N', '0', 'admin', sysdate(), '', null, 'AI调用操作');
 insert into sys_dict_data values(28, 1,  '成功',     '0',       'sys_common_status',   '',   'primary', 'N', '0', 'admin', sysdate(), '', null, '正常状态');
 insert into sys_dict_data values(29, 2,  '失败',     '1',       'sys_common_status',   '',   'danger',  'N', '0', 'admin', sysdate(), '', null, '停用状态');
 
@@ -603,6 +607,7 @@ create table sys_job (
 insert into sys_job values(1, '系统默认（无参）', 'DEFAULT', 'ryTask.ryNoParams',        '0/10 * * * * ?', '3', '1', '1', 'admin', sysdate(), '', null, '');
 insert into sys_job values(2, '系统默认（有参）', 'DEFAULT', 'ryTask.ryParams(\'ry\')',  '0/15 * * * * ?', '3', '1', '1', 'admin', sysdate(), '', null, '');
 insert into sys_job values(3, '系统默认（多参）', 'DEFAULT', 'ryTask.ryMultipleParams(\'ry\', true, 2000L, 316.50D, 100)',  '0/20 * * * * ?', '3', '1', '1', 'admin', sysdate(), '', null, '');
+insert into sys_job values(4, '操作日志清理', 'SYSTEM', 'operLogTask.cleanExpired(90)', '0 0 2 * * ?', '3', '1', '0', 'admin', sysdate(), '', null, '保留最近90天操作日志');
 
 
 -- ----------------------------

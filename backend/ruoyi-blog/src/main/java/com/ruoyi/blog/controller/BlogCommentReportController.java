@@ -14,8 +14,10 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.ruoyi.blog.dto.CommentReportPageQuery;
 import com.ruoyi.blog.service.BlogCommentReportService;
 import com.ruoyi.blog.vo.CommentReportVO;
+import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
+import com.ruoyi.common.enums.BusinessType;
 
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +38,7 @@ public class BlogCommentReportController extends BlogControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('blog:comment:report:handle')")
+    @Log(title = "评论举报", businessType = BusinessType.UPDATE)
     @PutMapping("/{id}/handle")
     public AjaxResult handle(@PathVariable Long id, @Valid @RequestBody ReportHandleRequest request)
     {

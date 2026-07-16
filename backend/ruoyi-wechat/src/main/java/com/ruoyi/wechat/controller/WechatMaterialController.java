@@ -14,8 +14,10 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
+import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.wechat.dto.WechatMaterialBatchRequest;
 import com.ruoyi.wechat.dto.WechatMaterialDeleteRequest;
 import com.ruoyi.wechat.dto.WechatPageQuery;
@@ -51,6 +53,7 @@ public class WechatMaterialController extends WechatControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('wechat:material:add')")
+    @Log(title = "微信素材", businessType = BusinessType.INSERT, isSaveRequestData = false, isSaveResponseData = false)
     @PostMapping("/upload")
     public AjaxResult upload(@RequestParam Long accountId,
             @RequestParam String name,
@@ -61,6 +64,7 @@ public class WechatMaterialController extends WechatControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('wechat:material:query')")
+    @Log(title = "微信素材", businessType = BusinessType.SYNC, isSaveResponseData = false)
     @PostMapping("/wechat/batchget")
     public AjaxResult batchGetFromWechat(@Valid @RequestBody WechatMaterialBatchRequest request)
     {
@@ -68,6 +72,7 @@ public class WechatMaterialController extends WechatControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('wechat:material:remove')")
+    @Log(title = "微信素材", businessType = BusinessType.DELETE)
     @PostMapping("/wechat/delete")
     public AjaxResult deleteFromWechat(@Valid @RequestBody WechatMaterialDeleteRequest request)
     {
@@ -76,6 +81,7 @@ public class WechatMaterialController extends WechatControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('wechat:material:remove')")
+    @Log(title = "微信素材", businessType = BusinessType.DELETE)
     @DeleteMapping("/assets/{id}")
     public AjaxResult deleteAsset(@PathVariable Long id)
     {
@@ -84,6 +90,7 @@ public class WechatMaterialController extends WechatControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('wechat:material:remove')")
+    @Log(title = "微信素材", businessType = BusinessType.DELETE)
     @DeleteMapping("/{id}")
     public AjaxResult delete(@PathVariable Long id)
     {

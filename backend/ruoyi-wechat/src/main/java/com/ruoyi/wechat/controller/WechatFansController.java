@@ -10,8 +10,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
+import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.wechat.dto.WechatPageQuery;
 import com.ruoyi.wechat.service.WechatFansService;
 import com.ruoyi.wechat.vo.WechatFansSyncResultVO;
@@ -35,6 +37,7 @@ public class WechatFansController extends WechatControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('wechat:fans:list')")
+    @Log(title = "微信粉丝", businessType = BusinessType.SYNC, isSaveResponseData = false)
     @PostMapping("/sync")
     public AjaxResult sync(@RequestParam("accountId") Long accountId)
     {
