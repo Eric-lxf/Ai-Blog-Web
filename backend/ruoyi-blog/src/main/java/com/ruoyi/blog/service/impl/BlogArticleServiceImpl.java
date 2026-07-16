@@ -235,7 +235,14 @@ public class BlogArticleServiceImpl implements BlogArticleService
         {
             wrapper.eq(BlogArticle::getCategoryId, query.getCategoryId());
         }
-        wrapper.orderByDesc(BlogArticle::getUpdateTime);
+        if ("hot".equalsIgnoreCase(query.getSort()))
+        {
+            wrapper.orderByDesc(BlogArticle::getViewCount).orderByDesc(BlogArticle::getUpdateTime);
+        }
+        else
+        {
+            wrapper.orderByDesc(BlogArticle::getUpdateTime);
+        }
         return blogArticleMapper.selectPage(page, wrapper);
     }
 
