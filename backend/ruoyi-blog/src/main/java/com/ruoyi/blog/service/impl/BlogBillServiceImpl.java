@@ -53,14 +53,17 @@ public class BlogBillServiceImpl implements BlogBillService
     private static final DateTimeFormatter MONTH_FMT = DateTimeFormatter.ofPattern("yyyy-MM");
 
     private static final String RECOGNIZE_PROMPT =
-            "请识别这张账单/收据图片，提取以下字段并以 JSON 格式返回：\n" +
-            "billDate（消费日期，格式 yyyy-MM-dd）、\n" +
-            "merchant（商户名称）、\n" +
-            "category（消费类目，从以下选择：餐饮食品/购物消费/交通出行/水电燃气/医疗健康/健身娱乐/服饰购物/其他）、\n" +
+            "请识别这张账单/收据/交易明细图片。若图片中有多笔交易（如微信支付交易明细、银行流水表），必须逐行全部提取，不要只返回第一笔。\n" +
+            "仅提取支出类记录；忽略收入、退款入账（若无法判断则保留并标注）。\n" +
+            "以 JSON 数组返回，每个元素包含：\n" +
+            "billDate（消费日期，格式 yyyy-MM-dd，取交易时间的日期部分）、\n" +
+            "merchant（商户/交易对方名称）、\n" +
+            "category（消费类目，从以下选择：餐饮食品/购物消费/交通出行/水电燃气/医疗健康/健身娱乐/服饰购物/其他；通行宝/ETC/地铁/打车等归交通出行，转账归其他）、\n" +
             "amount（金额数字，不含货币符号）、\n" +
-            "paymentMethod（支付方式）、\n" +
+            "paymentMethod（支付方式，如银行卡名+尾号、零钱等）、\n" +
+            "note（可选，交易类型如商户消费/转账）、\n" +
             "confidence（识别置信度 0-100 整数）。\n" +
-            "只输出 JSON 对象，不要其他文字。";
+            "只输出 JSON 数组；若仅一笔也用长度为 1 的数组。不要输出其他文字。";
 
     private final BlogBillMapper billMapper;
     private final DeepSeekService deepSeekService;
@@ -150,11 +153,16 @@ public class BlogBillServiceImpl implements BlogBillService
     }
 
     @Override
-    public BillVO recognize(BillRecognizeRequest request)
+    public List<BillVO> recognize(BillRecognizeRequest request)
     {
         String imageUrl = validateRecognizeImageUrl(request.getImageUrl());
         String raw = deepSeekService.recognizeImage(imageUrl, RECOGNIZE_PROMPT, AiModuleCode.BILL_VISION);
-        return parseRecognizeResult(raw);
+        List<BillVO> list = parseRecognizeResults(raw, objectMapper);
+        if (list.isEmpty())
+        {
+            throw new ServiceException("未能从图片中识别到账单明细，请换更清晰的原图后重试", HttpStatus.ERROR);
+        }
+        return list;
     }
 
     /**
@@ -228,34 +236,124 @@ public class BlogBillServiceImpl implements BlogBillService
         return vo;
     }
 
-    private BillVO parseRecognizeResult(String raw)
+    /**
+     * 解析 AI 返回：优先 JSON 数组（多行明细），兼容单对象。
+     */
+    public static List<BillVO> parseRecognizeResults(String raw, ObjectMapper mapper)
     {
-        BillVO vo = new BillVO();
+        List<BillVO> list = new ArrayList<>();
+        if (!StringUtils.hasText(raw) || mapper == null)
+        {
+            return list;
+        }
         try
         {
-            Matcher m = JSON_OBJECT.matcher(raw);
-            if (!m.find()) { log.warn("AI 识别结果无法解析为 JSON：{}", raw); return vo; }
-            JsonNode node = objectMapper.readTree(m.group());
-            String dateStr = node.path("billDate").asText("");
-            if (StringUtils.hasText(dateStr))
+            Matcher arrayMatcher = JSON_ARRAY.matcher(raw);
+            if (arrayMatcher.find())
             {
-                try { vo.setBillDate(LocalDate.parse(dateStr)); } catch (Exception ignored) {}
+                JsonNode arr = mapper.readTree(arrayMatcher.group());
+                if (arr.isArray())
+                {
+                    for (JsonNode node : arr)
+                    {
+                        BillVO vo = toRecognizeVo(node);
+                        if (vo != null)
+                        {
+                            list.add(vo);
+                        }
+                    }
+                    return list;
+                }
             }
-            vo.setMerchant(node.path("merchant").asText(null));
-            vo.setCategory(node.path("category").asText(null));
-            String amtStr = node.path("amount").asText("");
-            if (StringUtils.hasText(amtStr))
+            Matcher objectMatcher = JSON_OBJECT.matcher(raw);
+            if (objectMatcher.find())
             {
-                try { vo.setAmount(new BigDecimal(amtStr.replaceAll("[^\\d.]", ""))); } catch (Exception ignored) {}
+                BillVO vo = toRecognizeVo(mapper.readTree(objectMatcher.group()));
+                if (vo != null)
+                {
+                    list.add(vo);
+                }
             }
-            vo.setPaymentMethod(node.path("paymentMethod").asText(null));
-            int conf = node.path("confidence").asInt(0);
-            vo.setAiConfidence(conf > 0 ? conf : null);
-            vo.setSource(1);
-            vo.setSourceName("AI识别");
+            else
+            {
+                log.warn("AI 识别结果无法解析为 JSON：{}", raw);
+            }
         }
-        catch (Exception e) { log.warn("解析 AI 识别 JSON 失败：{}", raw, e); }
+        catch (Exception e)
+        {
+            log.warn("解析 AI 识别 JSON 失败：{}", raw, e);
+        }
+        return list;
+    }
+
+    private static BillVO toRecognizeVo(JsonNode node)
+    {
+        if (node == null || !node.isObject())
+        {
+            return null;
+        }
+        BillVO vo = new BillVO();
+        String dateStr = node.path("billDate").asText("");
+        if (StringUtils.hasText(dateStr))
+        {
+            String normalized = dateStr.length() >= 10 ? dateStr.substring(0, 10) : dateStr;
+            try
+            {
+                vo.setBillDate(LocalDate.parse(normalized));
+            }
+            catch (Exception ignored)
+            {
+                // leave null for用户前端补全
+            }
+        }
+        String merchant = textOrNull(node, "merchant");
+        vo.setMerchant(merchant);
+        vo.setCategory(textOrNull(node, "category"));
+        BigDecimal amount = parseAmount(node.get("amount"));
+        vo.setAmount(amount);
+        vo.setPaymentMethod(textOrNull(node, "paymentMethod"));
+        vo.setNote(textOrNull(node, "note"));
+        int conf = node.path("confidence").asInt(0);
+        vo.setAiConfidence(conf > 0 ? conf : null);
+        vo.setSource(1);
+        vo.setSourceName("AI识别");
+        // 无金额且无商户的空对象丢弃
+        if (amount == null && !StringUtils.hasText(merchant))
+        {
+            return null;
+        }
         return vo;
+    }
+
+    private static String textOrNull(JsonNode node, String field)
+    {
+        String v = node.path(field).asText(null);
+        return StringUtils.hasText(v) ? v.trim() : null;
+    }
+
+    private static BigDecimal parseAmount(JsonNode amountNode)
+    {
+        if (amountNode == null || amountNode.isNull())
+        {
+            return null;
+        }
+        try
+        {
+            if (amountNode.isNumber())
+            {
+                return amountNode.decimalValue();
+            }
+            String amtStr = amountNode.asText("");
+            if (!StringUtils.hasText(amtStr))
+            {
+                return null;
+            }
+            return new BigDecimal(amtStr.replaceAll("[^\\d.]", ""));
+        }
+        catch (Exception e)
+        {
+            return null;
+        }
     }
 
     private List<String> buildMonthsList(LocalDate startDate, LocalDate endDate)
