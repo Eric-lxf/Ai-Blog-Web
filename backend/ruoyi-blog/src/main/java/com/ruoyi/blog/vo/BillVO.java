@@ -4,6 +4,8 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+
 import lombok.Data;
 
 @Data
@@ -13,6 +15,7 @@ public class BillVO
     private Long id;
     private String tradeNo;
     private LocalDate billDate;
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime tradeTime;
     private String tradeType;
     private String direction;
@@ -27,6 +30,8 @@ public class BillVO
     /** 0-手动录入 1-AI识别 */
     private Integer source;
     private String sourceName;
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime createTime;
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime updateTime;
 }

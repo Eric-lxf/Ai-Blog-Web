@@ -52,25 +52,29 @@ public class BlogBillServiceImpl implements BlogBillService
     private static final Pattern JSON_OBJECT = Pattern.compile("\\{.*}", Pattern.DOTALL);
     private static final Pattern JSON_ARRAY  = Pattern.compile("\\[.*]",  Pattern.DOTALL);
     private static final DateTimeFormatter MONTH_FMT = DateTimeFormatter.ofPattern("yyyy-MM");
+    private static final DateTimeFormatter TRADE_TIME_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
-    private static final String RECOGNIZE_PROMPT =
-            "你是账单表格 OCR。图片可能是「微信支付交易明细证明」或银行流水表，表格中有多行交易。\n" +
-            "必须逐行提取「具体交易明细」下的每一行，禁止只返回第一行；行数应与表格数据行数一致。\n" +
-            "优先提取 direction=支出 的行；收入行可省略。\n" +
-            "只输出一个 JSON 数组（不要 markdown、不要解释）。数组元素字段：\n" +
-            "tradeNo（交易单号，长数字可原样拼接）、\n" +
-            "tradeTime（交易时间，yyyy-MM-dd HH:mm:ss）、\n" +
-            "billDate（yyyy-MM-dd，取交易时间日期）、\n" +
-            "tradeType（交易类型，如商户消费/转账）、\n" +
-            "direction（收/支/其他，如支出）、\n" +
-            "merchant（交易对方）、\n" +
-            "paymentMethod（交易方式，如招商银行信用卡(1683)）、\n" +
-            "amount（金额数字）、\n" +
-            "merchantOrderNo（商户单号）、\n" +
-            "category（餐饮食品/购物消费/交通出行/水电燃气/医疗健康/健身娱乐/服饰购物/其他；通行宝/ETC 归交通出行，转账归其他）、\n" +
-            "note（可选）、\n" +
-            "confidence（0-100）。\n" +
-            "示例：[{\"tradeNo\":\"4200...\",\"tradeTime\":\"2026-07-14 09:31:21\",\"billDate\":\"2026-07-14\",\"tradeType\":\"商户消费\",\"direction\":\"支出\",\"merchant\":\"通行宝\",\"paymentMethod\":\"招商银行信用卡(1683)\",\"amount\":110.81,\"merchantOrderNo\":\"4200...\",\"category\":\"交通出行\",\"confidence\":90}]";
+    /**
+     * OCR 模型更擅长「按表格原文输出」，直接要复杂 JSON 容易只返回第一行且列错位。
+     * 固定列顺序与微信交易明细一致，后续在本地解析。
+     */
+    private static final String TABLE_OCR_PROMPT =
+            "请识别图片中的微信支付交易明细/银行流水表格。\n" +
+            "只输出 Markdown 表格，不要解释、不要 JSON。\n" +
+            "表头必须严格为（顺序不可变）：\n" +
+            "|交易单号|交易时间|交易类型|收/支/其他|交易方式|金额|交易对方|商户单号|\n" +
+            "然后输出分隔行，再输出「具体交易明细」下的每一行数据，禁止只输出第一行。\n" +
+            "长数字单号若换行，请拼成完整一串。金额只保留数字和小数点。\n" +
+            "示例：\n" +
+            "|交易单号|交易时间|交易类型|收/支/其他|交易方式|金额|交易对方|商户单号|\n" +
+            "|---|---|---|---|---|---|---|---|\n" +
+            "|4200003099202607145869|2026-07-14 09:31:21|商户消费|支出|招商银行信用卡(1683)|110.81|通行宝|10001|\n";
+
+    /** 兼容旧 JSON 输出的提示（当表格解析失败时二次调用） */
+    private static final String JSON_FALLBACK_PROMPT =
+            "上一轮表格识别不完整。请再次识别同一张图，输出 JSON 数组，覆盖全部交易行。\n" +
+            "每个元素字段：tradeNo,tradeTime(yyyy-MM-dd HH:mm:ss),billDate,tradeType,direction,merchant,paymentMethod,amount,merchantOrderNo,category,confidence。\n" +
+            "列含义：merchant=交易对方，paymentMethod=交易方式（银行卡名+尾号）。只输出 JSON 数组。";
 
     private final BlogBillMapper billMapper;
     private final DeepSeekService deepSeekService;
@@ -176,8 +180,31 @@ public class BlogBillServiceImpl implements BlogBillService
     public List<BillVO> recognize(BillRecognizeRequest request)
     {
         String imageUrl = validateRecognizeImageUrl(request.getImageUrl());
-        String raw = deepSeekService.recognizeImage(imageUrl, RECOGNIZE_PROMPT, AiModuleCode.BILL_VISION);
-        List<BillVO> list = parseRecognizeResults(raw, objectMapper);
+        String tableRaw = deepSeekService.recognizeImage(imageUrl, TABLE_OCR_PROMPT, AiModuleCode.BILL_VISION);
+        log.info("Bill OCR table raw len={} preview={}", tableRaw != null ? tableRaw.length() : 0,
+                abbreviate(tableRaw, 400));
+
+        List<BillVO> list = parseMarkdownTable(tableRaw);
+        if (list.size() <= 1)
+        {
+            // 表格解析不足时：尝试把同一次输出当 JSON；仍不足则二次调用强制 JSON 全量
+            List<BillVO> fromJson = parseRecognizeResults(tableRaw, objectMapper);
+            if (fromJson.size() > list.size())
+            {
+                list = fromJson;
+            }
+        }
+        if (list.size() <= 1)
+        {
+            String jsonRaw = deepSeekService.recognizeImage(imageUrl, JSON_FALLBACK_PROMPT, AiModuleCode.BILL_VISION);
+            log.info("Bill OCR json fallback len={} preview={}", jsonRaw != null ? jsonRaw.length() : 0,
+                    abbreviate(jsonRaw, 400));
+            List<BillVO> fromJson = parseRecognizeResults(jsonRaw, objectMapper);
+            if (fromJson.size() > list.size())
+            {
+                list = fromJson;
+            }
+        }
         if (list.isEmpty())
         {
             throw new ServiceException("未能从图片中识别到账单明细，请换更清晰的原图后重试", HttpStatus.ERROR);
@@ -257,6 +284,179 @@ public class BlogBillServiceImpl implements BlogBillService
         BeanUtils.copyProperties(bill, vo);
         vo.setSourceName(bill.getSource() != null && bill.getSource() == 1 ? "AI识别" : "手动录入");
         return vo;
+    }
+
+    /**
+     * 解析 OCR 输出的 Markdown 表格。列顺序固定为微信明细：
+     * 交易单号|交易时间|交易类型|收/支/其他|交易方式|金额|交易对方|商户单号
+     */
+    public static List<BillVO> parseMarkdownTable(String raw)
+    {
+        List<BillVO> list = new ArrayList<>();
+        if (!StringUtils.hasText(raw))
+        {
+            return list;
+        }
+        String[] lines = raw.replace("\r\n", "\n").replace('\r', '\n').split("\n");
+        for (String line : lines)
+        {
+            String trimmed = line.trim();
+            if (!trimmed.contains("|"))
+            {
+                continue;
+            }
+            if (isMarkdownSeparatorOrHeader(trimmed))
+            {
+                continue;
+            }
+            List<String> cells = splitMarkdownRow(trimmed);
+            if (cells.size() < 6)
+            {
+                continue;
+            }
+            // 允许 7~8+ 列；不足 8 列时按已有列填充
+            while (cells.size() < 8)
+            {
+                cells.add("");
+            }
+            BillVO vo = fromTableCells(cells);
+            if (vo != null)
+            {
+                list.add(vo);
+            }
+        }
+        return list;
+    }
+
+    private static boolean isMarkdownSeparatorOrHeader(String line)
+    {
+        String compact = line.replace("|", "").replace("-", "").replace(":", "").replace(" ", "");
+        if (!StringUtils.hasText(compact))
+        {
+            return true;
+        }
+        return line.contains("交易单号") && line.contains("交易时间");
+    }
+
+    private static List<String> splitMarkdownRow(String line)
+    {
+        String normalized = line;
+        if (normalized.startsWith("|"))
+        {
+            normalized = normalized.substring(1);
+        }
+        if (normalized.endsWith("|"))
+        {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        String[] parts = normalized.split("\\|", -1);
+        List<String> cells = new ArrayList<>(parts.length);
+        for (String part : parts)
+        {
+            cells.add(part.trim().replace('\u00A0', ' '));
+        }
+        return cells;
+    }
+
+    private static BillVO fromTableCells(List<String> cells)
+    {
+        String tradeNo = cells.get(0);
+        String tradeTime = cells.get(1);
+        String tradeType = cells.get(2);
+        String direction = cells.get(3);
+        String paymentMethod = cells.get(4);
+        String amountStr = cells.get(5);
+        String merchant = cells.get(6);
+        String merchantOrderNo = cells.get(7);
+
+        BigDecimal amount = parseAmountText(amountStr);
+        if (amount == null && !StringUtils.hasText(merchant) && !StringUtils.hasText(tradeNo))
+        {
+            return null;
+        }
+        // 跳过明显非数据行
+        if ("金额".equals(amountStr) || "交易对方".equals(merchant))
+        {
+            return null;
+        }
+
+        BillVO vo = new BillVO();
+        vo.setTradeNo(blankToNull(tradeNo));
+        vo.setTradeType(blankToNull(tradeType));
+        vo.setDirection(StringUtils.hasText(direction) ? direction : "支出");
+        vo.setPaymentMethod(blankToNull(paymentMethod));
+        vo.setAmount(amount);
+        vo.setMerchant(blankToNull(merchant));
+        vo.setMerchantOrderNo(blankToNull(merchantOrderNo));
+        vo.setNote(blankToNull(tradeType));
+        applyTradeTime(vo, tradeTime);
+        if (vo.getBillDate() == null && StringUtils.hasText(tradeTime) && tradeTime.length() >= 10)
+        {
+            try
+            {
+                vo.setBillDate(LocalDate.parse(tradeTime.substring(0, 10)));
+            }
+            catch (Exception ignored)
+            {
+            }
+        }
+        vo.setCategory(guessCategory(merchant, tradeType));
+        vo.setAiConfidence(85);
+        vo.setSource(1);
+        vo.setSourceName("AI识别");
+        return vo;
+    }
+
+    private static void applyTradeTime(BillVO vo, String tradeTimeStr)
+    {
+        if (!StringUtils.hasText(tradeTimeStr))
+        {
+            return;
+        }
+        try
+        {
+            String normalized = tradeTimeStr.replace('T', ' ').trim();
+            if (normalized.length() >= 19)
+            {
+                vo.setTradeTime(LocalDateTime.parse(normalized.substring(0, 19), TRADE_TIME_FMT));
+                vo.setBillDate(vo.getTradeTime().toLocalDate());
+            }
+            else if (normalized.length() >= 16)
+            {
+                vo.setTradeTime(LocalDateTime.parse(normalized.substring(0, 16),
+                        DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
+                vo.setBillDate(vo.getTradeTime().toLocalDate());
+            }
+        }
+        catch (Exception ignored)
+        {
+        }
+    }
+
+    private static String blankToNull(String v)
+    {
+        return StringUtils.hasText(v) ? v.trim() : null;
+    }
+
+    private static BigDecimal parseAmountText(String amtStr)
+    {
+        if (!StringUtils.hasText(amtStr))
+        {
+            return null;
+        }
+        try
+        {
+            String cleaned = amtStr.replaceAll("[^\\d.]", "");
+            if (!StringUtils.hasText(cleaned))
+            {
+                return null;
+            }
+            return new BigDecimal(cleaned);
+        }
+        catch (Exception e)
+        {
+            return null;
+        }
     }
 
     /**
