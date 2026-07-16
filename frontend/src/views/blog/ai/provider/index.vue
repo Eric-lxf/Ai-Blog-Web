@@ -277,7 +277,7 @@ const presets = [
   { key: 'deepseek', label: 'DeepSeek', providerType: 'openai_compatible', baseUrl: 'https://api.deepseek.com', defaultModel: 'deepseek-chat', visionModel: 'deepseek-vl2' },
   { key: 'claude', label: 'Anthropic Claude', providerType: 'anthropic', authMode: 'api_key', baseUrl: 'https://api.anthropic.com', defaultModel: 'claude-sonnet-4-5', visionModel: 'claude-sonnet-4-5' },
   { key: 'moonshot', label: 'Moonshot (Kimi)', providerType: 'openai_compatible', baseUrl: 'https://api.moonshot.cn', defaultModel: 'moonshot-v1-8k', visionModel: '' },
-  { key: 'qwen', label: '通义千问（兼容模式）', providerType: 'openai_compatible', baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode', defaultModel: 'qwen-plus', visionModel: 'qwen-vl-plus' }
+  { key: 'qwen', label: '通义千问（兼容模式）', providerType: 'openai_compatible', baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode', defaultModel: 'qwen-plus', visionModel: 'qwen3.5-ocr' }
 ]
 
 const moduleMetaMap = {
