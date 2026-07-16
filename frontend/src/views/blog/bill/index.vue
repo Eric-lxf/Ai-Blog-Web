@@ -130,15 +130,15 @@
           <el-icon class="el-icon--upload"><Upload /></el-icon>
           <div class="el-upload__text">拖拽图片到此处，或 <em>点击上传</em></div>
           <template #tip>
-            <div class="el-upload__tip">支持 JPG / PNG，建议清晰原图</div>
+            <div class="el-upload__tip">支持 JPG / PNG，建议清晰原图（≤7MB）；本地图片会转为 Base64 后识别</div>
           </template>
         </el-upload>
         <div v-if="uploadPreviewUrl" class="preview-wrap">
           <img :src="uploadPreviewUrl" class="preview-img" alt="preview" />
         </div>
-        <el-input v-model="recognizeImageUrl" placeholder="或直接粘贴图片 URL" class="mt10" />
+        <el-input v-model="recognizeImageUrl" placeholder="或粘贴可公网访问的图片 URL / data:image Base64" class="mt10" />
         <div class="step-actions">
-          <el-button type="primary" :disabled="!recognizeImageUrl" @click="doRecognize">开始识别</el-button>
+          <el-button type="primary" :disabled="!recognizeImageUrl || recognizeImageUrl.startsWith('blob:')" @click="doRecognize">开始识别</el-button>
         </div>
       </div>
 
@@ -289,24 +289,52 @@ const recognizeResult   = reactive({})
 function openRecognize() {
   recognizeStep.value     = 0
   recognizeImageUrl.value = ''
+  if (uploadPreviewUrl.value?.startsWith('blob:')) {
+    URL.revokeObjectURL(uploadPreviewUrl.value)
+  }
   uploadPreviewUrl.value  = ''
   recognizeVisible.value  = true
 }
 
 function onFileChange(file) {
-  uploadPreviewUrl.value  = URL.createObjectURL(file.raw)
-  recognizeImageUrl.value = uploadPreviewUrl.value
+  const raw = file.raw
+  if (!raw) return
+  if (raw.size > 7 * 1024 * 1024) {
+    ElMessage.warning('图片过大，请压缩至 7MB 以内后再识别')
+    return
+  }
+  if (uploadPreviewUrl.value?.startsWith('blob:')) {
+    URL.revokeObjectURL(uploadPreviewUrl.value)
+  }
+  uploadPreviewUrl.value = URL.createObjectURL(raw)
+  // 远端 OCR（如 qwen3.5-ocr）无法访问浏览器 blob: URL，必须传 Base64 data URL
+  recognizeImageUrl.value = ''
+  const reader = new FileReader()
+  reader.onload = () => {
+    recognizeImageUrl.value = String(reader.result || '')
+  }
+  reader.onerror = () => {
+    ElMessage.error('读取图片失败，请重试')
+    recognizeImageUrl.value = ''
+  }
+  reader.readAsDataURL(raw)
 }
 
 async function doRecognize() {
+  const imageUrl = (recognizeImageUrl.value || '').trim()
+  if (!imageUrl || imageUrl.startsWith('blob:') || imageUrl.startsWith('file:')) {
+    ElMessage.warning('请上传本地图片，或粘贴可公网访问的图片 URL')
+    return
+  }
   recognizeStep.value = 1
   try {
-    const res = await recognizeBill({ imageUrl: recognizeImageUrl.value })
+    const res = await recognizeBill({ imageUrl })
     Object.assign(recognizeResult, res.data)
-    recognizeResult.imageUrl = recognizeImageUrl.value
+    // 不把超大 Base64 写入账单记录，仅保留可持久化的 http(s) URL
+    recognizeResult.imageUrl = imageUrl.startsWith('data:') ? null : imageUrl
     recognizeStep.value = 2
   } catch (e) {
-    ElMessage.error('AI 识别失败，请重试')
+    // 全局拦截器已对业务错误弹过提示，这里只回退步骤
     recognizeStep.value = 0
   }
 }

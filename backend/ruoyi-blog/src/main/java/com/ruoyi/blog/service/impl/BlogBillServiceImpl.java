@@ -152,8 +152,33 @@ public class BlogBillServiceImpl implements BlogBillService
     @Override
     public BillVO recognize(BillRecognizeRequest request)
     {
-        String raw = deepSeekService.recognizeImage(request.getImageUrl(), RECOGNIZE_PROMPT, AiModuleCode.BILL_VISION);
+        String imageUrl = validateRecognizeImageUrl(request.getImageUrl());
+        String raw = deepSeekService.recognizeImage(imageUrl, RECOGNIZE_PROMPT, AiModuleCode.BILL_VISION);
         return parseRecognizeResult(raw);
+    }
+
+    /**
+     * 远端视觉/OCR（如 DashScope qwen3.5-ocr）只能拉取公网 URL 或 data:image Base64，
+     * 浏览器 blob:/file: 地址不可达，会表现为「AI 服务暂时不可用」。
+     */
+    public static String validateRecognizeImageUrl(String imageUrl)
+    {
+        if (!StringUtils.hasText(imageUrl))
+        {
+            throw new ServiceException("图片地址不能为空", HttpStatus.BAD_REQUEST);
+        }
+        String url = imageUrl.trim();
+        if (url.startsWith("blob:") || url.startsWith("file:"))
+        {
+            throw new ServiceException("图片地址无效：请重新上传本地图片（将自动转为 Base64），或粘贴可公网访问的图片 URL",
+                    HttpStatus.BAD_REQUEST);
+        }
+        if (url.startsWith("data:image/") || url.startsWith("http://") || url.startsWith("https://"))
+        {
+            return url;
+        }
+        throw new ServiceException("图片地址无效：仅支持 http(s) URL 或 Base64 图片（data:image/...）",
+                HttpStatus.BAD_REQUEST);
     }
 
     @Override

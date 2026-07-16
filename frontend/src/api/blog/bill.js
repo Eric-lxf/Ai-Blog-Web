@@ -27,7 +27,8 @@ export function deleteBill(id) {
 
 /** AI 识别账单图片（不写库，返回解析结果） */
 export function recognizeBill(data) {
-  return request({ url: '/blog/bill/recognize', method: 'post', data })
+  // OCR 通常超过默认 10s；本地图以 Base64 上传体积更大，适当放宽超时
+  return request({ url: '/blog/bill/recognize', method: 'post', data, timeout: 120000 })
 }
 
 /** 获取消费分析数据，months 为近几个月（3/6/12） */
