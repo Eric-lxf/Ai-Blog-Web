@@ -383,7 +383,47 @@ function openRecognize() {
   recognizeVisible.value = true
 }
 
-function onFileChange(file) {
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result || ''))
+    reader.onerror = () => reject(new Error('读取图片失败'))
+    reader.readAsDataURL(file)
+  })
+}
+
+/** 压缩大图，避免 Base64 JSON 触发网关/Nginx 413（默认常为 1MB） */
+function compressImageToDataUrl(file, maxEdge = 1920, quality = 0.85) {
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file)
+    const img = new Image()
+    img.onload = () => {
+      try {
+        let { width, height } = img
+        const scale = Math.min(1, maxEdge / Math.max(width, height))
+        width = Math.max(1, Math.round(width * scale))
+        height = Math.max(1, Math.round(height * scale))
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')
+        ctx.drawImage(img, 0, 0, width, height)
+        resolve(canvas.toDataURL('image/jpeg', quality))
+      } catch (e) {
+        reject(e)
+      } finally {
+        URL.revokeObjectURL(objectUrl)
+      }
+    }
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl)
+      reject(new Error('图片加载失败'))
+    }
+    img.src = objectUrl
+  })
+}
+
+async function onFileChange(file) {
   const raw = file.raw
   if (!raw) return
   if (raw.size > 7 * 1024 * 1024) {
@@ -393,13 +433,15 @@ function onFileChange(file) {
   if (uploadPreviewUrl.value?.startsWith('blob:')) URL.revokeObjectURL(uploadPreviewUrl.value)
   uploadPreviewUrl.value = URL.createObjectURL(raw)
   recognizeImageUrl.value = ''
-  const reader = new FileReader()
-  reader.onload = () => { recognizeImageUrl.value = String(reader.result || '') }
-  reader.onerror = () => {
-    ElMessage.error('读取图片失败，请重试')
+  try {
+    // 超过约 800KB 原图时压缩，Base64 后更不易打到 1~2MB 网关上限
+    recognizeImageUrl.value = raw.size > 800 * 1024
+      ? await compressImageToDataUrl(raw)
+      : await readFileAsDataUrl(raw)
+  } catch (e) {
+    ElMessage.error(e?.message || '读取图片失败，请重试')
     recognizeImageUrl.value = ''
   }
-  reader.readAsDataURL(raw)
 }
 
 function syncBillDate(row) {

@@ -25,6 +25,9 @@ server:
     uri-encoding: UTF-8
     # 连接数满后的排队数，默认为100
     accept-count: 1000
+    # JSON Base64 识别请求体（非 multipart）也受此限制；默认约 2MB 易触发 413
+    max-http-form-post-size: 20MB
+    max-swallow-size: 20MB
     threads:
       # tomcat最大线程数，默认为200
       max: 800
