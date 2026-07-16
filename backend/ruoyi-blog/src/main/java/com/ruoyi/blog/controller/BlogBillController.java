@@ -75,8 +75,7 @@ public class BlogBillController extends BlogControllerSupport
     @PostMapping("/recognize")
     public AjaxResult recognize(@Valid @RequestBody BillRecognizeRequest request)
     {
-        BillVO result = blogBillService.recognize(request);
-        return AjaxResult.success(result);
+        return AjaxResult.success(blogBillService.recognize(request));
     }
 
     @PreAuthorize("@ss.hasPermi('blog:bill:analysis')")
