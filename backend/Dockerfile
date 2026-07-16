@@ -20,6 +20,7 @@ RUN apt-get update && apt-get install -y wget \
 COPY --from=build /build/ruoyi-admin/target/ruoyi-admin.jar app.jar
 USER app
 EXPOSE 8080
-ENV JAVA_OPTS="-Xms256m -Xmx768m"
+ENV TZ=Asia/Shanghai
+ENV JAVA_OPTS="-Xms256m -Xmx768m -Duser.timezone=Asia/Shanghai"
 ENV SPRING_PROFILES_ACTIVE=druid,docker
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]

@@ -1,5 +1,6 @@
 package com.ruoyi;
 
+import java.util.TimeZone;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
@@ -14,6 +15,8 @@ public class RuoYiApplication
 {
     public static void main(String[] args)
     {
+        // 统一业务时区，避免容器/云主机默认 UTC 导致展示时间偏差
+        TimeZone.setDefault(TimeZone.getTimeZone("Asia/Shanghai"));
         // System.setProperty("spring.devtools.restart.enabled", "false");
         SpringApplication.run(RuoYiApplication.class, args);
         System.out.println("(♥◠‿◠)ﾉﾞ  若依启动成功   ლ(´ڡ`ლ)ﾞ  \n" +

@@ -17,6 +17,15 @@
 
 本地 `application-druid.yml` 默认 **root / password**。若用 Compose 起 MySQL，请在 `.env` 中设置 `MYSQL_ROOT_PASSWORD=password`（可复制 `.env.example` 后改此项），与 JDBC 配置一致。
 
+### 时区（重要）
+
+业务统一使用 **Asia/Shanghai（东八区）**。宿主机若为 UTC，会出现库里存 `02:30`、页面显示偏差（例如再减 8 小时变成前一天 `18:30`）。
+
+- 后端启动强制 `TimeZone.setDefault(Asia/Shanghai)`；Jackson `spring.jackson.time-zone: Asia/Shanghai`
+- Docker：`TZ=Asia/Shanghai`，MySQL `--default-time-zone=+08:00`，JVM `-Duser.timezone=Asia/Shanghai`
+- 非 Docker 本机 MySQL 请执行：`SET GLOBAL time_zone = '+08:00';`（或写入 my.cnf）
+- JDBC URL 已含 `serverTimezone=Asia/Shanghai`，须与 MySQL 会话时区一致
+
 ### 后端
 
 - 工具：**JDK 17+**、**Maven 3.8+**（仓库根无父 POM，在 `backend/` 下执行 Maven）。
