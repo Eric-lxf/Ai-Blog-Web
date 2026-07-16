@@ -462,7 +462,7 @@ async function doRecognize() {
     await nextTick()
     recognizeTableRef.value?.toggleAllSelection?.()
     if (recognizeResults.value.length <= 1) {
-      ElMessage.warning('仅识别到 1 笔：请确认「AI模型配置 → 账单识别」视觉模型为 qwen3.5-ocr，并查看后端日志中的 visionModel')
+      ElMessage.warning('仅识别到 1 笔。若原图有多行，请确认账单识别视觉模型为 qwen3.5-ocr，并重试清晰截图')
     }
   } catch (e) {
     recognizeStep.value = 0

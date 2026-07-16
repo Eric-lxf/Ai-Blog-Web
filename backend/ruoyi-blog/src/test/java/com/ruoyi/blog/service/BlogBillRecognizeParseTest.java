@@ -18,6 +18,28 @@ class BlogBillRecognizeParseTest
     private final ObjectMapper mapper = new ObjectMapper();
 
     @Test
+    void parsesWechatMarkdownTableAllRows()
+    {
+        String raw = """
+                |交易单号|交易时间|交易类型|收/支/其他|交易方式|金额|交易对方|商户单号|
+                |---|---|---|---|---|---|---|---|
+                |4200003099202607145869|2026-07-14 09:31:21|商户消费|支出|招商银行信用卡(1683)|110.81|通行宝|10001|
+                |4200003099202607130001|2026-07-13 18:20:11|商户消费|支出|招商银行信用卡(1683)|28.29|通行宝|10002|
+                |4200003099202607110002|2026-07-11 12:00:00|转账|支出|建设银行储蓄卡(0597)|400.00|张三|10003|
+                |4200003099202607110003|2026-07-11 10:00:00|商户消费|支出|招商银行信用卡(1683)|9.50|通行宝|10004|
+                """;
+        List<BillVO> list = BlogBillServiceImpl.parseMarkdownTable(raw);
+        assertEquals(4, list.size());
+        assertEquals("通行宝", list.get(0).getMerchant());
+        assertEquals("招商银行信用卡(1683)", list.get(0).getPaymentMethod());
+        assertEquals(new BigDecimal("110.81"), list.get(0).getAmount());
+        assertEquals("交通出行", list.get(0).getCategory());
+        assertEquals("2026-07-14T09:31:21", list.get(0).getTradeTime().toString());
+        assertEquals("转账", list.get(2).getTradeType());
+        assertEquals("其他", list.get(2).getCategory());
+    }
+
+    @Test
     void parsesMultiRowArrayFromWechatStyleStatement()
     {
         String raw = """
