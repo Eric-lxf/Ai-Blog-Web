@@ -40,7 +40,8 @@ export function recognizeBillFile(file) {
     method: 'post',
     data: formData,
     headers: { 'Content-Type': 'multipart/form-data' },
-    timeout: 180000
+    // PDF 多页 OCR 可能接近 5 分钟；需与 Nginx proxy_read_timeout 对齐
+    timeout: 300000
   })
 }
 

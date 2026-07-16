@@ -66,7 +66,10 @@ export default defineConfig(({ mode, command }) => {
         '/dev-api': {
           target: baseUrl,
           changeOrigin: true,
-          rewrite: (p) => p.replace(/^\/dev-api/, '')
+          rewrite: (p) => p.replace(/^\/dev-api/, ''),
+          // 账单 OCR / PDF 识别超过默认代理超时会变成 504
+          timeout: 300000,
+          proxyTimeout: 300000
         },
          // springdoc proxy
          '^/v3/api-docs/(.*)': {
