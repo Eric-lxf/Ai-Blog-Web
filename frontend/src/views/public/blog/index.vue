@@ -1,20 +1,24 @@
 <script setup>
-import { onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { resolveUploadUrl } from '@/utils/blogAssets'
+import { computed, onMounted, ref } from 'vue'
 import { fetchPublicArticles, fetchPublicCategories } from '@/api/blog/public'
+import BlogCategoryNav from '@/components/blog/BlogCategoryNav.vue'
+import BlogArticleItem from '@/components/blog/BlogArticleItem.vue'
 
-const router = useRouter()
 const loading = ref(false)
+const loadingMore = ref(false)
 const articles = ref([])
 const categories = ref([])
 const total = ref(0)
+const keywordInput = ref('')
 const query = ref({
   pageNum: 1,
   pageSize: 10,
   keyword: '',
   categoryId: undefined,
+  sort: 'latest',
 })
+
+const hasMore = computed(() => articles.value.length < total.value)
 
 async function loadCategories() {
   const res = await fetchPublicCategories()
@@ -22,163 +26,225 @@ async function loadCategories() {
   categories.value = Array.isArray(d) ? d : res?.rows ?? []
 }
 
-async function loadArticles() {
-  loading.value = true
+async function fetchPage({ append } = { append: false }) {
+  if (append) {
+    if (loadingMore.value || !hasMore.value) return
+    loadingMore.value = true
+  } else {
+    loading.value = true
+  }
   try {
     const res = await fetchPublicArticles(query.value)
-    articles.value = res.rows ?? res.data?.records ?? []
+    const rows = res.rows ?? res.data?.records ?? []
     total.value = res.total ?? res.data?.total ?? 0
+    if (append) {
+      articles.value = articles.value.concat(rows)
+    } else {
+      articles.value = rows
+    }
   } finally {
     loading.value = false
+    loadingMore.value = false
   }
 }
 
-function goDetail(id) {
-  router.push(`/blog/${id}`)
+function resetAndLoad() {
+  query.value.pageNum = 1
+  return fetchPage({ append: false })
+}
+
+function onCategoryChange(id) {
+  query.value.categoryId = id
+  resetAndLoad()
+}
+
+function onTabChange(sort) {
+  if (query.value.sort === sort) return
+  query.value.sort = sort
+  resetAndLoad()
+}
+
+function onSearch() {
+  query.value.keyword = keywordInput.value.trim()
+  resetAndLoad()
+}
+
+function loadMore() {
+  if (!hasMore.value || loadingMore.value || loading.value) return
+  query.value.pageNum += 1
+  fetchPage({ append: true })
 }
 
 onMounted(async () => {
   await loadCategories()
-  await loadArticles()
+  await fetchPage({ append: false })
 })
 </script>
 
 <template>
-  <div v-loading="loading">
-    <section class="hero">
-      <h1 class="blog-heading">技术博客</h1>
-      <p>记录学习与思考，支持 Markdown 与 Mermaid 图表</p>
-    </section>
-
-    <el-form :inline="true" class="filters" @submit.prevent="loadArticles">
-      <el-form-item>
-        <el-input v-model="query.keyword" placeholder="搜索标题或摘要" clearable />
-      </el-form-item>
-      <el-form-item>
-        <el-select v-model="query.categoryId" placeholder="全部分类" clearable style="width: 140px">
-          <el-option v-for="c in categories" :key="c.id" :label="c.name" :value="c.id" />
-        </el-select>
-      </el-form-item>
-      <el-form-item>
-        <el-button type="primary" @click="loadArticles">搜索</el-button>
-      </el-form-item>
-    </el-form>
-
-    <el-empty v-if="!loading && articles.length === 0" description="暂无已发布文章" />
-
-    <article
-      v-for="item in articles"
-      :key="item.id"
-      class="article-card"
-      @click="goDetail(item.id)"
-    >
-      <img v-if="item.coverImage" :src="resolveUploadUrl(item.coverImage)" class="cover" alt="" />
-      <div class="body">
-        <h2 class="article-title">{{ item.title }}</h2>
-        <p class="summary">{{ item.summary || '暂无摘要' }}</p>
-        <div class="meta">
-          <span v-if="item.categoryName">{{ item.categoryName }}</span>
-          <span>{{ item.viewCount ?? 0 }} 阅读</span>
-          <span>{{ item.updateTime?.slice(0, 10) }}</span>
-        </div>
-        <div v-if="item.tagNames?.length" class="tags">
-          <el-tag v-for="tag in item.tagNames" :key="tag" size="small" effect="plain">{{ tag }}</el-tag>
-        </div>
-      </div>
-    </article>
-
-    <div v-if="total > query.pageSize" class="pager">
-      <el-pagination
-        v-model:current-page="query.pageNum"
-        :page-size="query.pageSize"
-        :total="total"
-        layout="prev, pager, next"
-        @current-change="loadArticles"
+  <div class="blog-home">
+    <aside class="sidebar">
+      <BlogCategoryNav
+        :categories="categories"
+        :model-value="query.categoryId"
+        @update:model-value="onCategoryChange"
       />
-    </div>
+    </aside>
+
+    <section class="feed" v-loading="loading">
+      <header class="feed-toolbar">
+        <div class="tabs" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            class="tab"
+            :class="{ active: query.sort === 'latest' }"
+            :aria-selected="query.sort === 'latest'"
+            @click="onTabChange('latest')"
+          >
+            最新
+          </button>
+          <button
+            type="button"
+            role="tab"
+            class="tab"
+            :class="{ active: query.sort === 'hot' }"
+            :aria-selected="query.sort === 'hot'"
+            @click="onTabChange('hot')"
+          >
+            热门
+          </button>
+        </div>
+        <form class="search" @submit.prevent="onSearch">
+          <el-input
+            v-model="keywordInput"
+            placeholder="搜索标题或摘要"
+            clearable
+            @clear="onSearch"
+          />
+          <el-button type="primary" native-type="submit">搜索</el-button>
+        </form>
+      </header>
+
+      <el-empty v-if="!loading && articles.length === 0" description="暂无已发布文章" />
+
+      <div v-else class="article-list">
+        <BlogArticleItem v-for="item in articles" :key="item.id" :item="item" />
+      </div>
+
+      <div v-if="hasMore" class="load-more">
+        <el-button :loading="loadingMore" :disabled="loading" @click="loadMore">
+          加载更多
+        </el-button>
+      </div>
+      <p v-else-if="!loading && articles.length > 0" class="end-hint">没有更多了</p>
+    </section>
   </div>
 </template>
 
 <style scoped>
-.hero {
-  margin-bottom: 24px;
-}
-
-.hero h1 {
-  margin: 0 0 8px;
-  font-size: 28px;
-  color: #0f172a;
-  font-weight: 800;
-}
-
-.hero p {
-  margin: 0;
-  color: #6b7280;
-}
-
-.filters {
-  margin-bottom: 16px;
-}
-
-.article-card {
+.blog-home {
   display: flex;
-  gap: 16px;
-  padding: 20px;
-  margin-bottom: 16px;
+  gap: 32px;
+  align-items: flex-start;
+}
+
+.sidebar {
+  position: sticky;
+  top: 16px;
+}
+
+.feed {
+  flex: 1;
+  min-width: 0;
   background: #fff;
-  border-radius: 12px;
   border: 1px solid #e5e7eb;
-  cursor: pointer;
-  transition: box-shadow 0.2s;
-}
-
-.article-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-}
-
-.cover {
-  width: 160px;
-  height: 100px;
-  object-fit: cover;
   border-radius: 8px;
-  flex-shrink: 0;
+  padding: 8px 20px 24px;
 }
 
-.body h2.article-title {
-  margin: 0 0 8px;
-  font-size: 20px;
-  font-weight: 700;
-  color: #0f172a;
-  line-height: 1.4;
-}
-
-.article-card:hover .article-title {
-  color: #047857;
-}
-
-.summary {
-  margin: 0 0 12px;
-  color: #6b7280;
-  line-height: 1.6;
-}
-
-.meta {
+.feed-toolbar {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 16px;
+  flex-wrap: wrap;
+  padding: 12px 0 8px;
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 4px;
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.tab {
+  border: none;
+  background: transparent;
+  padding: 8px 14px;
+  font-size: 15px;
+  color: #6b7280;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -9px;
+}
+
+.tab:hover {
+  color: #0f172a;
+}
+
+.tab.active {
+  color: #047857;
+  font-weight: 700;
+  border-bottom-color: #059669;
+}
+
+.search {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-width: 220px;
+  flex: 1;
+  max-width: 360px;
+  justify-content: flex-end;
+}
+
+.load-more {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.end-hint {
+  text-align: center;
+  margin: 20px 0 0;
   font-size: 13px;
   color: #9ca3af;
 }
 
-.tags {
-  margin-top: 10px;
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
+@media (max-width: 959px) {
+  .blog-home {
+    flex-direction: column;
+    gap: 16px;
+  }
 
-.pager {
-  display: flex;
-  justify-content: center;
-  margin-top: 24px;
+  .sidebar {
+    position: static;
+    width: 100%;
+  }
+
+  .feed {
+    padding: 8px 14px 20px;
+  }
+
+  .feed-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search {
+    max-width: none;
+  }
 }
 </style>

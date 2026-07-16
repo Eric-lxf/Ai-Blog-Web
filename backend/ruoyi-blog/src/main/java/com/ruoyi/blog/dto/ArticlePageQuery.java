@@ -18,4 +18,7 @@ public class ArticlePageQuery
     private String keyword;
     private Integer status;
     private Long categoryId;
+
+    /** latest | hot，默认 latest */
+    private String sort;
 }

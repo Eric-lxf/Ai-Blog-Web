@@ -68,7 +68,7 @@ onMounted(() => {
 
 .blog-main {
   flex: 1;
-  max-width: 900px;
+  max-width: 1120px;
   width: 100%;
   margin: 0 auto;
   padding: 24px 16px 48px;
