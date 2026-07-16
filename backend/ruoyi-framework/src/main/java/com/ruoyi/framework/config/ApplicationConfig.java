@@ -24,11 +24,11 @@ import org.springframework.context.annotation.EnableAspectJAutoProxy;
 public class ApplicationConfig
 {
     /**
-     * 时区配置
+     * 时区配置（固定东八区，不依赖宿主机默认时区）
      */
     @Bean
     public Jackson2ObjectMapperBuilderCustomizer jacksonObjectMapperCustomization()
     {
-        return jacksonObjectMapperBuilder -> jacksonObjectMapperBuilder.timeZone(TimeZone.getDefault());
+        return jacksonObjectMapperBuilder -> jacksonObjectMapperBuilder.timeZone(TimeZone.getTimeZone("Asia/Shanghai"));
     }
 }

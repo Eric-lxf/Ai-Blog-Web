@@ -56,6 +56,10 @@ spring:
   autoconfigure:
     exclude:
       - com.baomidou.mybatisplus.autoconfigure.MybatisPlusAutoConfiguration
+  # 统一 JSON 日期序列化为东八区
+  jackson:
+    time-zone: Asia/Shanghai
+    date-format: yyyy-MM-dd HH:mm:ss
   # 文件上传
   servlet:
     multipart:
