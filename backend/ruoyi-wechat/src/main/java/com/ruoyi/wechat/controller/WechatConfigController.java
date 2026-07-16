@@ -9,7 +9,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.domain.AjaxResult;
+import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.wechat.dto.WechatModuleConfigUpdateRequest;
 import com.ruoyi.wechat.service.WechatConfigService;
 
@@ -30,6 +32,7 @@ public class WechatConfigController extends WechatControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('wechat:config:edit')")
+    @Log(title = "微信配置", businessType = BusinessType.UPDATE)
     @PostMapping
     public AjaxResult update(@Valid @RequestBody WechatModuleConfigUpdateRequest request)
     {

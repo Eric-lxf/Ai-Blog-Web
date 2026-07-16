@@ -17,8 +17,10 @@ import com.ruoyi.blog.dto.CommentAuditRequest;
 import com.ruoyi.blog.dto.CommentPageQuery;
 import com.ruoyi.blog.service.BlogCommentService;
 import com.ruoyi.blog.vo.CommentVO;
+import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
+import com.ruoyi.common.enums.BusinessType;
 
 import lombok.RequiredArgsConstructor;
 
@@ -38,6 +40,7 @@ public class BlogCommentController extends BlogControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('blog:comment:audit')")
+    @Log(title = "博客评论", businessType = BusinessType.UPDATE)
     @PutMapping("/audit")
     public AjaxResult audit(@Valid @RequestBody CommentAuditRequest request)
     {
@@ -46,6 +49,7 @@ public class BlogCommentController extends BlogControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('blog:comment:remove')")
+    @Log(title = "博客评论", businessType = BusinessType.DELETE)
     @DeleteMapping("/{id}")
     public AjaxResult delete(@PathVariable Long id)
     {

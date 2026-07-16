@@ -16,8 +16,10 @@ import com.ruoyi.blog.dto.ArticlePageQuery;
 import com.ruoyi.blog.dto.ArticleSaveRequest;
 import com.ruoyi.blog.service.BlogArticleService;
 import com.ruoyi.blog.vo.ArticleVO;
+import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
+import com.ruoyi.common.enums.BusinessType;
 
 import lombok.RequiredArgsConstructor;
 
@@ -45,6 +47,7 @@ public class BlogArticleController extends BlogControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('blog:article:add') or @ss.hasPermi('blog:article:edit')")
+    @Log(title = "博客文章", businessType = BusinessType.INSERT)
     @PostMapping
     public AjaxResult save(@Valid @RequestBody ArticleSaveRequest request)
     {
@@ -53,6 +56,7 @@ public class BlogArticleController extends BlogControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('blog:article:remove')")
+    @Log(title = "博客文章", businessType = BusinessType.DELETE)
     @DeleteMapping("/{id}")
     public AjaxResult delete(@PathVariable Long id)
     {

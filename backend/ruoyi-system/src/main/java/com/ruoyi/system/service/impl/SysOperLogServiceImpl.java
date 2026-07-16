@@ -73,4 +73,17 @@ public class SysOperLogServiceImpl implements ISysOperLogService
     {
         operLogMapper.cleanOperLog();
     }
+
+    /**
+     * 删除指定天数之前的操作日志
+     */
+    @Override
+    public int deleteOperLogByDays(int days)
+    {
+        if (days < 1)
+        {
+            days = 90;
+        }
+        return operLogMapper.deleteOperLogByDays(days);
+    }
 }

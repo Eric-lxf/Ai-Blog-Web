@@ -56,4 +56,24 @@ public enum BusinessType
      * 清空数据
      */
     CLEAN,
+
+    /**
+     * 同步
+     */
+    SYNC,
+
+    /**
+     * 连通性测试
+     */
+    TEST,
+
+    /**
+     * 发布/推送
+     */
+    PUBLISH,
+
+    /**
+     * AI 生成/调用
+     */
+    AI,
 }

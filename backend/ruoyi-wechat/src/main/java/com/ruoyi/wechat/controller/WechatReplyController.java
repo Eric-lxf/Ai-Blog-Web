@@ -12,8 +12,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
+import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.wechat.dto.WechatAutoReplySaveRequest;
 import com.ruoyi.wechat.dto.WechatPageQuery;
 import com.ruoyi.wechat.service.WechatReplyService;
@@ -37,6 +39,7 @@ public class WechatReplyController extends WechatControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('wechat:reply:add') or @ss.hasPermi('wechat:reply:edit')")
+    @Log(title = "微信自动回复", businessType = BusinessType.INSERT)
     @PostMapping
     public AjaxResult save(@Valid @RequestBody WechatAutoReplySaveRequest request)
     {
@@ -44,6 +47,7 @@ public class WechatReplyController extends WechatControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('wechat:reply:remove')")
+    @Log(title = "微信自动回复", businessType = BusinessType.DELETE)
     @DeleteMapping("/{id}")
     public AjaxResult delete(@PathVariable Long id)
     {

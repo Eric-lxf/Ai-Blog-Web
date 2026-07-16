@@ -15,8 +15,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
+import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.wechat.dto.WechatPageQuery;
 import com.ruoyi.wechat.dto.WechatTagMarkRequest;
 import com.ruoyi.wechat.dto.WechatTagSaveRequest;
@@ -50,6 +52,7 @@ public class WechatTagController extends WechatControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('wechat:tag:add') or @ss.hasPermi('wechat:tag:edit')")
+    @Log(title = "微信标签", businessType = BusinessType.INSERT)
     @PostMapping
     public AjaxResult save(@Valid @RequestBody WechatTagSaveRequest request)
     {
@@ -57,6 +60,7 @@ public class WechatTagController extends WechatControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('wechat:tag:remove')")
+    @Log(title = "微信标签", businessType = BusinessType.DELETE)
     @DeleteMapping("/{id}")
     public AjaxResult delete(@PathVariable Long id)
     {
@@ -65,6 +69,7 @@ public class WechatTagController extends WechatControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('wechat:tag:sync')")
+    @Log(title = "微信标签", businessType = BusinessType.SYNC, isSaveResponseData = false)
     @PostMapping("/sync")
     public AjaxResult sync(@RequestParam Long accountId)
     {
@@ -73,6 +78,7 @@ public class WechatTagController extends WechatControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('wechat:tag:mark')")
+    @Log(title = "微信标签", businessType = BusinessType.UPDATE)
     @PostMapping("/mark")
     public AjaxResult mark(@Valid @RequestBody WechatTagMarkRequest request)
     {

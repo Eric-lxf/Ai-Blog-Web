@@ -14,8 +14,10 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.ruoyi.blog.dto.ArticlePageQuery;
 import com.ruoyi.blog.service.BlogArticleService;
 import com.ruoyi.blog.vo.ArticleVO;
+import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
+import com.ruoyi.common.enums.BusinessType;
 
 import lombok.RequiredArgsConstructor;
 
@@ -36,6 +38,7 @@ public class BlogArticleRecycleController extends BlogControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('blog:article:restore')")
+    @Log(title = "文章回收站", businessType = BusinessType.UPDATE)
     @PutMapping("/{id}/restore")
     public AjaxResult restore(@PathVariable Long id)
     {
@@ -44,6 +47,7 @@ public class BlogArticleRecycleController extends BlogControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('blog:article:purge')")
+    @Log(title = "文章回收站", businessType = BusinessType.DELETE)
     @DeleteMapping("/{id}")
     public AjaxResult purge(@PathVariable Long id)
     {

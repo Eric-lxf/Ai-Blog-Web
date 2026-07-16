@@ -12,8 +12,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
+import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.wechat.dto.WechatPageQuery;
 import com.ruoyi.wechat.dto.WechatQrcodeCreateRequest;
 import com.ruoyi.wechat.service.WechatQrcodeService;
@@ -37,6 +39,7 @@ public class WechatQrcodeController extends WechatControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('wechat:qrcode:add')")
+    @Log(title = "微信二维码", businessType = BusinessType.INSERT, isSaveResponseData = false)
     @PostMapping
     public AjaxResult create(@Valid @RequestBody WechatQrcodeCreateRequest request)
     {
@@ -44,6 +47,7 @@ public class WechatQrcodeController extends WechatControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('wechat:qrcode:remove')")
+    @Log(title = "微信二维码", businessType = BusinessType.DELETE)
     @DeleteMapping("/{id}")
     public AjaxResult delete(@PathVariable Long id)
     {

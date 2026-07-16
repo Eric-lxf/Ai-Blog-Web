@@ -13,8 +13,10 @@ import com.ruoyi.blog.domain.BlogNotificationPreference;
 import com.ruoyi.blog.dto.NotificationPageQuery;
 import com.ruoyi.blog.service.BlogNotificationService;
 import com.ruoyi.blog.vo.NotificationVO;
+import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
+import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.common.utils.SecurityUtils;
 
 import lombok.RequiredArgsConstructor;
@@ -43,6 +45,7 @@ public class BlogNotificationController extends BlogControllerSupport
         return result;
     }
 
+    @Log(title = "用户通知", businessType = BusinessType.UPDATE)
     @PostMapping("/{id}/read")
     public AjaxResult markRead(@PathVariable Long id)
     {
@@ -50,6 +53,7 @@ public class BlogNotificationController extends BlogControllerSupport
         return AjaxResult.success();
     }
 
+    @Log(title = "用户通知", businessType = BusinessType.UPDATE)
     @PostMapping("/read-all")
     public AjaxResult markReadAll()
     {
@@ -63,6 +67,7 @@ public class BlogNotificationController extends BlogControllerSupport
         return AjaxResult.success(blogNotificationService.getPreference(SecurityUtils.getUserId()));
     }
 
+    @Log(title = "用户通知", businessType = BusinessType.UPDATE)
     @PutMapping("/preference")
     public AjaxResult updatePreference(@RequestBody BlogNotificationPreference preference)
     {

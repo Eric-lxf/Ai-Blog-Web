@@ -13,8 +13,10 @@ import org.springframework.web.multipart.MultipartFile;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.ruoyi.blog.domain.BlogFile;
 import com.ruoyi.blog.service.BlogFileService;
+import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
+import com.ruoyi.common.enums.BusinessType;
 
 import lombok.RequiredArgsConstructor;
 
@@ -27,6 +29,7 @@ public class BlogFileController extends BlogControllerSupport
     private final BlogFileService blogFileService;
 
     @PreAuthorize("@ss.hasPermi('blog:file:upload')")
+    @Log(title = "博客文件", businessType = BusinessType.INSERT, isSaveRequestData = false, isSaveResponseData = false)
     @PostMapping("/upload")
     public AjaxResult upload(@RequestParam("file") MultipartFile file)
     {
@@ -46,6 +49,7 @@ public class BlogFileController extends BlogControllerSupport
     }
 
     @PreAuthorize("@ss.hasPermi('blog:file:remove')")
+    @Log(title = "博客文件", businessType = BusinessType.DELETE)
     @DeleteMapping("/{id}")
     public AjaxResult delete(@PathVariable Long id)
     {

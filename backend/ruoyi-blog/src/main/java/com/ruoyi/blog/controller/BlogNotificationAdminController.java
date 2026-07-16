@@ -10,7 +10,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.ruoyi.blog.dto.SystemNotificationSendRequest;
 import com.ruoyi.blog.service.BlogNotificationService;
+import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.domain.AjaxResult;
+import com.ruoyi.common.enums.BusinessType;
 
 import lombok.RequiredArgsConstructor;
 
@@ -22,6 +24,7 @@ public class BlogNotificationAdminController extends BlogControllerSupport
     private final BlogNotificationService blogNotificationService;
 
     @PreAuthorize("@ss.hasPermi('blog:notification:send')")
+    @Log(title = "系统通知", businessType = BusinessType.PUBLISH, isSaveResponseData = false)
     @PostMapping("/send")
     public AjaxResult send(@Valid @RequestBody SystemNotificationSendRequest request)
     {
