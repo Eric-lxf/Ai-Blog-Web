@@ -19,11 +19,23 @@ public class BlogBill
     @TableId(type = IdType.AUTO)
     private Long id;
 
+    /** 交易单号 */
+    private String tradeNo;
     private LocalDate billDate;
+    /** 交易时间 */
+    private LocalDateTime tradeTime;
+    /** 交易类型：商户消费/转账等 */
+    private String tradeType;
+    /** 收/支/其他 */
+    private String direction;
+    /** 交易对方/商户 */
     private String merchant;
     private String category;
     private BigDecimal amount;
+    /** 交易方式 */
     private String paymentMethod;
+    /** 商户单号 */
+    private String merchantOrderNo;
     private String note;
     private String imageUrl;
     /** 0-100 */

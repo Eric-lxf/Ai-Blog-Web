@@ -285,7 +285,7 @@ const moduleMetaMap = {
   write: { name: '博客智写', desc: '用于博客标题、摘要与正文生成。' },
   optimize: { name: '文本优化', desc: '用于内容改写、提炼与增强。' },
   comment_moderate: { name: '评论审核', desc: '用于评论智能审核。' },
-  bill_vision: { name: '账单识别', desc: '用于账单图片视觉识别。' },
+  bill_vision: { name: '账单识别', desc: '用于账单/微信交易明细图片视觉识别。请填写视觉模型（如 qwen3.5-ocr），不要填纯文本模型。' },
   bill_advice: { name: '账单建议', desc: '用于账单分析建议生成。' }
 }
 

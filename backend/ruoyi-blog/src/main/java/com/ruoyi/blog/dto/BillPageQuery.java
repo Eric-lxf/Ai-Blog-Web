@@ -22,6 +22,12 @@ public class BillPageQuery
 
     private String category;
 
+    /** 交易对方模糊查询 */
+    private String merchant;
+
+    /** 收/支/其他 */
+    private String direction;
+
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
     private LocalDate startDate;
 

@@ -117,6 +117,13 @@ public class DeepSeekServiceImpl implements DeepSeekService
     {
         AiResolvedModelConfig resolved = requireResolvedConfig(moduleCode);
         OkHttpClient client = aiProviderService.httpClient(resolved.getProvider());
+        log.info("AI recognize module={} providerId={} provider={} visionModel={} textModel={} source={}",
+                moduleCode,
+                resolved.getProvider().getId(),
+                resolved.getProvider().getName(),
+                resolved.getVisionModel(),
+                resolved.getTextModel(),
+                resolved.getSource());
         return llmClient.recognizeImage(resolved.getProvider(), imageUrl, textPrompt, resolved.getVisionModel(), client);
     }
 

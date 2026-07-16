@@ -21,6 +21,7 @@ public interface BlogBillMapper extends BaseMapper<BlogBill>
             FROM blog_bill
             WHERE user_id = #{userId} AND is_deleted = 0
               AND bill_date >= #{startDate} AND bill_date <= #{endDate}
+              AND (direction IS NULL OR direction = '' OR direction = '支出')
             GROUP BY category
             ORDER BY value DESC
             """)
@@ -36,6 +37,7 @@ public interface BlogBillMapper extends BaseMapper<BlogBill>
             FROM blog_bill
             WHERE user_id = #{userId} AND is_deleted = 0
               AND bill_date >= #{startDate} AND bill_date <= #{endDate}
+              AND (direction IS NULL OR direction = '' OR direction = '支出')
             GROUP BY DATE_FORMAT(bill_date, '%Y-%m'), category
             ORDER BY month
             """)
