@@ -17,6 +17,7 @@ import java.util.stream.Collectors;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -32,6 +33,8 @@ import com.ruoyi.blog.dto.BillSaveRequest;
 import com.ruoyi.blog.mapper.BlogBillMapper;
 import com.ruoyi.blog.service.BlogBillService;
 import com.ruoyi.blog.service.DeepSeekService;
+import com.ruoyi.blog.service.bill.BillExcelParser;
+import com.ruoyi.blog.service.bill.BillPdfRenderer;
 import com.ruoyi.blog.vo.BillAnalysisVO;
 import com.ruoyi.blog.vo.BillCategoryAmountVO;
 import com.ruoyi.blog.vo.BillMonthlyRow;
@@ -179,7 +182,64 @@ public class BlogBillServiceImpl implements BlogBillService
     @Override
     public List<BillVO> recognize(BillRecognizeRequest request)
     {
-        String imageUrl = validateRecognizeImageUrl(request.getImageUrl());
+        return recognizeImageUrl(validateRecognizeImageUrl(request.getImageUrl()));
+    }
+
+    @Override
+    public List<BillVO> recognizeFile(MultipartFile file)
+    {
+        if (file == null || file.isEmpty())
+        {
+            throw new ServiceException("请上传图片、PDF 或 Excel 文件", HttpStatus.BAD_REQUEST);
+        }
+        String filename = file.getOriginalFilename() == null ? "" : file.getOriginalFilename().toLowerCase();
+        String contentType = file.getContentType() == null ? "" : file.getContentType().toLowerCase();
+        try
+        {
+            if (isExcel(filename, contentType))
+            {
+                List<BillVO> list = BillExcelParser.parse(file.getInputStream());
+                if (list.isEmpty())
+                {
+                    throw new ServiceException("Excel 中未解析到账单明细，请确认表头含金额与日期列", HttpStatus.BAD_REQUEST);
+                }
+                return list;
+            }
+            if (isPdf(filename, contentType))
+            {
+                List<String> pages = BillPdfRenderer.toJpegDataUrls(file.getInputStream());
+                List<BillVO> all = new ArrayList<>();
+                for (int i = 0; i < pages.size(); i++)
+                {
+                    log.info("Bill PDF OCR page {}/{}", i + 1, pages.size());
+                    all.addAll(recognizeImageUrl(pages.get(i)));
+                }
+                if (all.isEmpty())
+                {
+                    throw new ServiceException("未能从 PDF 中识别到账单明细", HttpStatus.ERROR);
+                }
+                return all;
+            }
+            if (isImage(filename, contentType))
+            {
+                String dataUrl = toImageDataUrl(file.getBytes(), filename, contentType);
+                return recognizeImageUrl(dataUrl);
+            }
+            throw new ServiceException("仅支持图片（JPG/PNG/WEBP）、PDF、Excel（xls/xlsx）", HttpStatus.BAD_REQUEST);
+        }
+        catch (ServiceException e)
+        {
+            throw e;
+        }
+        catch (Exception e)
+        {
+            log.error("recognizeFile failed name={}", filename, e);
+            throw new ServiceException("文件识别失败：" + e.getMessage(), HttpStatus.ERROR);
+        }
+    }
+
+    private List<BillVO> recognizeImageUrl(String imageUrl)
+    {
         String tableRaw = deepSeekService.recognizeImage(imageUrl, TABLE_OCR_PROMPT, AiModuleCode.BILL_VISION);
         log.info("Bill OCR table raw len={} preview={}", tableRaw != null ? tableRaw.length() : 0,
                 abbreviate(tableRaw, 400));
@@ -210,6 +270,47 @@ public class BlogBillServiceImpl implements BlogBillService
             throw new ServiceException("未能从图片中识别到账单明细，请换更清晰的原图后重试", HttpStatus.ERROR);
         }
         return list;
+    }
+
+    private static boolean isExcel(String filename, String contentType)
+    {
+        return filename.endsWith(".xlsx") || filename.endsWith(".xls")
+                || contentType.contains("spreadsheet") || contentType.contains("excel");
+    }
+
+    private static boolean isPdf(String filename, String contentType)
+    {
+        return filename.endsWith(".pdf") || contentType.contains("pdf");
+    }
+
+    private static boolean isImage(String filename, String contentType)
+    {
+        return contentType.startsWith("image/")
+                || filename.endsWith(".jpg") || filename.endsWith(".jpeg")
+                || filename.endsWith(".png") || filename.endsWith(".webp") || filename.endsWith(".gif");
+    }
+
+    private static String toImageDataUrl(byte[] bytes, String filename, String contentType)
+    {
+        String mime = contentType.startsWith("image/") ? contentType : guessImageMime(filename);
+        return "data:" + mime + ";base64," + java.util.Base64.getEncoder().encodeToString(bytes);
+    }
+
+    private static String guessImageMime(String filename)
+    {
+        if (filename.endsWith(".png"))
+        {
+            return "image/png";
+        }
+        if (filename.endsWith(".webp"))
+        {
+            return "image/webp";
+        }
+        if (filename.endsWith(".gif"))
+        {
+            return "image/gif";
+        }
+        return "image/jpeg";
     }
 
     /**

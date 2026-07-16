@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.ruoyi.blog.dto.BillPageQuery;
@@ -76,6 +77,15 @@ public class BlogBillController extends BlogControllerSupport
     public AjaxResult recognize(@Valid @RequestBody BillRecognizeRequest request)
     {
         return AjaxResult.success(blogBillService.recognize(request));
+    }
+
+    /** 上传图片 / PDF / Excel 识别账单明细（不写库）。 */
+    @PreAuthorize("@ss.hasPermi('blog:bill:recognize')")
+    @Log(title = "AI账单文件识别", businessType = BusinessType.AI, isSaveRequestData = false, isSaveResponseData = false)
+    @PostMapping("/recognize/file")
+    public AjaxResult recognizeFile(@RequestParam("file") MultipartFile file)
+    {
+        return AjaxResult.success(blogBillService.recognizeFile(file));
     }
 
     @PreAuthorize("@ss.hasPermi('blog:bill:analysis')")

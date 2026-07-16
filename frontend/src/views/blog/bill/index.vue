@@ -146,31 +146,41 @@
     <!-- AI 识别 -->
     <el-dialog v-model="recognizeVisible" title="AI 识别交易明细" width="1100px" append-to-body>
       <el-steps :active="recognizeStep" align-center class="mb20">
-        <el-step title="上传图片" />
-        <el-step title="AI 识别" />
+        <el-step title="上传文件" />
+        <el-step title="识别解析" />
         <el-step title="确认保存" />
       </el-steps>
 
       <div v-if="recognizeStep === 0" class="step-body">
-        <el-upload class="upload-area" drag :auto-upload="false" accept="image/*" :on-change="onFileChange" :show-file-list="false">
+        <el-upload
+          class="upload-area"
+          drag
+          :auto-upload="false"
+          accept="image/*,.pdf,.xls,.xlsx,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          :on-change="onFileChange"
+          :show-file-list="false"
+        >
           <el-icon class="el-icon--upload"><Upload /></el-icon>
-          <div class="el-upload__text">拖拽微信交易明细截图到此处，或 <em>点击上传</em></div>
+          <div class="el-upload__text">拖拽微信明细截图 / PDF / Excel 到此处，或 <em>点击上传</em></div>
           <template #tip>
-            <div class="el-upload__tip">支持 JPG / PNG（≤7MB）；将调用「账单识别」模块配置的视觉模型（如 qwen3.5-ocr）提取全部行</div>
+            <div class="el-upload__tip">
+              图片、PDF：走「账单识别」视觉模型（如 qwen3.5-ocr）；Excel：本地解析表头列。单文件 ≤15MB
+            </div>
           </template>
         </el-upload>
         <div v-if="uploadPreviewUrl" class="preview-wrap">
           <img :src="uploadPreviewUrl" class="preview-img" alt="preview" />
         </div>
-        <el-input v-model="recognizeImageUrl" placeholder="或粘贴可公网访问的图片 URL / data:image Base64" class="mt10" />
+        <div v-else-if="uploadFileName" class="preview-wrap file-name-tip">已选择：{{ uploadFileName }}</div>
+        <el-input v-model="recognizeImageUrl" placeholder="或粘贴可公网访问的图片 URL / data:image Base64（仅图片）" class="mt10" />
         <div class="step-actions">
-          <el-button type="primary" :disabled="!recognizeImageUrl || recognizeImageUrl.startsWith('blob:')" @click="doRecognize">开始识别</el-button>
+          <el-button type="primary" :disabled="!canStartRecognize" @click="doRecognize">开始识别</el-button>
         </div>
       </div>
 
       <div v-if="recognizeStep === 1" class="step-body center">
         <el-icon class="loading-icon" :size="48"><Loading /></el-icon>
-        <p class="mt10">正在用账单视觉模型识别全部明细…</p>
+        <p class="mt10">{{ recognizeLoadingText }}</p>
       </div>
 
       <div v-if="recognizeStep === 2" class="step-body">
@@ -252,10 +262,10 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Refresh, Plus, Edit, Delete, Camera, Upload, Loading } from '@element-plus/icons-vue'
-import { listBill, getBill, addBill, updateBill, deleteBill, recognizeBill } from '@/api/blog/bill'
+import { listBill, getBill, addBill, updateBill, deleteBill, recognizeBill, recognizeBillFile } from '@/api/blog/bill'
 
 const categories = ['餐饮食品', '购物消费', '交通出行', '水电燃气', '医疗健康', '健身娱乐', '服饰购物', '其他']
 
@@ -367,10 +377,19 @@ const recognizeVisible = ref(false)
 const recognizeStep = ref(0)
 const recognizeImageUrl = ref('')
 const uploadPreviewUrl = ref('')
+const uploadFile = ref(null)
+const uploadFileName = ref('')
+const recognizeLoadingText = ref('正在识别全部明细…')
 const recognizeResults = ref([])
 const selectedRecognizeIndexes = ref([])
 const recognizeTableRef = ref(null)
 const persistImageUrl = ref(null)
+
+const canStartRecognize = computed(() => {
+  if (uploadFile.value) return true
+  const url = (recognizeImageUrl.value || '').trim()
+  return !!url && !url.startsWith('blob:') && !url.startsWith('file:')
+})
 
 function openRecognize() {
   recognizeStep.value = 0
@@ -378,69 +397,53 @@ function openRecognize() {
   recognizeResults.value = []
   selectedRecognizeIndexes.value = []
   persistImageUrl.value = null
+  uploadFile.value = null
+  uploadFileName.value = ''
+  recognizeLoadingText.value = '正在识别全部明细…'
   if (uploadPreviewUrl.value?.startsWith('blob:')) URL.revokeObjectURL(uploadPreviewUrl.value)
   uploadPreviewUrl.value = ''
   recognizeVisible.value = true
 }
 
-function readFileAsDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(String(reader.result || ''))
-    reader.onerror = () => reject(new Error('读取图片失败'))
-    reader.readAsDataURL(file)
-  })
+function fileExt(name = '') {
+  const i = name.lastIndexOf('.')
+  return i >= 0 ? name.slice(i + 1).toLowerCase() : ''
 }
 
-/** 压缩大图，避免 Base64 JSON 触发网关/Nginx 413（默认常为 1MB） */
-function compressImageToDataUrl(file, maxEdge = 1920, quality = 0.85) {
-  return new Promise((resolve, reject) => {
-    const objectUrl = URL.createObjectURL(file)
-    const img = new Image()
-    img.onload = () => {
-      try {
-        let { width, height } = img
-        const scale = Math.min(1, maxEdge / Math.max(width, height))
-        width = Math.max(1, Math.round(width * scale))
-        height = Math.max(1, Math.round(height * scale))
-        const canvas = document.createElement('canvas')
-        canvas.width = width
-        canvas.height = height
-        const ctx = canvas.getContext('2d')
-        ctx.drawImage(img, 0, 0, width, height)
-        resolve(canvas.toDataURL('image/jpeg', quality))
-      } catch (e) {
-        reject(e)
-      } finally {
-        URL.revokeObjectURL(objectUrl)
-      }
-    }
-    img.onerror = () => {
-      URL.revokeObjectURL(objectUrl)
-      reject(new Error('图片加载失败'))
-    }
-    img.src = objectUrl
-  })
+function isExcelFile(file) {
+  const ext = fileExt(file.name)
+  return ext === 'xls' || ext === 'xlsx'
+    || (file.type || '').includes('sheet') || (file.type || '').includes('excel')
+}
+
+function isPdfFile(file) {
+  return fileExt(file.name) === 'pdf' || (file.type || '').includes('pdf')
+}
+
+function isImageFile(file) {
+  return (file.type || '').startsWith('image/')
+    || ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(fileExt(file.name))
 }
 
 async function onFileChange(file) {
   const raw = file.raw
   if (!raw) return
-  if (raw.size > 7 * 1024 * 1024) {
-    ElMessage.warning('图片过大，请压缩至 7MB 以内后再识别')
+  if (raw.size > 15 * 1024 * 1024) {
+    ElMessage.warning('文件过大，请压缩至 15MB 以内后再识别')
+    return
+  }
+  if (!isImageFile(raw) && !isPdfFile(raw) && !isExcelFile(raw)) {
+    ElMessage.warning('仅支持图片（JPG/PNG/WEBP）、PDF、Excel（xls/xlsx）')
     return
   }
   if (uploadPreviewUrl.value?.startsWith('blob:')) URL.revokeObjectURL(uploadPreviewUrl.value)
-  uploadPreviewUrl.value = URL.createObjectURL(raw)
+  uploadPreviewUrl.value = ''
   recognizeImageUrl.value = ''
-  try {
-    // 超过约 800KB 原图时压缩，Base64 后更不易打到 1~2MB 网关上限
-    recognizeImageUrl.value = raw.size > 800 * 1024
-      ? await compressImageToDataUrl(raw)
-      : await readFileAsDataUrl(raw)
-  } catch (e) {
-    ElMessage.error(e?.message || '读取图片失败，请重试')
-    recognizeImageUrl.value = ''
+  uploadFile.value = raw
+  uploadFileName.value = raw.name || '未命名文件'
+  // 图片仍生成预览；PDF/Excel 仅显示文件名，识别走 multipart
+  if (isImageFile(raw)) {
+    uploadPreviewUrl.value = URL.createObjectURL(raw)
   }
 }
 
@@ -489,22 +492,37 @@ function clearRecognizeSelection() {
 }
 
 async function doRecognize() {
+  const file = uploadFile.value
   const imageUrl = (recognizeImageUrl.value || '').trim()
-  if (!imageUrl || imageUrl.startsWith('blob:') || imageUrl.startsWith('file:')) {
-    ElMessage.warning('请上传本地图片，或粘贴可公网访问的图片 URL')
+  if (!file && (!imageUrl || imageUrl.startsWith('blob:') || imageUrl.startsWith('file:'))) {
+    ElMessage.warning('请上传图片 / PDF / Excel，或粘贴可公网访问的图片 URL')
     return
   }
   recognizeStep.value = 1
   try {
-    const res = await recognizeBill({ imageUrl })
+    let res
+    if (file) {
+      if (isExcelFile(file)) {
+        recognizeLoadingText.value = '正在解析 Excel 账单明细…'
+      } else if (isPdfFile(file)) {
+        recognizeLoadingText.value = '正在将 PDF 转图并用视觉模型识别（多页可能较久）…'
+      } else {
+        recognizeLoadingText.value = '正在用账单视觉模型识别全部明细…'
+      }
+      res = await recognizeBillFile(file)
+      persistImageUrl.value = null
+    } else {
+      recognizeLoadingText.value = '正在用账单视觉模型识别全部明细…'
+      res = await recognizeBill({ imageUrl })
+      persistImageUrl.value = imageUrl.startsWith('data:') ? null : imageUrl
+    }
     recognizeResults.value = normalizeRecognizeList(res.data)
-    persistImageUrl.value = imageUrl.startsWith('data:') ? null : imageUrl
     selectedRecognizeIndexes.value = []
     recognizeStep.value = 2
     await nextTick()
     recognizeTableRef.value?.toggleAllSelection?.()
-    if (recognizeResults.value.length <= 1) {
-      ElMessage.warning('仅识别到 1 笔。若原图有多行，请确认账单识别视觉模型为 qwen3.5-ocr，并重试清晰截图')
+    if (recognizeResults.value.length <= 1 && file && !isExcelFile(file)) {
+      ElMessage.warning('仅识别到 1 笔。若原文件有多行，请确认账单识别视觉模型为 qwen3.5-ocr，并重试清晰截图/PDF')
     }
   } catch (e) {
     recognizeStep.value = 0
@@ -559,6 +577,7 @@ async function saveRecognized() {
 .upload-area { width: 100%; }
 .preview-wrap { margin-top: 12px; text-align: center; }
 .preview-img  { max-height: 200px; border-radius: 6px; }
+.file-name-tip { color: var(--el-text-color-secondary); font-size: 13px; }
 .step-body    { padding: 8px 0; }
 .step-actions { display: flex; justify-content: flex-end; margin-top: 12px; }
 .center       { display: flex; flex-direction: column; align-items: center; padding: 32px 0; }
