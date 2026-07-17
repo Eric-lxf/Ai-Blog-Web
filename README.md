@@ -1,14 +1,14 @@
 # Ai-Blog-Web
 
-RuoYi-Vue 3.9.2（完整系统管理）+ ai-blog 博客业务融合项目。
+AI 博客管理系统：完整系统管理 + 博客业务（文章 / 评论 / 上传 / AI / 账单识别）。
 
 ## 架构
 
-前后端分离，**UI 只在仓库根目录 `frontend/`，`backend/` 为纯 Java 后端**（不含 RuoYi 自带的 Vue2 `ruoyi-ui`）。
+前后端分离，**UI 只在仓库根目录 `frontend/`，`backend/` 为纯 Java 后端**。
 
-- **backend**：RuoYi Maven 多模块 + `ruoyi-blog`（文章/AI/上传）
+- **backend**：Maven 多模块 + `ruoyi-blog`（文章/AI/上传/账单）
   - `ruoyi-admin`（启动入口）、`ruoyi-framework`、`ruoyi-system`、`ruoyi-common`、`ruoyi-quartz`、`ruoyi-generator`、`ruoyi-blog`
-- **frontend**：RuoYi-Vue3（Vue3 + Element Plus）+ 博客创作中心 + 公开前台 `/blog`
+- **frontend**：Vue3 + Element Plus，含管理后台与公开前台 `/blog`
 - **数据**：MySQL `ai_blog` + Redis（Token）
 
 ## 本地开发
@@ -39,7 +39,7 @@ mysql -u root -p < sql/ai_provider_auth_mode.sql
 
 ### 2. 启动 Redis
 
-RuoYi Token 依赖 Redis，本地需运行 Redis（默认 `localhost:6379`）。
+Token 依赖 Redis，本地需运行 Redis（默认 `localhost:6379`）。
 
 ### 3. 启动后端
 
@@ -171,7 +171,7 @@ cd frontend && npm ci && npm run build:prod
 
 ## 权限说明
 
-- 用户/角色/菜单在 RuoYi **系统管理** 中配置
+- 用户/角色/菜单在 **系统管理** 中配置
 - 博客权限标识：`blog:article:*`、`blog:ai:*` 等（见 `sql/blog_menu_seed.sql`）
 - 测试角色 `blog_editor`（role_id=3）：可管文章，不可「博客智写」
 
@@ -187,10 +187,10 @@ Ai-Blog-Web/
 │   ├── ruoyi-quartz/
 │   ├── ruoyi-generator/
 │   └── ruoyi-blog/       # 博客业务扩展
-├── frontend/             # 唯一前端（RuoYi-Vue3 + 博客页面）
+├── frontend/             # 唯一前端（管理后台 + 博客页面）
 ├── sql/                  # 数据库初始化
 ├── docker/               # Dockerfile 与 Nginx
 └── docker-compose.yml
 ```
 
-> **说明**：原 RuoYi-Vue 仓库内的 `ruoyi-ui`（Vue2）已移除，避免与 `frontend/` 混淆；系统管理、监控、代码生成等页面均在 `frontend/src/views/` 中维护。
+> **说明**：系统管理、监控、代码生成等页面均在 `frontend/src/views/` 中维护。

@@ -25,7 +25,7 @@ onMounted(() => {
       <RouterView />
     </main>
     <footer class="blog-footer">
-      <span>Powered by Vue 3 · ByteMD · RuoYi-Vue</span>
+      <span>AI 技术博客</span>
     </footer>
   </div>
 </template>
