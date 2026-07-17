@@ -42,7 +42,7 @@ docs/ecommerce-impl/
 
 | Phase | 主题 | 资料状态 |
 |---|---|---|
-| [Phase 1](./phase1/) | 商品 + 购物车/订单 + 支付 + 地址 + C 端 `/mall` | ✅ 架构图 / E-R / SQL 已就绪 |
+| [Phase 1](./phase1/) | 商品 + 购物车/订单 + 支付 + 地址 + C 端 `/mall` | ✅ 已实现（架构图 / E-R / SQL + 代码） |
 | [Phase 2](./phase2/) | 库存中心、物流、售后、评价 | ⏳ 占位 |
 | [Phase 3](./phase3/) | 营销、搜索、CMS、消息统一 | ⏳ 占位 |
 | [Phase 4](./phase4/) | 商家、风控、结算、数据中台等 | ⏳ 占位 |

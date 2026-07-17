@@ -1,6 +1,6 @@
 # Phase 1 — 交易最小闭环：实现资料
 
-**状态**：设计就绪（待编码）  
+**状态**：✅ 已实现（后端模块 + 前后端页面 + SQL；支付默认 Mock 可验收）  
 **对应计划**：[任务拆分](../../superpowers/plans/2026-07-17-phase1-mall-mvp.md) · [总览](../../ecommerce-platform-transformation-plan.md)
 
 ## 本目录内容
