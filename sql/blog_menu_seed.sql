@@ -1,7 +1,7 @@
 SET NAMES utf8mb4;
 USE ai_blog;
 
--- AI 博客业务菜单与权限（menu_id 2000+，RuoYi-Vue 3.9.2 菜单格式）
+-- AI 博客业务菜单与权限（menu_id 2000+，菜单格式对齐管理后台）
 INSERT IGNORE INTO sys_menu VALUES
 (2000, 'AI博客', 0, 5, 'blog-admin', NULL, '', '', 1, 0, 'M', '0', '0', '', 'documentation', 'admin', sysdate(), '', NULL, 'AI博客管理目录'),
 (2001, '工作台', 2000, 1, 'dashboard', 'blog/dashboard/index', '', '', 1, 0, 'C', '0', '0', 'blog:dashboard:view', 'chart', 'admin', sysdate(), '', NULL, ''),
