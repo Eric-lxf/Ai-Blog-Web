@@ -175,7 +175,7 @@
           <div class="el-upload__text">拖拽微信明细截图 / PDF / Excel 到此处，或 <em>点击上传</em></div>
           <template #tip>
             <div class="el-upload__tip">
-              图片 / PDF（按页各转一张图再识别）走视觉模型；Excel 本地解析。单文件 ≤15MB
+              图片走视觉模型；PDF（微信明细证明等文字版）优先本地抽表，扫图 PDF 再按页 OCR；Excel 本地解析。单文件 ≤15MB
             </div>
           </template>
         </el-upload>
@@ -563,7 +563,7 @@ async function doRecognize() {
       if (isExcelFile(file)) {
         recognizeLoadingText.value = '正在解析 Excel 账单明细…'
       } else if (isPdfFile(file)) {
-        recognizeLoadingText.value = '正在按 PDF 页逐页转图并识别（每页一张图，多页可能较久）…'
+        recognizeLoadingText.value = '正在解析 PDF 账单明细（文字版本地抽表，必要时按页识别）…'
       } else {
         recognizeLoadingText.value = '正在用账单视觉模型识别全部明细…'
       }
