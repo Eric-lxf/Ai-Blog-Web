@@ -17,17 +17,20 @@ import com.ruoyi.common.constant.HttpStatus;
 import com.ruoyi.common.exception.ServiceException;
 
 /**
- * 将 PDF 每页渲染为 JPEG data URL，供视觉 OCR 复用。
+ * 将 PDF 按页渲染：每一页生成一张独立 JPEG（不拼页），供视觉 OCR 逐页识别。
  */
 public final class BillPdfRenderer
 {
-    private static final int MAX_PAGES = 10;
-    private static final float DPI = 144f;
+    private static final int MAX_PAGES = 20;
+    private static final float DPI = 160f;
 
     private BillPdfRenderer()
     {
     }
 
+    /**
+     * @return 与 PDF 页序一致的 JPEG data URL 列表，size = min(总页数, MAX_PAGES)
+     */
     public static List<String> toJpegDataUrls(InputStream in)
     {
         try (PDDocument document = PDDocument.load(in))
@@ -42,6 +45,7 @@ public final class BillPdfRenderer
             List<String> urls = new ArrayList<>(limit);
             for (int i = 0; i < limit; i++)
             {
+                // 一页一图，互不拼接
                 BufferedImage image = renderer.renderImageWithDPI(i, DPI, ImageType.RGB);
                 urls.add(toJpegDataUrl(image));
             }

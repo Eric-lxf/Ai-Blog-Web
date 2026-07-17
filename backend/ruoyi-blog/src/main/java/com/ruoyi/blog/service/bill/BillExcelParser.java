@@ -236,7 +236,12 @@ public final class BillExcelParser
             LocalDate billDate = parseDate(row, col.get("billDate"));
             vo.setBillDate(billDate);
         }
-        if (vo.getBillDate() == null && amount == null)
+        // 无日期的行不要
+        if (vo.getBillDate() == null)
+        {
+            return null;
+        }
+        if (amount == null && merchant == null && tradeNo == null)
         {
             return null;
         }
