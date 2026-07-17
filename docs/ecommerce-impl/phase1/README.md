@@ -1,7 +1,7 @@
 # Phase 1 — 交易最小闭环：实现资料
 
 **状态**：设计就绪（待编码）  
-**对应计划**：[任务拆分](../superpowers/plans/2026-07-17-phase1-mall-mvp.md) · [总览](../ecommerce-platform-transformation-plan.md)
+**对应计划**：[任务拆分](../../superpowers/plans/2026-07-17-phase1-mall-mvp.md) · [总览](../../ecommerce-platform-transformation-plan.md)
 
 ## 本目录内容
 
