@@ -22,6 +22,9 @@ public interface BlogBillService
 
     void delete(Long id);
 
+    /** 批量删除账单（仅当前用户数据）。 */
+    void deleteByIds(Long[] ids);
+
     /** 调用 AI 视觉模型识别账单图片，返回解析结果列表（不写库；支持多行明细）。 */
     List<BillVO> recognize(BillRecognizeRequest request);
 

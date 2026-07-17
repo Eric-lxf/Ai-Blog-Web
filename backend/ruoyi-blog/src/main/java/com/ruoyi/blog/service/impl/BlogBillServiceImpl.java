@@ -171,12 +171,30 @@ public class BlogBillServiceImpl implements BlogBillService
     @Override
     public void delete(Long id)
     {
-        BlogBill bill = requireBill(id);
-        if (!bill.getUserId().equals(SecurityUtils.getUserId()))
+        deleteByIds(new Long[] { id });
+    }
+
+    @Override
+    public void deleteByIds(Long[] ids)
+    {
+        if (ids == null || ids.length == 0)
         {
-            throw new ServiceException("无权限操作该账单", HttpStatus.FORBIDDEN);
+            throw new ServiceException("请选择要删除的账单", HttpStatus.BAD_REQUEST);
         }
-        billMapper.deleteById(id);
+        Long userId = SecurityUtils.getUserId();
+        for (Long id : ids)
+        {
+            if (id == null)
+            {
+                continue;
+            }
+            BlogBill bill = requireBill(id);
+            if (!bill.getUserId().equals(userId))
+            {
+                throw new ServiceException("无权限操作该账单", HttpStatus.FORBIDDEN);
+            }
+            billMapper.deleteById(id);
+        }
     }
 
     @Override

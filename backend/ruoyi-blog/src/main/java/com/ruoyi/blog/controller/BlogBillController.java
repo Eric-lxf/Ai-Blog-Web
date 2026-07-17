@@ -64,10 +64,10 @@ public class BlogBillController extends BlogControllerSupport
 
     @PreAuthorize("@ss.hasPermi('blog:bill:remove')")
     @Log(title = "账单", businessType = BusinessType.DELETE)
-    @DeleteMapping("/{id}")
-    public AjaxResult delete(@PathVariable Long id)
+    @DeleteMapping("/{ids}")
+    public AjaxResult delete(@PathVariable Long[] ids)
     {
-        blogBillService.delete(id);
+        blogBillService.deleteByIds(ids);
         return AjaxResult.success();
     }
 

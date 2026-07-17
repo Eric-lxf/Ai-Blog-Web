@@ -41,10 +41,21 @@
       <el-col :span="1.5">
         <el-button v-hasPermi="['blog:bill:recognize']" type="success" plain :icon="Camera" @click="openRecognize">AI 识别明细</el-button>
       </el-col>
+      <el-col :span="1.5">
+        <el-button
+          v-hasPermi="['blog:bill:remove']"
+          type="danger"
+          plain
+          :icon="Delete"
+          :disabled="!selectedListRows.length"
+          @click="handleBatchDelete"
+        >批量删除</el-button>
+      </el-col>
     </el-row>
 
     <!-- 数据表格：对齐微信交易明细列 -->
-    <el-table v-loading="loading" :data="list" stripe>
+    <el-table v-loading="loading" :data="list" stripe row-key="id" @selection-change="onListSelectionChange">
+      <el-table-column type="selection" width="42" reserve-selection />
       <el-table-column label="交易时间" width="170">
         <template #default="{ row }">
           {{ formatTradeTime(row) }}
@@ -144,7 +155,7 @@
     </el-dialog>
 
     <!-- AI 识别 -->
-    <el-dialog v-model="recognizeVisible" title="AI 识别交易明细" width="1100px" append-to-body>
+    <el-dialog v-model="recognizeVisible" title="AI 识别交易明细" width="1200px" append-to-body>
       <el-steps :active="recognizeStep" align-center class="mb20">
         <el-step title="上传文件" />
         <el-step title="识别解析" />
@@ -188,7 +199,8 @@
           <span>共识别 {{ recognizeResults.length }} 笔，已选 {{ selectedRecognizeIndexes.length }} 笔</span>
           <div>
             <el-button link type="primary" @click="selectAllRecognize">全选</el-button>
-            <el-button link @click="clearRecognizeSelection">清空</el-button>
+            <el-button link @click="clearRecognizeSelection">清空选择</el-button>
+            <el-button link type="danger" :disabled="!selectedRecognizeIndexes.length" @click="removeSelectedRecognize">删除选中</el-button>
           </div>
         </div>
         <el-table
@@ -247,11 +259,23 @@
               <el-input v-model="row.tradeNo" size="small" />
             </template>
           </el-table-column>
+          <el-table-column label="商户单号" min-width="120">
+            <template #default="{ row }">
+              <el-input v-model="row.merchantOrderNo" size="small" />
+            </template>
+          </el-table-column>
         </el-table>
       </div>
 
       <template #footer>
         <el-button v-if="recognizeStep === 2" @click="recognizeStep = 0">重新识别</el-button>
+        <el-button
+          v-if="recognizeStep === 2"
+          type="danger"
+          plain
+          :disabled="!selectedRecognizeIndexes.length"
+          @click="removeSelectedRecognize"
+        >删除选中</el-button>
         <el-button v-if="recognizeStep === 2" type="primary" :loading="saving" :disabled="!selectedRecognizeIndexes.length" @click="saveRecognized">
           保存选中（{{ selectedRecognizeIndexes.length }}）
         </el-button>
@@ -265,13 +289,14 @@
 import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Refresh, Plus, Edit, Delete, Camera, Upload, Loading } from '@element-plus/icons-vue'
-import { listBill, getBill, addBill, updateBill, deleteBill, recognizeBill, recognizeBillFile } from '@/api/blog/bill'
+import { listBill, getBill, addBill, updateBill, deleteBill, deleteBills, recognizeBill, recognizeBillFile } from '@/api/blog/bill'
 
 const categories = ['餐饮食品', '购物消费', '交通出行', '水电燃气', '医疗健康', '健身娱乐', '服饰购物', '其他']
 
 const loading = ref(false)
 const list = ref([])
 const total = ref(0)
+const selectedListRows = ref([])
 const query = reactive({
   pageNum: 1, pageSize: 10,
   merchant: '', direction: '', category: '', dateRange: null
@@ -366,10 +391,28 @@ async function submitForm() {
   }
 }
 
+function onListSelectionChange(rows) {
+  selectedListRows.value = rows || []
+}
+
 async function handleDelete(row) {
   await ElMessageBox.confirm('确认删除该账单记录？', '提示', { type: 'warning' })
   await deleteBill(row.id)
   ElMessage.success('删除成功')
+  selectedListRows.value = selectedListRows.value.filter((r) => r.id !== row.id)
+  loadList()
+}
+
+async function handleBatchDelete() {
+  const rows = selectedListRows.value
+  if (!rows.length) {
+    ElMessage.warning('请先勾选要删除的账单')
+    return
+  }
+  await ElMessageBox.confirm(`确认删除选中的 ${rows.length} 笔账单？`, '批量删除', { type: 'warning' })
+  await deleteBills(rows.map((r) => r.id))
+  ElMessage.success(`已删除 ${rows.length} 笔`)
+  selectedListRows.value = []
   loadList()
 }
 
@@ -489,6 +532,21 @@ async function selectAllRecognize() {
 function clearRecognizeSelection() {
   recognizeTableRef.value?.clearSelection?.()
   selectedRecognizeIndexes.value = []
+}
+
+async function removeSelectedRecognize() {
+  const indexes = [...selectedRecognizeIndexes.value].sort((a, b) => b - a)
+  if (!indexes.length) {
+    ElMessage.warning('请先勾选要删除的识别结果')
+    return
+  }
+  await ElMessageBox.confirm(`确认从识别结果中移除选中的 ${indexes.length} 笔？`, '删除选中', { type: 'warning' })
+  const remain = recognizeResults.value.filter((_, i) => !indexes.includes(i))
+  recognizeResults.value = remain.map((row, index) => ({ ...row, _key: index }))
+  selectedRecognizeIndexes.value = []
+  await nextTick()
+  recognizeTableRef.value?.clearSelection?.()
+  ElMessage.success(`已移除 ${indexes.length} 笔`)
 }
 
 async function doRecognize() {
