@@ -180,6 +180,26 @@ class BlogBillRecognizeParseTest
     }
 
     @Test
+    void remapsContinuationPageVisualColumnOrder()
+    {
+        // 续页无表头时 OCR 常按屏幕顺序：时间|类型|对方|收支|金额|方式|单号|商户单号
+        String raw = """
+                |2026-07-14 09:31:21|商户消费|通行宝|支出|110.81|招商银行信用卡(1683)|4200003099202607145869|10001|
+                |2026-07-13 18:20:11|商户消费|咖啡店|支出|28.29|零钱|4200003099202607130001|10002|
+                """;
+        List<BillVO> list = BlogBillServiceImpl.parseMarkdownTable(raw);
+        assertEquals(2, list.size());
+        assertEquals("2026-07-14T09:31:21", list.get(0).getTradeTime().toString());
+        assertEquals(new BigDecimal("110.81"), list.get(0).getAmount());
+        assertEquals("通行宝", list.get(0).getMerchant());
+        assertEquals("招商银行信用卡(1683)", list.get(0).getPaymentMethod());
+        assertEquals("4200003099202607145869", list.get(0).getTradeNo());
+        assertEquals("10001", list.get(0).getMerchantOrderNo());
+        assertEquals("咖啡店", list.get(1).getMerchant());
+        assertEquals(null, BlogBillServiceImpl.findRecognizeQualityIssue(list));
+    }
+
+    @Test
     void qualityCheckFailsWhenAmountMissingOrMisaligned()
     {
         BillVO bad = new BillVO();
