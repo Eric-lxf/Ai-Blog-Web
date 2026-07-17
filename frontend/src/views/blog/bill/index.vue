@@ -175,7 +175,7 @@
           <div class="el-upload__text">拖拽微信明细截图 / PDF / Excel 到此处，或 <em>点击上传</em></div>
           <template #tip>
             <div class="el-upload__tip">
-              图片、PDF：走「账单识别」视觉模型（如 qwen3.5-ocr）；Excel：本地解析表头列。单文件 ≤15MB
+              图片 / PDF（按页各转一张图再识别）走视觉模型；Excel 本地解析。单文件 ≤15MB
             </div>
           </template>
         </el-upload>

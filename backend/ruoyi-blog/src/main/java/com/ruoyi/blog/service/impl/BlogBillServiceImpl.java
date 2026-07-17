@@ -76,14 +76,14 @@ public class BlogBillServiceImpl implements BlogBillService
             "表头固定为（顺序不可变）：\n" +
             "|交易单号|交易时间|交易类型|收/支/其他|交易方式|金额|交易对方|商户单号|\n" +
             "|---|---|---|---|---|---|---|---|\n" +
-            "随后输出表头之下每一行明细；空列用 || 占位，禁止后列前移；无日期则留空。\n" +
-            "长数字单号换行请拼成一串；金额只保留数字和小数点。";
+            "随后输出表头之下每一行明细；空列用 || 占位，禁止后列前移。\n" +
+            "无交易时间/日期的行不要输出。长数字单号换行请拼成一串；金额只保留数字和小数点。";
 
     /** 表格解析不足时的二次识别提示 */
     private static final String JSON_FALLBACK_PROMPT =
             "请再次识别同一张图中的交易明细表格（从表头行开始；仅横线+竖线同时存在的行）。\n" +
             "输出 JSON 数组，字段：tradeNo,tradeTime(yyyy-MM-dd HH:mm:ss),billDate,tradeType,direction,merchant,paymentMethod,amount,merchantOrderNo,category,confidence。\n" +
-            "缺字段用 null；空列勿前移；忽略表外说明与页脚。只输出 JSON 数组。";
+            "无日期的行不要输出；空列勿前移；忽略表外说明与页脚。只输出 JSON 数组。";
 
     private final BlogBillMapper billMapper;
     private final DeepSeekService deepSeekService;
@@ -231,12 +231,21 @@ public class BlogBillServiceImpl implements BlogBillService
             }
             if (isPdf(filename, contentType))
             {
+                // PDF：按页各渲染一张图，再逐页 OCR（互不拼页）
                 List<String> pages = BillPdfRenderer.toJpegDataUrls(file.getInputStream());
                 List<BillVO> all = new ArrayList<>();
                 for (int i = 0; i < pages.size(); i++)
                 {
-                    log.info("Bill PDF OCR page {}/{}", i + 1, pages.size());
-                    all.addAll(recognizeImageUrl(pages.get(i)));
+                    log.info("Bill PDF OCR page {}/{} (one image per page)", i + 1, pages.size());
+                    try
+                    {
+                        all.addAll(recognizeImageUrl(pages.get(i)));
+                    }
+                    catch (ServiceException pageEx)
+                    {
+                        // 单页无明细时跳过，继续后续页
+                        log.warn("Bill PDF page {}/{} skipped: {}", i + 1, pages.size(), pageEx.getMessage());
+                    }
                 }
                 if (all.isEmpty())
                 {
@@ -793,6 +802,11 @@ public class BlogBillServiceImpl implements BlogBillService
             {
             }
         }
+        // 无日期的行不要
+        if (vo.getBillDate() == null && vo.getTradeTime() == null)
+        {
+            return null;
+        }
         vo.setCategory(guessCategory(merchant, tradeType));
         vo.setAiConfidence(85);
         vo.setSource(1);
@@ -1182,6 +1196,11 @@ public class BlogBillServiceImpl implements BlogBillService
             vo.setCategory(guessCategory(merchant, vo.getTradeType()));
         }
         if (amount == null && !StringUtils.hasText(merchant) && !StringUtils.hasText(vo.getTradeNo()))
+        {
+            return null;
+        }
+        // 无日期的行不要
+        if (vo.getBillDate() == null && vo.getTradeTime() == null)
         {
             return null;
         }

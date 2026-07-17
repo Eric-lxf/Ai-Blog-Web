@@ -107,35 +107,32 @@ class BlogBillRecognizeParseTest
     }
 
     @Test
-    void keepsEmptyColumnsWithoutShiftingForward()
+    void dropsRowsWithoutDate()
     {
-        // 交易时间为空：用 || 占位，后面列不得前移
+        // 无日期的行不要；商户单号为空用 || 占位且不前移
         String raw = """
                 |交易单号|交易时间|交易类型|收/支/其他|交易方式|金额|交易对方|商户单号|
                 |---|---|---|---|---|---|---|---|
                 |4200003099202607145869||商户消费|支出|招商银行信用卡(1683)|110.81|通行宝|10001|
+                |4200003099202607145870|2026-07-14 09:31:21|商户消费|支出|零钱|9.90|咖啡店||
                 """;
         List<BillVO> list = BlogBillServiceImpl.parseMarkdownTable(raw);
         assertEquals(1, list.size());
-        assertEquals(null, list.get(0).getTradeTime());
-        assertEquals(null, list.get(0).getBillDate());
-        assertEquals("商户消费", list.get(0).getTradeType());
-        assertEquals("支出", list.get(0).getDirection());
-        assertEquals("招商银行信用卡(1683)", list.get(0).getPaymentMethod());
-        assertEquals(new BigDecimal("110.81"), list.get(0).getAmount());
-        assertEquals("通行宝", list.get(0).getMerchant());
+        assertEquals("咖啡店", list.get(0).getMerchant());
+        assertEquals(new BigDecimal("9.90"), list.get(0).getAmount());
+        assertEquals(null, list.get(0).getMerchantOrderNo());
     }
 
     @Test
     void realignsWhenOcrOmitsEmptyColumnPipes()
     {
-        // OCR 漏掉空的交易时间列，导致「商户消费」被推到时间位
+        // OCR 漏掉空的商户单号列，日期仍在，应重对齐并保留
         String raw = """
-                |4200003099202607145869|商户消费|支出|招商银行信用卡(1683)|110.81|通行宝|10001|
+                |4200003099202607145869|2026-07-14 09:31:21|商户消费|支出|招商银行信用卡(1683)|110.81|通行宝|
                 """;
         List<BillVO> list = BlogBillServiceImpl.parseMarkdownTable(raw);
         assertEquals(1, list.size());
-        assertEquals(null, list.get(0).getTradeTime());
+        assertEquals("2026-07-14T09:31:21", list.get(0).getTradeTime().toString());
         assertEquals("商户消费", list.get(0).getTradeType());
         assertEquals(new BigDecimal("110.81"), list.get(0).getAmount());
         assertEquals("通行宝", list.get(0).getMerchant());
