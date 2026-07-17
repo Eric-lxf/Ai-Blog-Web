@@ -563,7 +563,7 @@ async function doRecognize() {
       if (isExcelFile(file)) {
         recognizeLoadingText.value = '正在解析 Excel 账单明细…'
       } else if (isPdfFile(file)) {
-        recognizeLoadingText.value = '正在将 PDF 转图并用视觉模型识别（多页可能较久）…'
+        recognizeLoadingText.value = '正在按 PDF 页逐页转图并识别（每页一张图，多页可能较久）…'
       } else {
         recognizeLoadingText.value = '正在用账单视觉模型识别全部明细…'
       }

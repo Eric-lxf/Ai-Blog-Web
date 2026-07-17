@@ -169,4 +169,30 @@ class BlogBillRecognizeParseTest
         assertEquals("美团客服中心", list.get(0).getMerchant());
         assertEquals("10001", list.get(0).getMerchantOrderNo());
     }
+
+    @Test
+    void qualityCheckPassesCompleteRows()
+    {
+        List<BillVO> list = BlogBillServiceImpl.parseMarkdownTable("""
+                |4200003099202607145869|2026-07-14 09:31:21|商户消费|支出|零钱|9.90|咖啡店|10001|
+                """);
+        assertEquals(null, BlogBillServiceImpl.findRecognizeQualityIssue(list));
+    }
+
+    @Test
+    void qualityCheckFailsWhenAmountMissingOrMisaligned()
+    {
+        BillVO bad = new BillVO();
+        bad.setBillDate(java.time.LocalDate.of(2026, 7, 14));
+        bad.setMerchant("咖啡店");
+        bad.setAmount(null);
+        assertTrue(BlogBillServiceImpl.findRecognizeQualityIssue(java.util.List.of(bad)).contains("金额"));
+
+        BillVO swapped = new BillVO();
+        swapped.setBillDate(java.time.LocalDate.of(2026, 7, 14));
+        swapped.setAmount(new BigDecimal("9.90"));
+        swapped.setMerchant("9.90");
+        swapped.setTradeNo("4200003099202607145869");
+        assertTrue(BlogBillServiceImpl.findRecognizeQualityIssue(java.util.List.of(swapped)).contains("错位"));
+    }
 }

@@ -79,11 +79,20 @@ public class BlogBillServiceImpl implements BlogBillService
             "随后输出表头之下每一行明细；空列用 || 占位，禁止后列前移。\n" +
             "无交易时间/日期的行不要输出。长数字单号换行请拼成一串；金额只保留数字和小数点。";
 
-    /** 表格解析不足时的二次识别提示 */
+    /** 表格解析不足时的二次识别提示（同一轮内的格式兜底，不算「重识别轮」） */
     private static final String JSON_FALLBACK_PROMPT =
             "请再次识别同一张图中的交易明细表格（从表头行开始；仅横线+竖线同时存在的行）。\n" +
             "输出 JSON 数组，字段：tradeNo,tradeTime(yyyy-MM-dd HH:mm:ss),billDate,tradeType,direction,merchant,paymentMethod,amount,merchantOrderNo,category,confidence。\n" +
             "无日期的行不要输出；空列勿前移；忽略表外说明与页脚。只输出 JSON 数组。";
+
+    /** 解析后自检不合格时，最多再整轮识别 1 次 */
+    private static final String REPAIR_OCR_PROMPT =
+            "上一轮识别结果不完整或格式有误，请重新识别本图交易明细表格。\n" +
+            "从表头开始；仅横线+竖线同时存在的行；无日期行不要输出。\n" +
+            "只输出 Markdown 表格（半角 |），表头固定：\n" +
+            "|交易单号|交易时间|交易类型|收/支/其他|交易方式|金额|交易对方|商户单号|\n" +
+            "|---|---|---|---|---|---|---|---|\n" +
+            "每行必须含有效交易时间与金额；空列用 ||；禁止后列前移；不要表外文字。";
 
     private final BlogBillMapper billMapper;
     private final DeepSeekService deepSeekService;
@@ -273,7 +282,37 @@ public class BlogBillServiceImpl implements BlogBillService
 
     private List<BillVO> recognizeImageUrl(String imageUrl)
     {
-        String tableRaw = deepSeekService.recognizeImage(imageUrl, TABLE_OCR_PROMPT, AiModuleCode.BILL_VISION);
+        List<BillVO> list = recognizeImageOnce(imageUrl, TABLE_OCR_PROMPT, true);
+        String qualityIssue = findRecognizeQualityIssue(list);
+        if (qualityIssue != null)
+        {
+            // 自检不合格：最多再整轮识别 1 次，禁止死循环
+            log.warn("Bill OCR quality check failed ({}), retry recognize once", qualityIssue);
+            List<BillVO> repaired = recognizeImageOnce(imageUrl, REPAIR_OCR_PROMPT, true);
+            String repairedIssue = findRecognizeQualityIssue(repaired);
+            if (repairedIssue == null || (!repaired.isEmpty() && repaired.size() >= list.size()))
+            {
+                list = repaired;
+                qualityIssue = repairedIssue;
+            }
+            if (qualityIssue != null)
+            {
+                log.warn("Bill OCR still imperfect after 1 repair round: {}", qualityIssue);
+            }
+        }
+        if (list.isEmpty())
+        {
+            throw new ServiceException("未能从图片中识别到账单明细，请换更清晰的原图后重试", HttpStatus.ERROR);
+        }
+        return list;
+    }
+
+    /**
+     * 单轮识别：表格 OCR → 必要时同轮 JSON 兜底。不算「重识别轮」。
+     */
+    private List<BillVO> recognizeImageOnce(String imageUrl, String tablePrompt, boolean allowJsonFallback)
+    {
+        String tableRaw = deepSeekService.recognizeImage(imageUrl, tablePrompt, AiModuleCode.BILL_VISION);
         log.info("Bill OCR table raw len={} preview={}", tableRaw != null ? tableRaw.length() : 0,
                 abbreviate(tableRaw, 400));
 
@@ -281,14 +320,13 @@ public class BlogBillServiceImpl implements BlogBillService
         log.info("Bill OCR table parsed rows={}", list.size());
         if (list.size() <= 1)
         {
-            // 表格解析不足时：尝试把同一次输出当 JSON；仍不足则二次调用强制 JSON 全量
             List<BillVO> fromJson = parseRecognizeResults(tableRaw, objectMapper);
             if (fromJson.size() > list.size())
             {
                 list = fromJson;
             }
         }
-        if (list.size() <= 1)
+        if (allowJsonFallback && list.size() <= 1)
         {
             String jsonRaw = deepSeekService.recognizeImage(imageUrl, JSON_FALLBACK_PROMPT, AiModuleCode.BILL_VISION);
             log.info("Bill OCR json fallback len={} preview={}", jsonRaw != null ? jsonRaw.length() : 0,
@@ -299,12 +337,58 @@ public class BlogBillServiceImpl implements BlogBillService
                 list = fromJson;
             }
         }
-        if (list.isEmpty())
-        {
-            log.warn("Bill OCR empty after table+json. tablePreview={}", abbreviate(tableRaw, 800));
-            throw new ServiceException("未能从图片中识别到账单明细，请换更清晰的原图后重试", HttpStatus.ERROR);
-        }
         return list;
+    }
+
+    /**
+     * 自检识别结果是否格式正确且完整。返回 null 表示通过，否则为问题描述。
+     */
+    public static String findRecognizeQualityIssue(List<BillVO> list)
+    {
+        if (list == null || list.isEmpty())
+        {
+            return "结果为空";
+        }
+        for (int i = 0; i < list.size(); i++)
+        {
+            String rowIssue = findRowQualityIssue(list.get(i));
+            if (rowIssue != null)
+            {
+                return "第" + (i + 1) + "行" + rowIssue;
+            }
+        }
+        return null;
+    }
+
+    /** 单行是否具备可用账单字段：日期 + 金额 +（对方或单号） */
+    public static String findRowQualityIssue(BillVO vo)
+    {
+        if (vo == null)
+        {
+            return "为空";
+        }
+        if (vo.getBillDate() == null && vo.getTradeTime() == null)
+        {
+            return "缺少日期";
+        }
+        if (vo.getAmount() == null || vo.getAmount().signum() <= 0)
+        {
+            return "金额无效";
+        }
+        if (!StringUtils.hasText(vo.getMerchant()) && !StringUtils.hasText(vo.getTradeNo()))
+        {
+            return "缺少交易对方与交易单号";
+        }
+        // 明显列错位：交易类型位像日期、或对方位像金额
+        if (StringUtils.hasText(vo.getTradeType()) && isDateTimeCell(vo.getTradeType()))
+        {
+            return "交易类型疑似日期（列错位）";
+        }
+        if (StringUtils.hasText(vo.getMerchant()) && isAmountCell(vo.getMerchant()))
+        {
+            return "交易对方疑似金额（列错位）";
+        }
+        return null;
     }
 
     private static boolean isExcel(String filename, String contentType)
