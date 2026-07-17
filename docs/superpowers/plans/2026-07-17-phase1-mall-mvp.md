@@ -1,7 +1,8 @@
 # Phase 1 — 商城交易最小闭环（MVP）任务拆分
 
 > **For agentic workers:** 本文是任务拆分与边界说明，**先不要实现**。获准开工后，推荐使用 `superpowers:subagent-driven-development` 或 `executing-plans` 按 Task 顺序落地。  
-> 总览与分期见 [`docs/ecommerce-platform-transformation-plan.md`](../../ecommerce-platform-transformation-plan.md)。
+> 总览与分期见 [`docs/ecommerce-platform-transformation-plan.md`](../../ecommerce-platform-transformation-plan.md)。  
+> **架构图 / E-R / SQL 设计稿**：[`docs/ecommerce-impl/phase1/`](../../ecommerce-impl/phase1/README.md)。
 
 **Goal:** 运营可管商品与订单；C 端用户可浏览、加购、下单，并经支付回调进入「待发货」。
 
@@ -27,7 +28,7 @@
 | `backend/ruoyi-mall-product/` | 类目/品牌/SPU/SKU/上下架，后台 CRUD + 少量公开只读 API |
 | `backend/ruoyi-mall-trade/` | 购物车、订单、订单项快照、订单日志、超时取消 Job 业务 |
 | `backend/ruoyi-mall-payment/` | 支付单、渠道 SPI、下单/回调/查单 |
-| `sql/mall_*.sql` | schema + menu seed |
+| `docs/ecommerce-impl/phase1/sql/*` → 落地时同步 `sql/mall_*.sql` | schema + menu seed（设计稿已就绪） |
 | `frontend/src/views/mall/admin/**` | 运营后台商品/订单页 |
 | `frontend/src/views/public/mall/**` | C 端商城页 |
 | `frontend/src/api/mall/**` | 前后端 API 封装 |
@@ -79,24 +80,10 @@ T0 决策锁定
 - Create: `backend/ruoyi-mall-trade/`、`backend/ruoyi-mall-payment/` 同构空模块
 - Modify: `backend/pom.xml`、`backend/ruoyi-admin/pom.xml`、`backend/Dockerfile`
 - Modify: `backend/ruoyi-admin/src/main/resources/application.yml`（springdoc 扫描包）
-- Create: `sql/mall_category_brand_schema.sql`、`mall_product_schema.sql`、`mall_cart_order_schema.sql`、`mall_payment_schema.sql`、`mall_address_schema.sql`、`mall_menu_seed.sql`（可先建空表结构+注释，字段在后续 Task 补齐亦可——**推荐本 Task 即给出完整 P1 DDL**）
+- 以设计稿为准同步到根目录：`docs/ecommerce-impl/phase1/sql/01`–`07` → `sql/mall_*.sql`（字段与菜单已在设计稿写全，勿另起一套）
 - Modify: 根 `README.md` SQL 执行顺序
 
-**表结构最低字段（P1）:**
-
-| 表 | 关键字段 |
-|---|---|
-| `mall_category` | id, parent_id, name, sort, status |
-| `mall_brand` | id, name, logo, status |
-| `mall_spu` | id, category_id, brand_id, name, subtitle, main_image, detail_html, status(`DRAFT/ON/OFF`), audit 可选 |
-| `mall_sku` | id, spu_id, sku_code, specs_json, price, stock, status |
-| `mall_spu_image` | id, spu_id, url, sort |
-| `mall_cart` | id, user_id, sku_id, quantity |
-| `mall_order` | id, order_no, user_id, status, pay_amount, address_snapshot_json, pay_time, cancel_time, expire_time |
-| `mall_order_item` | id, order_id, sku_id, spu_name, sku_specs, price, quantity, image |
-| `mall_order_log` | id, order_id, from_status, to_status, remark, create_by, create_time |
-| `mall_payment_order` | id, pay_no, order_id, channel, amount, status, channel_trade_no, notify_raw |
-| `mall_address` | id, user_id, receiver, mobile, province/city/district, detail, is_default |
+**表结构**：见 [`phase1/er-diagram.md`](../../ecommerce-impl/phase1/er-diagram.md) 与 [`phase1/sql/`](../../ecommerce-impl/phase1/sql/README.md)，勿在本 Task 重复发明字段。
 
 **菜单建议:**
 

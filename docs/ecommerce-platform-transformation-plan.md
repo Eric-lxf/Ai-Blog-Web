@@ -4,7 +4,9 @@
 **作者**：Cloud Agent（架构 & 产品视角）  
 **最后更新**：2026-07-17  
 **范围**：后台系统全景梳理 + **基于当前仓库真实能力**的改造映射 + 分期路线图 + Phase 1 任务索引  
-**配套文档**：Phase 1 可执行任务拆分见 [`docs/superpowers/plans/2026-07-17-phase1-mall-mvp.md`](./superpowers/plans/2026-07-17-phase1-mall-mvp.md)
+**配套文档**：
+- Phase 1 任务拆分：[`docs/superpowers/plans/2026-07-17-phase1-mall-mvp.md`](./superpowers/plans/2026-07-17-phase1-mall-mvp.md)
+- **分期实现资料（架构图 / E-R / SQL）**：[`docs/ecommerce-impl/`](./ecommerce-impl/README.md)（Phase 1 已就绪；Phase 2–4 占位，后续实现时补充）
 
 ---
 
@@ -148,6 +150,8 @@
 
 **详细任务拆分**：见 [`2026-07-17-phase1-mall-mvp.md`](./superpowers/plans/2026-07-17-phase1-mall-mvp.md)（**本文不展开实现步骤；先拆任务、不编码**）。
 
+**架构图 / E-R / DDL**：见 [`docs/ecommerce-impl/phase1/`](./ecommerce-impl/phase1/README.md)。
+
 ### 🟡 Phase 2 — 完整履约闭环
 
 **规模：XL**
@@ -228,23 +232,18 @@
 
 ---
 
-## 7. 数据库 Schema 规划（对齐 `sql/` 命名）
+## 7. 数据库 Schema 规划
 
-| 计划文件 | 内容 | 阶段 |
+**权威设计稿**（含可执行 DDL）放在 [`docs/ecommerce-impl/`](./ecommerce-impl/README.md)；业务代码落地时再同步到仓库根目录 `sql/`。
+
+| 阶段 | 设计目录 | 根目录 `sql/` 落地名（实现时） |
 |---|---|---|
-| `mall_category_brand_schema.sql` | 类目、品牌 | P1 |
-| `mall_product_schema.sql` | SPU/SKU/属性/图片 | P1 |
-| `mall_cart_order_schema.sql` | 购物车、订单、订单项、订单日志 | P1 |
-| `mall_payment_schema.sql` | 支付单（退款单可同文件） | P1 |
-| `mall_address_schema.sql` | 收货地址 | P1 |
-| `mall_member_schema.sql` | C 端会员（若与 SysUser 分离） | P1 |
-| `mall_menu_seed.sql` | 后台菜单权限（ID ≥ 3000） | P1 |
-| `mall_inventory_schema.sql` | 仓库、库存、预占 | P2 |
-| `mall_aftersale_schema.sql` | 售后 | P2 |
-| `mall_marketing_schema.sql` | 券/活动 | P3 |
-| `mall_review_schema.sql` | 评价 | P2 |
+| P1 | [`phase1/sql/`](./ecommerce-impl/phase1/sql/) 已含 01–07 脚本 | `mall_category_brand_schema.sql` 等 |
+| P2 | `phase2/sql/`（占位） | `mall_inventory_*` / `mall_aftersale_*` / `mall_review_*` |
+| P3 | `phase3/sql/`（占位） | `mall_marketing_*` / CMS 相关 |
+| P4 | `phase4/sql/`（占位） | 按子项拆分 |
 
-每个 Phase 落地时按「一功能一 schema + 独立 menu」约定追加，并更新 README 初始化顺序。
+P1 默认不建 `mall_member`（身份方案 A 复用 `sys_user`）；若改选方案 B，在 `phase1/sql/` 追加会员表脚本。
 
 ---
 
