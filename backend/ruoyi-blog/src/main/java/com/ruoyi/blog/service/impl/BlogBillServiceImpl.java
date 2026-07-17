@@ -66,28 +66,24 @@ public class BlogBillServiceImpl implements BlogBillService
     private static final DateTimeFormatter TRADE_TIME_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     /**
-     * OCR 模型更擅长「按表格原文输出」，直接要复杂 JSON 容易只返回第一行且列错位。
-     * 固定列顺序与微信交易明细一致，后续在本地解析。
+     * OCR 主提示：从表头开始识别；仅「横线+竖线」构成的表格行才输出。
+     * 固定列顺序与微信交易明细一致，本地再解析。
      */
     private static final String TABLE_OCR_PROMPT =
-            "请识别图片中的微信支付交易明细/银行流水表格。\n" +
-            "只输出 Markdown 表格（半角竖线 |），不要解释、不要 JSON。\n" +
-            "表头必须严格为（顺序不可变）：\n" +
-            "|交易单号|交易时间|交易类型|收/支/其他|交易方式|金额|交易对方|商户单号|\n" +
-            "然后输出分隔行，再输出全部交易明细行，禁止只输出第一行。\n" +
-            "空列请用 || 占位，不要把后面的值往前挪；本行没有日期就留空，不要用上一行填充。\n" +
-            "不要输出页脚链接、加载更多、页码等非交易行。长数字单号若换行请拼成完整一串；金额只保留数字和小数点。\n" +
-            "示例：\n" +
+            "从图中「交易明细表格」的表头行开始识别，只输出该表格。\n" +
+            "行判定：同时具备横线与竖线的才是表格行；仅有文字、无横线或无竖线的内容一律跳过（含说明文字、页眉页脚、链接、按钮、页码等）。\n" +
+            "只输出 Markdown 表格（半角 |），不要解释、不要 JSON、不要表外任何文字。\n" +
+            "表头固定为（顺序不可变）：\n" +
             "|交易单号|交易时间|交易类型|收/支/其他|交易方式|金额|交易对方|商户单号|\n" +
             "|---|---|---|---|---|---|---|---|\n" +
-            "|4200003099202607145869|2026-07-14 09:31:21|商户消费|支出|招商银行信用卡(1683)|110.81|通行宝|10001|\n" +
-            "|4200003099202607130002||商户消费|支出|零钱|9.90|某某店||\n";
+            "随后输出表头之下每一行明细；空列用 || 占位，禁止后列前移；无日期则留空。\n" +
+            "长数字单号换行请拼成一串；金额只保留数字和小数点。";
 
-    /** 兼容旧 JSON 输出的提示（当表格解析失败时二次调用） */
+    /** 表格解析不足时的二次识别提示 */
     private static final String JSON_FALLBACK_PROMPT =
-            "请再次识别同一张图中的全部交易明细，输出 JSON 数组。\n" +
-            "每个元素字段：tradeNo,tradeTime(yyyy-MM-dd HH:mm:ss),billDate,tradeType,direction,merchant,paymentMethod,amount,merchantOrderNo,category,confidence。\n" +
-            "缺字段用 null；不要用上一行填充；忽略页脚链接。merchant=交易对方，paymentMethod=交易方式。只输出 JSON 数组。";
+            "请再次识别同一张图中的交易明细表格（从表头行开始；仅横线+竖线同时存在的行）。\n" +
+            "输出 JSON 数组，字段：tradeNo,tradeTime(yyyy-MM-dd HH:mm:ss),billDate,tradeType,direction,merchant,paymentMethod,amount,merchantOrderNo,category,confidence。\n" +
+            "缺字段用 null；空列勿前移；忽略表外说明与页脚。只输出 JSON 数组。";
 
     private final BlogBillMapper billMapper;
     private final DeepSeekService deepSeekService;
