@@ -69,29 +69,50 @@ public class BlogBillServiceImpl implements BlogBillService
      * OCR 主提示：从表头开始识别；仅「横线+竖线」构成的表格行才输出。
      * 固定列顺序与微信交易明细一致，本地再解析。
      */
+    private static final String TABLE_HEADER =
+            "|交易单号|交易时间|交易类型|收/支/其他|交易方式|金额|交易对方|商户单号|\n" +
+            "|---|---|---|---|---|---|---|---|";
+
+    /** 首页/含表头页 */
     private static final String TABLE_OCR_PROMPT =
             "从图中「交易明细表格」的表头行开始识别，只输出该表格。\n" +
             "行判定：同时具备横线与竖线的才是表格行；仅有文字、无横线或无竖线的内容一律跳过（含说明文字、页眉页脚、链接、按钮、页码等）。\n" +
             "只输出 Markdown 表格（半角 |），不要解释、不要 JSON、不要表外任何文字。\n" +
             "表头固定为（顺序不可变）：\n" +
-            "|交易单号|交易时间|交易类型|收/支/其他|交易方式|金额|交易对方|商户单号|\n" +
-            "|---|---|---|---|---|---|---|---|\n" +
+            TABLE_HEADER + "\n" +
             "随后输出表头之下每一行明细；空列用 || 占位，禁止后列前移。\n" +
             "无交易时间/日期的行不要输出。长数字单号换行请拼成一串；金额只保留数字和小数点。";
 
+    /**
+     * 续页专用：微信/银行 PDF 第 2 页起通常不再重复表头。
+     * 若仍要求「从表头开始」，模型会漏日期或按屏幕视觉顺序错位输出。
+     */
+    private static final String CONTINUATION_TABLE_OCR_PROMPT =
+            "本图是交易明细的续页，通常没有表头行，请直接识别表格数据行，不要因为找不到表头而跳过或乱序。\n" +
+            "行判定：同时具备横线与竖线的才是表格行；说明文字、页眉页脚、链接、按钮、页码等一律跳过。\n" +
+            "只输出 Markdown 表格（半角 |），先输出下面固定表头（即使图中没有），再输出本页全部明细行：\n" +
+            TABLE_HEADER + "\n" +
+            "列顺序必须严格按上表，不要按屏幕从左到右的视觉顺序输出。\n" +
+            "按单元格内容归列：日期时间→交易时间；长数字→交易单号或商户单号；支出/收入→收/支；小数金额→金额；银行/零钱/信用卡→交易方式；名称→交易对方。\n" +
+            "空列用 || 占位，禁止后列前移；无交易时间的行不要输出。";
+
     /** 表格解析不足时的二次识别提示（同一轮内的格式兜底，不算「重识别轮」） */
     private static final String JSON_FALLBACK_PROMPT =
-            "请再次识别同一张图中的交易明细表格（从表头行开始；仅横线+竖线同时存在的行）。\n" +
+            "请再次识别本图交易明细（仅横线+竖线行；续页可无表头）。\n" +
             "输出 JSON 数组，字段：tradeNo,tradeTime(yyyy-MM-dd HH:mm:ss),billDate,tradeType,direction,merchant,paymentMethod,amount,merchantOrderNo,category,confidence。\n" +
             "无日期的行不要输出；空列勿前移；忽略表外说明与页脚。只输出 JSON 数组。";
+
+    private static final String JSON_FALLBACK_CONTINUATION_PROMPT =
+            "本图是续页（可能无表头）。请识别全部表格数据行，输出 JSON 数组。\n" +
+            "字段：tradeNo,tradeTime(yyyy-MM-dd HH:mm:ss),billDate,tradeType,direction,merchant,paymentMethod,amount,merchantOrderNo,category,confidence。\n" +
+            "按内容归字段，勿按屏幕左右顺序乱填；无日期行不要；只输出 JSON 数组。";
 
     /** 解析后自检不合格时，最多再整轮识别 1 次 */
     private static final String REPAIR_OCR_PROMPT =
             "上一轮识别结果不完整或格式有误，请重新识别本图交易明细表格。\n" +
-            "从表头开始；仅横线+竖线同时存在的行；无日期行不要输出。\n" +
-            "只输出 Markdown 表格（半角 |），表头固定：\n" +
-            "|交易单号|交易时间|交易类型|收/支/其他|交易方式|金额|交易对方|商户单号|\n" +
-            "|---|---|---|---|---|---|---|---|\n" +
+            "若本页无表头，仍按固定列顺序输出数据行；仅横线+竖线行；无日期行不要输出。\n" +
+            "只输出 Markdown 表格（半角 |）：\n" +
+            TABLE_HEADER + "\n" +
             "每行必须含有效交易时间与金额；空列用 ||；禁止后列前移；不要表外文字。";
 
     private final BlogBillMapper billMapper;
@@ -215,7 +236,7 @@ public class BlogBillServiceImpl implements BlogBillService
     @Override
     public List<BillVO> recognize(BillRecognizeRequest request)
     {
-        return recognizeImageUrl(validateRecognizeImageUrl(request.getImageUrl()));
+        return recognizeImageUrl(validateRecognizeImageUrl(request.getImageUrl()), false);
     }
 
     @Override
@@ -241,14 +262,16 @@ public class BlogBillServiceImpl implements BlogBillService
             if (isPdf(filename, contentType))
             {
                 // PDF：按页各渲染一张图，再逐页 OCR（互不拼页）
+                // 第 1 页通常有表头；第 2 页起多为续页无表头，需用续页提示，否则易丢日期/列错乱
                 List<String> pages = BillPdfRenderer.toJpegDataUrls(file.getInputStream());
                 List<BillVO> all = new ArrayList<>();
                 for (int i = 0; i < pages.size(); i++)
                 {
-                    log.info("Bill PDF OCR page {}/{} (one image per page)", i + 1, pages.size());
+                    boolean continuation = i > 0;
+                    log.info("Bill PDF OCR page {}/{} continuation={}", i + 1, pages.size(), continuation);
                     try
                     {
-                        all.addAll(recognizeImageUrl(pages.get(i)));
+                        all.addAll(recognizeImageUrl(pages.get(i), continuation));
                     }
                     catch (ServiceException pageEx)
                     {
@@ -265,7 +288,7 @@ public class BlogBillServiceImpl implements BlogBillService
             if (isImage(filename, contentType))
             {
                 String dataUrl = toImageDataUrl(file.getBytes(), filename, contentType);
-                return recognizeImageUrl(dataUrl);
+                return recognizeImageUrl(dataUrl, false);
             }
             throw new ServiceException("仅支持图片（JPG/PNG/WEBP）、PDF、Excel（xls/xlsx）", HttpStatus.BAD_REQUEST);
         }
@@ -280,15 +303,21 @@ public class BlogBillServiceImpl implements BlogBillService
         }
     }
 
-    private List<BillVO> recognizeImageUrl(String imageUrl)
+    /**
+     * @param continuationPage true=PDF/截图续页（通常无表头），使用续页提示词
+     */
+    private List<BillVO> recognizeImageUrl(String imageUrl, boolean continuationPage)
     {
-        List<BillVO> list = recognizeImageOnce(imageUrl, TABLE_OCR_PROMPT, true);
+        String tablePrompt = continuationPage ? CONTINUATION_TABLE_OCR_PROMPT : TABLE_OCR_PROMPT;
+        String jsonPrompt = continuationPage ? JSON_FALLBACK_CONTINUATION_PROMPT : JSON_FALLBACK_PROMPT;
+        List<BillVO> list = recognizeImageOnce(imageUrl, tablePrompt, jsonPrompt, true);
         String qualityIssue = findRecognizeQualityIssue(list);
         if (qualityIssue != null)
         {
             // 自检不合格：最多再整轮识别 1 次，禁止死循环
-            log.warn("Bill OCR quality check failed ({}), retry recognize once", qualityIssue);
-            List<BillVO> repaired = recognizeImageOnce(imageUrl, REPAIR_OCR_PROMPT, true);
+            log.warn("Bill OCR quality check failed (continuation={}, {}), retry recognize once",
+                    continuationPage, qualityIssue);
+            List<BillVO> repaired = recognizeImageOnce(imageUrl, REPAIR_OCR_PROMPT, jsonPrompt, true);
             String repairedIssue = findRecognizeQualityIssue(repaired);
             if (repairedIssue == null || (!repaired.isEmpty() && repaired.size() >= list.size()))
             {
@@ -310,7 +339,8 @@ public class BlogBillServiceImpl implements BlogBillService
     /**
      * 单轮识别：表格 OCR → 必要时同轮 JSON 兜底。不算「重识别轮」。
      */
-    private List<BillVO> recognizeImageOnce(String imageUrl, String tablePrompt, boolean allowJsonFallback)
+    private List<BillVO> recognizeImageOnce(String imageUrl, String tablePrompt, String jsonPrompt,
+            boolean allowJsonFallback)
     {
         String tableRaw = deepSeekService.recognizeImage(imageUrl, tablePrompt, AiModuleCode.BILL_VISION);
         log.info("Bill OCR table raw len={} preview={}", tableRaw != null ? tableRaw.length() : 0,
@@ -328,7 +358,7 @@ public class BlogBillServiceImpl implements BlogBillService
         }
         if (allowJsonFallback && list.size() <= 1)
         {
-            String jsonRaw = deepSeekService.recognizeImage(imageUrl, JSON_FALLBACK_PROMPT, AiModuleCode.BILL_VISION);
+            String jsonRaw = deepSeekService.recognizeImage(imageUrl, jsonPrompt, AiModuleCode.BILL_VISION);
             log.info("Bill OCR json fallback len={} preview={}", jsonRaw != null ? jsonRaw.length() : 0,
                     abbreviate(jsonRaw, 400));
             List<BillVO> fromJson = parseRecognizeResults(jsonRaw, objectMapper);
@@ -605,6 +635,7 @@ public class BlogBillServiceImpl implements BlogBillService
 
     /**
      * 对齐到 8 列微信明细。若 OCR 用 || 保留了空列则信任位置；若漏掉空列导致「往后列前推」则按类型重排。
+     * 续页无表头时 OCR 常按屏幕视觉顺序输出（首列为交易时间），需先映射到内部固定顺序。
      */
     static List<String> alignWechatColumns(List<String> rawCells)
     {
@@ -617,6 +648,13 @@ public class BlogBillServiceImpl implements BlogBillService
         while (!cells.isEmpty() && !StringUtils.hasText(cells.get(cells.size() - 1)) && cells.size() > 8)
         {
             cells.remove(cells.size() - 1);
+        }
+
+        List<String> padded = padOrTrimTo8(cells);
+        // 续页/无表头：首列为日期时间 → 微信视觉列序，映射到内部 8 列
+        if (looksLikeWechatVisualOrder(padded))
+        {
+            return remapVisualOrderToInternal(padded);
         }
 
         boolean hasInternalEmpty = false;
@@ -635,6 +673,41 @@ public class BlogBillServiceImpl implements BlogBillService
         }
         // 列数不对或位置类型明显错位：按字段类型重排，空槽保持空（不向前借用）
         return realignByFieldType(cells);
+    }
+
+    /**
+     * 微信明细常见视觉顺序（续页无表头时 OCR 易按此输出）：
+     * 交易时间|交易类型|交易对方|收/支|金额|交易方式|交易单号|商户单号
+     */
+    static boolean looksLikeWechatVisualOrder(List<String> cells)
+    {
+        List<String> c = padOrTrimTo8(cells);
+        // 内部序时间在第 2 列；若第 1 列已是时间，视为续页视觉序
+        if (!isDateTimeCell(c.get(0)))
+        {
+            return false;
+        }
+        boolean secondLooksType = isTradeTypeCell(c.get(1))
+                || (StringUtils.hasText(c.get(1)) && !isDateTimeCell(c.get(1))
+                && !isAmountCell(c.get(1)) && !isDirectionCell(c.get(1)));
+        boolean amountAtMid = isAmountCell(c.get(4)) || isAmountCell(c.get(5));
+        return secondLooksType && amountAtMid;
+    }
+
+    /** 视觉序 → 内部序：交易单号|交易时间|交易类型|收/支|交易方式|金额|交易对方|商户单号 */
+    static List<String> remapVisualOrderToInternal(List<String> visual)
+    {
+        List<String> v = padOrTrimTo8(visual);
+        List<String> out = new ArrayList<>(8);
+        out.add(v.get(6)); // 交易单号
+        out.add(v.get(0)); // 交易时间
+        out.add(v.get(1)); // 交易类型
+        out.add(v.get(3)); // 收/支
+        out.add(v.get(5)); // 交易方式
+        out.add(v.get(4)); // 金额
+        out.add(v.get(2)); // 交易对方
+        out.add(v.get(7)); // 商户单号
+        return out;
     }
 
     private static List<String> padOrTrimTo8(List<String> cells)
