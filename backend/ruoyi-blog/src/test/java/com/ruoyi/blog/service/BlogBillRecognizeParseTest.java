@@ -156,4 +156,20 @@ class BlogBillRecognizeParseTest
         assertEquals(1, list.size());
         assertEquals("咖啡店", list.get(0).getMerchant());
     }
+
+    @Test
+    void parsesFullwidthPipeTables()
+    {
+        // qwen OCR 常输出全角竖线，旧逻辑会整表跳过导致「识别不到」
+        String raw = """
+                ｜交易单号｜交易时间｜交易类型｜收/支/其他｜交易方式｜金额｜交易对方｜商户单号｜
+                ｜---｜---｜---｜---｜---｜---｜---｜---｜
+                ｜4200003099202607145869｜2026-07-14 09:31:21｜商户消费｜支出｜零钱｜9.90｜美团客服中心｜10001｜
+                """;
+        List<BillVO> list = BlogBillServiceImpl.parseMarkdownTable(raw);
+        assertEquals(1, list.size());
+        assertEquals(new BigDecimal("9.90"), list.get(0).getAmount());
+        assertEquals("美团客服中心", list.get(0).getMerchant());
+        assertEquals("10001", list.get(0).getMerchantOrderNo());
+    }
 }

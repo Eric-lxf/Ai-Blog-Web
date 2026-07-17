@@ -58,8 +58,10 @@ public class BlogBillServiceImpl implements BlogBillService
             "^\\d{4}[-/年.]\\d{1,2}[-/月.]\\d{1,2}([\\sT]\\d{1,2}:\\d{2}(:\\d{2})?)?$");
     private static final Pattern AMOUNT_CELL = Pattern.compile("^[-+]?[¥￥]?\\d{1,7}(\\.\\d{1,2})?元?$");
     private static final Pattern LONG_DIGITS = Pattern.compile("^\\d{10,}$");
+    /** 仅匹配明确的页脚/链接行；勿用「客服/投诉/.cn」等过宽关键字，否则会误杀正常交易行 */
     private static final Pattern JUNK_ROW = Pattern.compile(
-            "(?i)https?://|www\\.|\\.com|\\.cn|加载更多|查看详情|查看更多|客服|帮助中心|投诉|意见反馈|微信支付团队|点击这里|第\\s*\\d+\\s*页");
+            "(?i)https?://|www\\.|加载更多|查看详情|查看更多|帮助中心|意见反馈|微信支付团队|点击这里|第\\s*\\d+\\s*页");
+    private static final Pattern HAS_AMOUNT_HINT = Pattern.compile("\\d+\\.\\d{1,2}");
     private static final DateTimeFormatter MONTH_FMT = DateTimeFormatter.ofPattern("yyyy-MM");
     private static final DateTimeFormatter TRADE_TIME_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -69,16 +71,13 @@ public class BlogBillServiceImpl implements BlogBillService
      */
     private static final String TABLE_OCR_PROMPT =
             "请识别图片中的微信支付交易明细/银行流水表格。\n" +
-            "只输出 Markdown 表格，不要解释、不要 JSON。\n" +
+            "只输出 Markdown 表格（半角竖线 |），不要解释、不要 JSON。\n" +
             "表头必须严格为（顺序不可变）：\n" +
             "|交易单号|交易时间|交易类型|收/支/其他|交易方式|金额|交易对方|商户单号|\n" +
-            "然后输出分隔行，再输出「具体交易明细」下的每一行真实交易数据，禁止只输出第一行。\n" +
-            "硬性规则：\n" +
-            "1) 每一行必须恰好 8 列；某列看不清或为空时仍输出空单元格（连续两个竖线 ||），禁止把后面的值往前挪到空列。\n" +
-            "2) 禁止用上一行的日期/单号/对方等字段填充本行；本行没有日期就留空，不要猜测、不要前推。\n" +
-            "3) 忽略页面装饰与非交易内容：页眉页脚、导航、超链接/URL、按钮、「加载更多/查看详情/客服/帮助」、页码等，一律不要输出成表格行。\n" +
-            "4) 长数字单号若换行，请拼成完整一串。金额只保留数字和小数点。\n" +
-            "示例（注意空列用 || 占位）：\n" +
+            "然后输出分隔行，再输出全部交易明细行，禁止只输出第一行。\n" +
+            "空列请用 || 占位，不要把后面的值往前挪；本行没有日期就留空，不要用上一行填充。\n" +
+            "不要输出页脚链接、加载更多、页码等非交易行。长数字单号若换行请拼成完整一串；金额只保留数字和小数点。\n" +
+            "示例：\n" +
             "|交易单号|交易时间|交易类型|收/支/其他|交易方式|金额|交易对方|商户单号|\n" +
             "|---|---|---|---|---|---|---|---|\n" +
             "|4200003099202607145869|2026-07-14 09:31:21|商户消费|支出|招商银行信用卡(1683)|110.81|通行宝|10001|\n" +
@@ -86,10 +85,9 @@ public class BlogBillServiceImpl implements BlogBillService
 
     /** 兼容旧 JSON 输出的提示（当表格解析失败时二次调用） */
     private static final String JSON_FALLBACK_PROMPT =
-            "上一轮表格识别不完整或列错位。请再次识别同一张图，输出 JSON 数组，覆盖全部真实交易行。\n" +
+            "请再次识别同一张图中的全部交易明细，输出 JSON 数组。\n" +
             "每个元素字段：tradeNo,tradeTime(yyyy-MM-dd HH:mm:ss),billDate,tradeType,direction,merchant,paymentMethod,amount,merchantOrderNo,category,confidence。\n" +
-            "规则：缺字段用 null/空字符串，禁止用上一行值填充；忽略页脚链接与非交易 UI。\n" +
-            "列含义：merchant=交易对方，paymentMethod=交易方式（银行卡名+尾号）。只输出 JSON 数组。";
+            "缺字段用 null；不要用上一行填充；忽略页脚链接。merchant=交易对方，paymentMethod=交易方式。只输出 JSON 数组。";
 
     private final BlogBillMapper billMapper;
     private final DeepSeekService deepSeekService;
@@ -275,6 +273,7 @@ public class BlogBillServiceImpl implements BlogBillService
                 abbreviate(tableRaw, 400));
 
         List<BillVO> list = parseMarkdownTable(tableRaw);
+        log.info("Bill OCR table parsed rows={}", list.size());
         if (list.size() <= 1)
         {
             // 表格解析不足时：尝试把同一次输出当 JSON；仍不足则二次调用强制 JSON 全量
@@ -297,6 +296,7 @@ public class BlogBillServiceImpl implements BlogBillService
         }
         if (list.isEmpty())
         {
+            log.warn("Bill OCR empty after table+json. tablePreview={}", abbreviate(tableRaw, 800));
             throw new ServiceException("未能从图片中识别到账单明细，请换更清晰的原图后重试", HttpStatus.ERROR);
         }
         return list;
@@ -424,12 +424,26 @@ public class BlogBillServiceImpl implements BlogBillService
      */
     public static List<BillVO> parseMarkdownTable(String raw)
     {
+        List<BillVO> list = parseMarkdownTableInternal(raw, true);
+        // 过滤/重对齐后若为空，回退到宽松解析，避免「一张都识别不到」
+        if (list.isEmpty())
+        {
+            list = parseMarkdownTableInternal(raw, false);
+        }
+        return list;
+    }
+
+    private static List<BillVO> parseMarkdownTableInternal(String raw, boolean strict)
+    {
         List<BillVO> list = new ArrayList<>();
         if (!StringUtils.hasText(raw))
         {
             return list;
         }
-        String[] lines = raw.replace("\r\n", "\n").replace('\r', '\n').split("\n");
+        // OCR 常输出全角竖线 ｜ / 盒线 │，统一成半角后再拆列
+        String normalizedRaw = raw.replace('\uFF5C', '|').replace('\u2502', '|')
+                .replace("｜", "|").replace("│", "|");
+        String[] lines = normalizedRaw.replace("\r\n", "\n").replace('\r', '\n').split("\n");
         for (String line : lines)
         {
             String trimmed = line.trim();
@@ -441,7 +455,7 @@ public class BlogBillServiceImpl implements BlogBillService
             {
                 continue;
             }
-            if (isJunkRowText(trimmed))
+            if (strict && isJunkRowText(trimmed) && !HAS_AMOUNT_HINT.matcher(trimmed).find())
             {
                 continue;
             }
@@ -450,8 +464,9 @@ public class BlogBillServiceImpl implements BlogBillService
             {
                 continue;
             }
-            List<String> aligned = alignWechatColumns(cells);
-            BillVO vo = fromTableCells(aligned);
+            // 宽松模式：仅按位置补齐，避免错误重排把金额冲掉
+            List<String> aligned = strict ? alignWechatColumns(cells) : padOrTrimTo8(cells);
+            BillVO vo = fromTableCells(aligned, strict);
             if (vo != null)
             {
                 list.add(vo);
@@ -708,6 +723,11 @@ public class BlogBillServiceImpl implements BlogBillService
 
     private static BillVO fromTableCells(List<String> cells)
     {
+        return fromTableCells(cells, true);
+    }
+
+    private static BillVO fromTableCells(List<String> cells, boolean strict)
+    {
         List<String> aligned = cells.size() == 8 ? cells : padOrTrimTo8(cells);
         String tradeNo = aligned.get(0);
         String tradeTime = aligned.get(1);
@@ -718,27 +738,37 @@ public class BlogBillServiceImpl implements BlogBillService
         String merchant = aligned.get(6);
         String merchantOrderNo = aligned.get(7);
 
-        if (isJunkRowText(String.join("|", aligned)))
+        if (strict)
         {
-            return null;
-        }
-        // 链接/页脚被拆进单元格
-        if (isJunkRowText(merchant) || isJunkRowText(tradeType) || isJunkRowText(paymentMethod))
-        {
-            return null;
+            String joined = String.join("|", aligned);
+            // 整行明显是链接页脚，且没有金额特征才丢弃
+            if (isJunkRowText(joined) && !HAS_AMOUNT_HINT.matcher(joined).find()
+                    && parseAmountText(amountStr) == null)
+            {
+                return null;
+            }
         }
 
         BigDecimal amount = parseAmountText(amountStr);
+        // 金额列错位时，从本行其它单元格抢救金额（常见于列前推）
+        if (amount == null)
+        {
+            amount = findAmountInCells(aligned);
+        }
         if (amount == null && !StringUtils.hasText(merchant) && !StringUtils.hasText(tradeNo))
         {
             return null;
         }
-        // 跳过明显非数据行 / 无交易特征的残余行
+        // 跳过明显非数据行 / 零金额页脚残留
         if ("金额".equals(amountStr) || "交易对方".equals(merchant))
         {
             return null;
         }
-        if (amount == null && !StringUtils.hasText(tradeNo) && !isDateTimeCell(tradeTime))
+        if (amount != null && amount.signum() <= 0 && isJunkRowText(String.join("|", aligned)))
+        {
+            return null;
+        }
+        if (StringUtils.hasText(tradeNo) && isJunkRowText(tradeNo))
         {
             return null;
         }
@@ -772,6 +802,27 @@ public class BlogBillServiceImpl implements BlogBillService
         vo.setSource(1);
         vo.setSourceName("AI识别");
         return vo;
+    }
+
+    private static BigDecimal findAmountInCells(List<String> cells)
+    {
+        for (String cell : cells)
+        {
+            if (!StringUtils.hasText(cell) || isDateTimeCell(cell) || isTradeNoCell(cell)
+                    || isDirectionCell(cell) || isTradeTypeCell(cell) || isPaymentCell(cell))
+            {
+                continue;
+            }
+            if (isAmountCell(cell))
+            {
+                BigDecimal amt = parseAmountText(cell);
+                if (amt != null)
+                {
+                    return amt;
+                }
+            }
+        }
+        return null;
     }
 
     private static void applyTradeTime(BillVO vo, String tradeTimeStr)
@@ -1054,16 +1105,6 @@ public class BlogBillServiceImpl implements BlogBillService
     private static BillVO toRecognizeVo(JsonNode node)
     {
         if (node == null || !node.isObject())
-        {
-            return null;
-        }
-        String merchantPreview = textOrNull(node, "merchant");
-        if (!StringUtils.hasText(merchantPreview))
-        {
-            merchantPreview = textOrNull(node, "counterparty");
-        }
-        if (isJunkRowText(merchantPreview) || isJunkRowText(textOrNull(node, "tradeType"))
-                || isJunkRowText(textOrNull(node, "note")) || isJunkRowText(textOrNull(node, "paymentMethod")))
         {
             return null;
         }
