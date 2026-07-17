@@ -124,6 +124,23 @@
                 <version>${ruoyi.version}</version>
             </dependency>
 
+            <!-- 商城模块 -->
+            <dependency>
+                <groupId>com.ruoyi</groupId>
+                <artifactId>ruoyi-mall-product</artifactId>
+                <version>${ruoyi.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.ruoyi</groupId>
+                <artifactId>ruoyi-mall-trade</artifactId>
+                <version>${ruoyi.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.ruoyi</groupId>
+                <artifactId>ruoyi-mall-payment</artifactId>
+                <version>${ruoyi.version}</version>
+            </dependency>
+
             <!-- io常用工具类 -->
             <dependency>
                 <groupId>commons-io</groupId>
@@ -213,6 +230,9 @@
         <module>ruoyi-common</module>
         <module>ruoyi-blog</module>
         <module>ruoyi-wechat</module>
+        <module>ruoyi-mall-product</module>
+        <module>ruoyi-mall-trade</module>
+        <module>ruoyi-mall-payment</module>
     </modules>
     <packaging>pom</packaging>
 

@@ -135,7 +135,7 @@ springdoc:
     - group: 'default'
       display-name: '测试模块'
       paths-to-match: '/**'
-      packages-to-scan: com.ruoyi.web.controller.tool,com.ruoyi.blog.controller,com.ruoyi.wechat.controller
+      packages-to-scan: com.ruoyi.web.controller.tool,com.ruoyi.blog.controller,com.ruoyi.wechat.controller,com.ruoyi.mall.product.controller,com.ruoyi.mall.trade.controller,com.ruoyi.mall.payment.controller
 
 # 防盗链配置
 referer:
