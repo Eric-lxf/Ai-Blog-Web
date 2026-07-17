@@ -1,0 +1,20 @@
+package com.ruoyi.mall.product.dto;
+
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import lombok.Data;
+
+@Data
+public class MallSpuPageQuery
+{
+    @Min(1)
+    private Integer pageNum = 1;
+
+    @Min(1)
+    @Max(100)
+    private Integer pageSize = 10;
+
+    private String name;
+    private String status;
+    private Long categoryId;
+}
