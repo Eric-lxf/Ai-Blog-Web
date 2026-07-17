@@ -35,6 +35,7 @@ import com.ruoyi.blog.service.BlogBillService;
 import com.ruoyi.blog.service.DeepSeekService;
 import com.ruoyi.blog.service.bill.BillExcelParser;
 import com.ruoyi.blog.service.bill.BillPdfRenderer;
+import com.ruoyi.blog.service.bill.BillWechatPdfParser;
 import com.ruoyi.blog.vo.BillAnalysisVO;
 import com.ruoyi.blog.vo.BillCategoryAmountVO;
 import com.ruoyi.blog.vo.BillMonthlyRow;
@@ -70,31 +71,30 @@ public class BlogBillServiceImpl implements BlogBillService
      * 固定列顺序与微信交易明细一致，本地再解析。
      */
     private static final String TABLE_HEADER =
-            "|交易单号|交易时间|交易类型|收/支/其他|交易方式|金额|交易对方|商户单号|\n" +
+            "|交易单号|交易时间|交易类型|收/支/其他|交易方式|金额(元)|交易对方|商户单号|\n" +
             "|---|---|---|---|---|---|---|---|";
 
-    /** 首页/含表头页 */
-    private static final String TABLE_OCR_PROMPT =
-            "从图中「交易明细表格」的表头行开始识别，只输出该表格。\n" +
-            "行判定：同时具备横线与竖线的才是表格行；仅有文字、无横线或无竖线的内容一律跳过（含说明文字、页眉页脚、链接、按钮、页码等）。\n" +
-            "只输出 Markdown 表格（半角 |），不要解释、不要 JSON、不要表外任何文字。\n" +
-            "表头固定为（顺序不可变）：\n" +
-            TABLE_HEADER + "\n" +
-            "随后输出表头之下每一行明细；空列用 || 占位，禁止后列前移。\n" +
-            "无交易时间/日期的行不要输出。长数字单号换行请拼成一串；金额只保留数字和小数点。";
-
     /**
-     * 续页专用：微信/银行 PDF 第 2 页起通常不再重复表头。
-     * 若仍要求「从表头开始」，模型会漏日期或按屏幕视觉顺序错位输出。
+     * 对照《微信支付交易明细证明》真实排版：
+     * 表头仅首页出现；单元格常换行（单号拆行、日期与时刻分行、银行卡名折行）；
+     * 末页「说明：」起为声明文字，不是明细。
      */
-    private static final String CONTINUATION_TABLE_OCR_PROMPT =
-            "本图是交易明细的续页，通常没有表头行，请直接识别表格数据行，不要因为找不到表头而跳过或乱序。\n" +
-            "行判定：同时具备横线与竖线的才是表格行；说明文字、页眉页脚、链接、按钮、页码等一律跳过。\n" +
-            "只输出 Markdown 表格（半角 |），先输出下面固定表头（即使图中没有），再输出本页全部明细行：\n" +
+    private static final String TABLE_OCR_PROMPT =
+            "这是《微信支付交易明细证明》类表格。从「具体交易明细」表头行开始识别。\n" +
+            "真实表头为：交易单号、交易时间、交易类型、收/支/其他、交易方式、金额(元)、交易对方、商户单号。\n" +
+            "行判定：同时有横线与竖线的表格行才输出；表前证明文字、表后「说明：」及法律声明一律跳过。\n" +
+            "单元格若换行（单号拆成两行、日期与时刻分行、卡名折行），必须拼成同一字段：交易时间写成 yyyy-MM-dd HH:mm:ss。\n" +
+            "只输出 Markdown（半角 |），不要解释：\n" +
             TABLE_HEADER + "\n" +
-            "列顺序必须严格按上表，不要按屏幕从左到右的视觉顺序输出。\n" +
-            "按单元格内容归列：日期时间→交易时间；长数字→交易单号或商户单号；支出/收入→收/支；小数金额→金额；银行/零钱/信用卡→交易方式；名称→交易对方。\n" +
-            "空列用 || 占位，禁止后列前移；无交易时间的行不要输出。";
+            "空列用 ||；禁止后列前移；无交易时间的行不要输出。";
+
+    private static final String CONTINUATION_TABLE_OCR_PROMPT =
+            "这是《微信支付交易明细证明》的续页：通常没有表头，表格直接续行。\n" +
+            "不要因为找不到表头而跳过或乱序；每一笔仍必须带完整交易时间（yyyy-MM-dd HH:mm:ss）。\n" +
+            "单元格换行要拼回同一字段（单号、日期+时刻、卡名、对方名称、商户单号）。\n" +
+            "跳过页脚与「说明：」声明。只输出 Markdown，先写固定表头再写本页全部数据行：\n" +
+            TABLE_HEADER + "\n" +
+            "列顺序不可按屏幕左右猜测错位；空列用 ||；无交易时间的行不要输出。";
 
     /** 表格解析不足时的二次识别提示（同一轮内的格式兜底，不算「重识别轮」） */
     private static final String JSON_FALLBACK_PROMPT =
@@ -261,9 +261,26 @@ public class BlogBillServiceImpl implements BlogBillService
             }
             if (isPdf(filename, contentType))
             {
-                // PDF：按页各渲染一张图，再逐页 OCR（互不拼页）
-                // 第 1 页通常有表头；第 2 页起多为续页无表头，需用续页提示，否则易丢日期/列错乱
-                List<String> pages = BillPdfRenderer.toJpegDataUrls(file.getInputStream());
+                byte[] pdfBytes = file.getBytes();
+                // 微信支付明细证明等原生文字 PDF：优先本地抽表（保留全部交易时间），避免视觉 OCR 丢日期/丢行
+                try
+                {
+                    List<BillVO> nativeRows = BillWechatPdfParser.parse(pdfBytes);
+                    if (BillWechatPdfParser.looksComplete(nativeRows))
+                    {
+                        log.info("Bill PDF native parse ok rows={}", nativeRows.size());
+                        return nativeRows;
+                    }
+                    log.warn("Bill PDF native parse incomplete rows={}, fallback to OCR",
+                            nativeRows == null ? 0 : nativeRows.size());
+                }
+                catch (Exception nativeEx)
+                {
+                    log.warn("Bill PDF native parse failed, fallback to OCR: {}", nativeEx.getMessage());
+                }
+
+                // 兜底：按页渲图 + 视觉 OCR（第 2 页起用续页提示）
+                List<String> pages = BillPdfRenderer.toJpegDataUrls(new java.io.ByteArrayInputStream(pdfBytes));
                 List<BillVO> all = new ArrayList<>();
                 for (int i = 0; i < pages.size(); i++)
                 {
@@ -275,7 +292,6 @@ public class BlogBillServiceImpl implements BlogBillService
                     }
                     catch (ServiceException pageEx)
                     {
-                        // 单页无明细时跳过，继续后续页
                         log.warn("Bill PDF page {}/{} skipped: {}", i + 1, pages.size(), pageEx.getMessage());
                     }
                 }
