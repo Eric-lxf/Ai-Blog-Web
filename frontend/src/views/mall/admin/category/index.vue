@@ -1,0 +1,220 @@
+<script setup>
+defineOptions({ name: 'MallAdminCategory' })
+
+import { computed, onMounted, reactive, ref } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import {
+  addMallCategory,
+  delMallCategory,
+  getMallCategory,
+  listMallCategory,
+  updateMallCategory
+} from '@/api/mall/category'
+
+const loading = ref(false)
+const categoryList = ref([])
+const open = ref(false)
+const title = ref('')
+const formRef = ref()
+const queryParams = reactive({
+  name: '',
+  status: undefined
+})
+const form = reactive({
+  id: undefined,
+  parentId: 0,
+  name: '',
+  sort: 0,
+  status: '0',
+  icon: '',
+  remark: ''
+})
+const rules = {
+  name: [{ required: true, message: '类目名称不能为空', trigger: 'blur' }],
+  parentId: [{ required: true, message: '请选择上级类目', trigger: 'change' }]
+}
+
+const categoryOptions = computed(() => [
+  { id: 0, name: '顶级类目', children: categoryList.value }
+])
+
+function normalizeRows(res) {
+  return res.rows || res.data?.records || res.data || []
+}
+
+function buildTree(list, parentId = 0) {
+  return list
+    .filter(item => Number(item.parentId ?? 0) === Number(parentId))
+    .sort((a, b) => Number(a.sort ?? 0) - Number(b.sort ?? 0))
+    .map(item => ({
+      ...item,
+      children: buildTree(list, item.id)
+    }))
+}
+
+async function getList() {
+  loading.value = true
+  try {
+    const res = await listMallCategory(queryParams)
+    categoryList.value = buildTree(normalizeRows(res))
+  } finally {
+    loading.value = false
+  }
+}
+
+function resetForm() {
+  Object.assign(form, {
+    id: undefined,
+    parentId: 0,
+    name: '',
+    sort: 0,
+    status: '0',
+    icon: '',
+    remark: ''
+  })
+  formRef.value?.clearValidate()
+}
+
+function handleQuery() {
+  getList()
+}
+
+function resetQuery() {
+  queryParams.name = ''
+  queryParams.status = undefined
+  getList()
+}
+
+function handleAdd(row) {
+  resetForm()
+  if (row?.id) {
+    form.parentId = row.id
+  }
+  title.value = '新增类目'
+  open.value = true
+}
+
+async function handleUpdate(row) {
+  resetForm()
+  const res = await getMallCategory(row.id)
+  Object.assign(form, res.data || row)
+  title.value = '修改类目'
+  open.value = true
+}
+
+async function handleDelete(row) {
+  await ElMessageBox.confirm(`确认删除类目“${row.name}”吗？`, '提示', { type: 'warning' })
+  await delMallCategory(row.id)
+  ElMessage.success('删除成功')
+  getList()
+}
+
+async function submitForm() {
+  await formRef.value.validate()
+  if (form.id) {
+    await updateMallCategory(form)
+  } else {
+    await addMallCategory(form)
+  }
+  ElMessage.success('保存成功')
+  open.value = false
+  getList()
+}
+
+onMounted(getList)
+</script>
+
+<template>
+  <div class="app-container">
+    <el-card shadow="never">
+      <el-form :inline="true" :model="queryParams" @submit.prevent="handleQuery">
+        <el-form-item label="类目名称">
+          <el-input v-model="queryParams.name" placeholder="请输入类目名称" clearable @keyup.enter="handleQuery" />
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="queryParams.status" placeholder="全部" clearable style="width: 140px">
+            <el-option label="正常" value="0" />
+            <el-option label="停用" value="1" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" icon="Search" @click="handleQuery">搜索</el-button>
+          <el-button icon="Refresh" @click="resetQuery">重置</el-button>
+        </el-form-item>
+      </el-form>
+
+      <el-row :gutter="10" class="mb8">
+        <el-col :span="1.5">
+          <el-button type="primary" plain icon="Plus" v-hasPermi="['mall:category:add']" @click="handleAdd">
+            新增
+          </el-button>
+        </el-col>
+      </el-row>
+
+      <el-table
+        v-loading="loading"
+        :data="categoryList"
+        row-key="id"
+        default-expand-all
+        :tree-props="{ children: 'children' }"
+      >
+        <el-table-column prop="name" label="类目名称" min-width="180" />
+        <el-table-column prop="sort" label="排序" width="90" align="center" />
+        <el-table-column label="状态" width="100" align="center">
+          <template #default="{ row }">
+            <el-tag :type="row.status === '0' ? 'success' : 'info'">
+              {{ row.status === '0' ? '正常' : '停用' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="remark" label="备注" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="updateTime" label="更新时间" width="180" />
+        <el-table-column label="操作" width="220" fixed="right" align="center">
+          <template #default="{ row }">
+            <el-button link type="primary" v-hasPermi="['mall:category:add']" @click="handleAdd(row)">新增子类</el-button>
+            <el-button link type="primary" v-hasPermi="['mall:category:edit']" @click="handleUpdate(row)">修改</el-button>
+            <el-button link type="danger" v-hasPermi="['mall:category:remove']" @click="handleDelete(row)">删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-card>
+
+    <el-dialog v-model="open" :title="title" width="560px" append-to-body>
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="90px">
+        <el-form-item label="上级类目" prop="parentId">
+          <el-tree-select
+            v-model="form.parentId"
+            :data="categoryOptions"
+            node-key="id"
+            :props="{ label: 'name', children: 'children' }"
+            check-strictly
+            default-expand-all
+            style="width: 100%"
+          />
+        </el-form-item>
+        <el-form-item label="类目名称" prop="name">
+          <el-input v-model="form.name" placeholder="请输入类目名称" maxlength="64" />
+        </el-form-item>
+        <el-form-item label="图标">
+          <image-upload v-model="form.icon" :limit="1" />
+        </el-form-item>
+        <el-form-item label="排序">
+          <el-input-number v-model="form.sort" :min="0" controls-position="right" />
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-radio-group v-model="form.status">
+            <el-radio value="0">正常</el-radio>
+            <el-radio value="1">停用</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="form.remark" type="textarea" placeholder="请输入备注" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="open = false">取消</el-button>
+        <el-button type="primary" @click="submitForm">确定</el-button>
+      </template>
+    </el-dialog>
+  </div>
+</template>
