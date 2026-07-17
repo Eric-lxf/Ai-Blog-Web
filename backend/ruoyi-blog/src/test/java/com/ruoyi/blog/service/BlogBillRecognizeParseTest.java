@@ -105,4 +105,55 @@ class BlogBillRecognizeParseTest
             throw new AssertionError(e);
         }
     }
+
+    @Test
+    void keepsEmptyColumnsWithoutShiftingForward()
+    {
+        // 交易时间为空：用 || 占位，后面列不得前移
+        String raw = """
+                |交易单号|交易时间|交易类型|收/支/其他|交易方式|金额|交易对方|商户单号|
+                |---|---|---|---|---|---|---|---|
+                |4200003099202607145869||商户消费|支出|招商银行信用卡(1683)|110.81|通行宝|10001|
+                """;
+        List<BillVO> list = BlogBillServiceImpl.parseMarkdownTable(raw);
+        assertEquals(1, list.size());
+        assertEquals(null, list.get(0).getTradeTime());
+        assertEquals(null, list.get(0).getBillDate());
+        assertEquals("商户消费", list.get(0).getTradeType());
+        assertEquals("支出", list.get(0).getDirection());
+        assertEquals("招商银行信用卡(1683)", list.get(0).getPaymentMethod());
+        assertEquals(new BigDecimal("110.81"), list.get(0).getAmount());
+        assertEquals("通行宝", list.get(0).getMerchant());
+    }
+
+    @Test
+    void realignsWhenOcrOmitsEmptyColumnPipes()
+    {
+        // OCR 漏掉空的交易时间列，导致「商户消费」被推到时间位
+        String raw = """
+                |4200003099202607145869|商户消费|支出|招商银行信用卡(1683)|110.81|通行宝|10001|
+                """;
+        List<BillVO> list = BlogBillServiceImpl.parseMarkdownTable(raw);
+        assertEquals(1, list.size());
+        assertEquals(null, list.get(0).getTradeTime());
+        assertEquals("商户消费", list.get(0).getTradeType());
+        assertEquals(new BigDecimal("110.81"), list.get(0).getAmount());
+        assertEquals("通行宝", list.get(0).getMerchant());
+        assertEquals("招商银行信用卡(1683)", list.get(0).getPaymentMethod());
+    }
+
+    @Test
+    void dropsFooterLinkRows()
+    {
+        String raw = """
+                |交易单号|交易时间|交易类型|收/支/其他|交易方式|金额|交易对方|商户单号|
+                |---|---|---|---|---|---|---|---|
+                |4200003099202607145869|2026-07-14 09:31:21|商户消费|支出|零钱|9.90|咖啡店|10001|
+                |https://pay.weixin.qq.com/index.php/public/wechatpay|查看详情|客服|帮助中心|加载更多|0|点击这里|页脚|
+                |第 2 页||||链接||||
+                """;
+        List<BillVO> list = BlogBillServiceImpl.parseMarkdownTable(raw);
+        assertEquals(1, list.size());
+        assertEquals("咖啡店", list.get(0).getMerchant());
+    }
 }

@@ -54,6 +54,12 @@ public class BlogBillServiceImpl implements BlogBillService
 
     private static final Pattern JSON_OBJECT = Pattern.compile("\\{.*}", Pattern.DOTALL);
     private static final Pattern JSON_ARRAY  = Pattern.compile("\\[.*]",  Pattern.DOTALL);
+    private static final Pattern DATE_TIME = Pattern.compile(
+            "^\\d{4}[-/年.]\\d{1,2}[-/月.]\\d{1,2}([\\sT]\\d{1,2}:\\d{2}(:\\d{2})?)?$");
+    private static final Pattern AMOUNT_CELL = Pattern.compile("^[-+]?[¥￥]?\\d{1,7}(\\.\\d{1,2})?元?$");
+    private static final Pattern LONG_DIGITS = Pattern.compile("^\\d{10,}$");
+    private static final Pattern JUNK_ROW = Pattern.compile(
+            "(?i)https?://|www\\.|\\.com|\\.cn|加载更多|查看详情|查看更多|客服|帮助中心|投诉|意见反馈|微信支付团队|点击这里|第\\s*\\d+\\s*页");
     private static final DateTimeFormatter MONTH_FMT = DateTimeFormatter.ofPattern("yyyy-MM");
     private static final DateTimeFormatter TRADE_TIME_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -66,17 +72,23 @@ public class BlogBillServiceImpl implements BlogBillService
             "只输出 Markdown 表格，不要解释、不要 JSON。\n" +
             "表头必须严格为（顺序不可变）：\n" +
             "|交易单号|交易时间|交易类型|收/支/其他|交易方式|金额|交易对方|商户单号|\n" +
-            "然后输出分隔行，再输出「具体交易明细」下的每一行数据，禁止只输出第一行。\n" +
-            "长数字单号若换行，请拼成完整一串。金额只保留数字和小数点。\n" +
-            "示例：\n" +
+            "然后输出分隔行，再输出「具体交易明细」下的每一行真实交易数据，禁止只输出第一行。\n" +
+            "硬性规则：\n" +
+            "1) 每一行必须恰好 8 列；某列看不清或为空时仍输出空单元格（连续两个竖线 ||），禁止把后面的值往前挪到空列。\n" +
+            "2) 禁止用上一行的日期/单号/对方等字段填充本行；本行没有日期就留空，不要猜测、不要前推。\n" +
+            "3) 忽略页面装饰与非交易内容：页眉页脚、导航、超链接/URL、按钮、「加载更多/查看详情/客服/帮助」、页码等，一律不要输出成表格行。\n" +
+            "4) 长数字单号若换行，请拼成完整一串。金额只保留数字和小数点。\n" +
+            "示例（注意空列用 || 占位）：\n" +
             "|交易单号|交易时间|交易类型|收/支/其他|交易方式|金额|交易对方|商户单号|\n" +
             "|---|---|---|---|---|---|---|---|\n" +
-            "|4200003099202607145869|2026-07-14 09:31:21|商户消费|支出|招商银行信用卡(1683)|110.81|通行宝|10001|\n";
+            "|4200003099202607145869|2026-07-14 09:31:21|商户消费|支出|招商银行信用卡(1683)|110.81|通行宝|10001|\n" +
+            "|4200003099202607130002||商户消费|支出|零钱|9.90|某某店||\n";
 
     /** 兼容旧 JSON 输出的提示（当表格解析失败时二次调用） */
     private static final String JSON_FALLBACK_PROMPT =
-            "上一轮表格识别不完整。请再次识别同一张图，输出 JSON 数组，覆盖全部交易行。\n" +
+            "上一轮表格识别不完整或列错位。请再次识别同一张图，输出 JSON 数组，覆盖全部真实交易行。\n" +
             "每个元素字段：tradeNo,tradeTime(yyyy-MM-dd HH:mm:ss),billDate,tradeType,direction,merchant,paymentMethod,amount,merchantOrderNo,category,confidence。\n" +
+            "规则：缺字段用 null/空字符串，禁止用上一行值填充；忽略页脚链接与非交易 UI。\n" +
             "列含义：merchant=交易对方，paymentMethod=交易方式（银行卡名+尾号）。只输出 JSON 数组。";
 
     private final BlogBillMapper billMapper;
@@ -390,6 +402,7 @@ public class BlogBillServiceImpl implements BlogBillService
     /**
      * 解析 OCR 输出的 Markdown 表格。列顺序固定为微信明细：
      * 交易单号|交易时间|交易类型|收/支/其他|交易方式|金额|交易对方|商户单号
+     * <p>空列保留为空，不向前借用上一行；OCR 漏掉空列竖线时按字段类型重对齐。
      */
     public static List<BillVO> parseMarkdownTable(String raw)
     {
@@ -410,17 +423,17 @@ public class BlogBillServiceImpl implements BlogBillService
             {
                 continue;
             }
-            List<String> cells = splitMarkdownRow(trimmed);
-            if (cells.size() < 6)
+            if (isJunkRowText(trimmed))
             {
                 continue;
             }
-            // 允许 7~8+ 列；不足 8 列时按已有列填充
-            while (cells.size() < 8)
+            List<String> cells = splitMarkdownRow(trimmed);
+            if (cells.isEmpty())
             {
-                cells.add("");
+                continue;
             }
-            BillVO vo = fromTableCells(cells);
+            List<String> aligned = alignWechatColumns(cells);
+            BillVO vo = fromTableCells(aligned);
             if (vo != null)
             {
                 list.add(vo);
@@ -437,6 +450,15 @@ public class BlogBillServiceImpl implements BlogBillService
             return true;
         }
         return line.contains("交易单号") && line.contains("交易时间");
+    }
+
+    private static boolean isJunkRowText(String text)
+    {
+        if (!StringUtils.hasText(text))
+        {
+            return false;
+        }
+        return JUNK_ROW.matcher(text).find();
     }
 
     private static List<String> splitMarkdownRow(String line)
@@ -459,24 +481,246 @@ public class BlogBillServiceImpl implements BlogBillService
         return cells;
     }
 
+    /**
+     * 对齐到 8 列微信明细。若 OCR 用 || 保留了空列则信任位置；若漏掉空列导致「往后列前推」则按类型重排。
+     */
+    static List<String> alignWechatColumns(List<String> rawCells)
+    {
+        List<String> cells = new ArrayList<>(rawCells);
+        // 去掉首尾因多余 | 产生的空单元，但保留中间空列
+        while (!cells.isEmpty() && !StringUtils.hasText(cells.get(0)) && cells.size() > 8)
+        {
+            cells.remove(0);
+        }
+        while (!cells.isEmpty() && !StringUtils.hasText(cells.get(cells.size() - 1)) && cells.size() > 8)
+        {
+            cells.remove(cells.size() - 1);
+        }
+
+        boolean hasInternalEmpty = false;
+        for (int i = 0; i < cells.size(); i++)
+        {
+            if (!StringUtils.hasText(cells.get(i)) && i > 0 && i < cells.size() - 1)
+            {
+                hasInternalEmpty = true;
+                break;
+            }
+        }
+
+        if ((cells.size() >= 7 || hasInternalEmpty) && looksPositionallyAligned(cells))
+        {
+            return padOrTrimTo8(cells);
+        }
+        // 列数不对或位置类型明显错位：按字段类型重排，空槽保持空（不向前借用）
+        return realignByFieldType(cells);
+    }
+
+    private static List<String> padOrTrimTo8(List<String> cells)
+    {
+        List<String> out = new ArrayList<>(8);
+        for (int i = 0; i < 8; i++)
+        {
+            out.add(i < cells.size() ? nullToEmpty(cells.get(i)) : "");
+        }
+        return out;
+    }
+
+    private static String nullToEmpty(String v)
+    {
+        return v == null ? "" : v;
+    }
+
+    private static boolean looksPositionallyAligned(List<String> cells)
+    {
+        List<String> padded = padOrTrimTo8(cells);
+        String time = padded.get(1);
+        String direction = padded.get(3);
+        String amount = padded.get(5);
+        if (StringUtils.hasText(time) && !isDateTimeCell(time) && isTradeTypeCell(time))
+        {
+            return false;
+        }
+        if (StringUtils.hasText(direction) && !isDirectionCell(direction) && isAmountCell(direction))
+        {
+            return false;
+        }
+        if (StringUtils.hasText(amount) && !isAmountCell(amount) && (isDateTimeCell(amount) || isTradeTypeCell(amount)))
+        {
+            return false;
+        }
+        // 时间位误放了交易类型/方式 → 典型「空列被前推」
+        if (StringUtils.hasText(time) && !isDateTimeCell(time) && (isPaymentCell(time) || isDirectionCell(time)))
+        {
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * 将可能缺空列的单元格按类型放入固定 8 槽；未识别到的槽保持空，绝不拿上一行补。
+     */
+    static List<String> realignByFieldType(List<String> cells)
+    {
+        String[] slots = new String[] {"", "", "", "", "", "", "", ""};
+        boolean[] used = new boolean[8];
+        for (String raw : cells)
+        {
+            String cell = nullToEmpty(raw).trim();
+            if (!StringUtils.hasText(cell))
+            {
+                continue;
+            }
+            int idx = suggestSlot(cell, used);
+            if (idx < 0)
+            {
+                // 无法归类时优先落到交易对方，避免挤进日期/金额
+                idx = !used[6] ? 6 : firstFree(used);
+            }
+            if (idx >= 0)
+            {
+                slots[idx] = cell;
+                used[idx] = true;
+            }
+        }
+        List<String> out = new ArrayList<>(8);
+        for (String slot : slots)
+        {
+            out.add(slot);
+        }
+        return out;
+    }
+
+    private static int suggestSlot(String cell, boolean[] used)
+    {
+        if (isDateTimeCell(cell) && !used[1])
+        {
+            return 1;
+        }
+        if (isDirectionCell(cell) && !used[3])
+        {
+            return 3;
+        }
+        if (isAmountCell(cell) && !used[5])
+        {
+            return 5;
+        }
+        if (isTradeTypeCell(cell) && !used[2])
+        {
+            return 2;
+        }
+        if (isPaymentCell(cell) && !used[4])
+        {
+            return 4;
+        }
+        if (isTradeNoCell(cell) && !used[0])
+        {
+            return 0;
+        }
+        if (LONG_DIGITS.matcher(cell).matches() && !used[7])
+        {
+            return 7;
+        }
+        if (!used[6] && !isDateTimeCell(cell) && !isAmountCell(cell) && !isDirectionCell(cell))
+        {
+            return 6;
+        }
+        return -1;
+    }
+
+    private static int firstFree(boolean[] used)
+    {
+        for (int i = 0; i < used.length; i++)
+        {
+            if (!used[i])
+            {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private static boolean isDateTimeCell(String cell)
+    {
+        String normalized = cell.replace('年', '-').replace('月', '-').replace('日', ' ')
+                .replace('/', '-').replace('.', '-').trim();
+        normalized = normalized.replaceAll("\\s+", " ");
+        return DATE_TIME.matcher(normalized).matches()
+                || DATE_TIME.matcher(cell.trim()).matches();
+    }
+
+    private static boolean isDirectionCell(String cell)
+    {
+        String v = cell.trim();
+        return "支出".equals(v) || "收入".equals(v) || "其他".equals(v)
+                || "收".equals(v) || "支".equals(v) || "收/支/其他".equals(v);
+    }
+
+    private static boolean isAmountCell(String cell)
+    {
+        String v = cell.trim().replace(",", "");
+        if (LONG_DIGITS.matcher(v.replaceAll("[¥￥元]", "")).matches())
+        {
+            return false;
+        }
+        return AMOUNT_CELL.matcher(v).matches();
+    }
+
+    private static boolean isTradeTypeCell(String cell)
+    {
+        String v = cell.trim();
+        return v.contains("商户消费") || v.contains("转账") || v.contains("红包")
+                || v.contains("充值") || v.contains("提现") || v.contains("退款")
+                || v.contains("扫二维码") || v.contains("二维码收款") || "消费".equals(v);
+    }
+
+    private static boolean isPaymentCell(String cell)
+    {
+        String v = cell.trim();
+        return v.contains("银行") || v.contains("信用卡") || v.contains("储蓄卡")
+                || v.contains("零钱") || v.contains("微信支付") || v.contains("花呗")
+                || v.contains("借记卡")
+                || (v.contains("卡") && v.matches(".*\\(\\d{4}\\).*"));
+    }
+
+    private static boolean isTradeNoCell(String cell)
+    {
+        String v = cell.trim();
+        return LONG_DIGITS.matcher(v).matches() && v.length() >= 16;
+    }
+
     private static BillVO fromTableCells(List<String> cells)
     {
-        String tradeNo = cells.get(0);
-        String tradeTime = cells.get(1);
-        String tradeType = cells.get(2);
-        String direction = cells.get(3);
-        String paymentMethod = cells.get(4);
-        String amountStr = cells.get(5);
-        String merchant = cells.get(6);
-        String merchantOrderNo = cells.get(7);
+        List<String> aligned = cells.size() == 8 ? cells : padOrTrimTo8(cells);
+        String tradeNo = aligned.get(0);
+        String tradeTime = aligned.get(1);
+        String tradeType = aligned.get(2);
+        String direction = aligned.get(3);
+        String paymentMethod = aligned.get(4);
+        String amountStr = aligned.get(5);
+        String merchant = aligned.get(6);
+        String merchantOrderNo = aligned.get(7);
+
+        if (isJunkRowText(String.join("|", aligned)))
+        {
+            return null;
+        }
+        // 链接/页脚被拆进单元格
+        if (isJunkRowText(merchant) || isJunkRowText(tradeType) || isJunkRowText(paymentMethod))
+        {
+            return null;
+        }
 
         BigDecimal amount = parseAmountText(amountStr);
         if (amount == null && !StringUtils.hasText(merchant) && !StringUtils.hasText(tradeNo))
         {
             return null;
         }
-        // 跳过明显非数据行
+        // 跳过明显非数据行 / 无交易特征的残余行
         if ("金额".equals(amountStr) || "交易对方".equals(merchant))
+        {
+            return null;
+        }
+        if (amount == null && !StringUtils.hasText(tradeNo) && !isDateTimeCell(tradeTime))
         {
             return null;
         }
@@ -484,6 +728,7 @@ public class BlogBillServiceImpl implements BlogBillService
         BillVO vo = new BillVO();
         vo.setTradeNo(blankToNull(tradeNo));
         vo.setTradeType(blankToNull(tradeType));
+        // 收/支为空时默认支出；日期为空则保持空，禁止用其它行补齐
         vo.setDirection(StringUtils.hasText(direction) ? direction : "支出");
         vo.setPaymentMethod(blankToNull(paymentMethod));
         vo.setAmount(amount);
@@ -491,11 +736,14 @@ public class BlogBillServiceImpl implements BlogBillService
         vo.setMerchantOrderNo(blankToNull(merchantOrderNo));
         vo.setNote(blankToNull(tradeType));
         applyTradeTime(vo, tradeTime);
-        if (vo.getBillDate() == null && StringUtils.hasText(tradeTime) && tradeTime.length() >= 10)
+        // 仅使用本行时间推导 billDate；解析失败则保持 null，不向前推
+        if (vo.getBillDate() == null && StringUtils.hasText(tradeTime) && tradeTime.length() >= 10
+                && isDateTimeCell(tradeTime))
         {
             try
             {
-                vo.setBillDate(LocalDate.parse(tradeTime.substring(0, 10)));
+                String normalized = tradeTime.replace('/', '-').replace('.', '-');
+                vo.setBillDate(LocalDate.parse(normalized.substring(0, 10)));
             }
             catch (Exception ignored)
             {
@@ -788,6 +1036,16 @@ public class BlogBillServiceImpl implements BlogBillService
     private static BillVO toRecognizeVo(JsonNode node)
     {
         if (node == null || !node.isObject())
+        {
+            return null;
+        }
+        String merchantPreview = textOrNull(node, "merchant");
+        if (!StringUtils.hasText(merchantPreview))
+        {
+            merchantPreview = textOrNull(node, "counterparty");
+        }
+        if (isJunkRowText(merchantPreview) || isJunkRowText(textOrNull(node, "tradeType"))
+                || isJunkRowText(textOrNull(node, "note")) || isJunkRowText(textOrNull(node, "paymentMethod")))
         {
             return null;
         }
