@@ -20,9 +20,15 @@ export function updateBill(data) {
   return request({ url: '/blog/bill', method: 'put', data })
 }
 
-/** 删除账单 */
+/** 删除账单（支持单个 id 或 id 数组批量删除） */
 export function deleteBill(id) {
-  return request({ url: `/blog/bill/${id}`, method: 'delete' })
+  const ids = Array.isArray(id) ? id.join(',') : id
+  return request({ url: `/blog/bill/${ids}`, method: 'delete' })
+}
+
+/** 批量删除账单 */
+export function deleteBills(ids) {
+  return deleteBill(ids)
 }
 
 /** AI 识别账单图片（不写库，返回解析结果；Base64 data URL / 公网 URL） */
