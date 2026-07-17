@@ -1,5 +1,5 @@
 SET NAMES utf8mb4;
-USE ai_blog;
+USE nova_mall;
 
 -- 评论主表
 CREATE TABLE IF NOT EXISTS `blog_comment` (

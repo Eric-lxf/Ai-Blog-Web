@@ -1,5 +1,5 @@
 SET NAMES utf8mb4;
-USE ai_blog;
+USE nova_mall;
 
 -- 已部署环境：修正 AI 博客菜单路由，避免与公开前台 /blog 冲突，并统一子菜单 path
 UPDATE sys_menu SET path = 'blog-admin' WHERE menu_id = 2000;

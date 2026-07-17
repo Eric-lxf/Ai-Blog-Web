@@ -25,7 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@ConditionalOnProperty(prefix = "blog.oss", name = "enabled", havingValue = "true")
+@ConditionalOnProperty(prefix = "novamall.oss", name = "enabled", havingValue = "true")
 public class OssFileStorageServiceImpl implements FileStorageService
 {
 

@@ -1,7 +1,7 @@
 # 项目相关配置
 ruoyi:
   # 名称
-  name: Ai-Blog
+  name: NovaMall
   # 版本
   version: 3.9.2
   # 版权年份
@@ -158,18 +158,21 @@ blog:
   file:
     upload-dir: ./uploads
     url-prefix: /uploads
-  oss:
-    enabled: ${BLOG_OSS_ENABLED:false}
-    endpoint: ${BLOG_OSS_ENDPOINT:oss-cn-beijing.aliyuncs.com}
-    access-key-id: ${BLOG_OSS_KEY_ID:}
-    access-key-secret: ${BLOG_OSS_KEY_SECRET:}
-    bucket-name: ${BLOG_OSS_BUCKET:}
-    custom-domain: ${BLOG_OSS_DOMAIN:}
-    object-prefix: uploads/
   notification:
     from: ${MAIL_FROM:noreply@localhost}
     email:
       retryDelayMs: 300000
+
+# NovaMall 对象存储（阿里云 OSS）
+novamall:
+  oss:
+    enabled: ${NOVAMALL_OSS_ENABLED:false}
+    endpoint: ${NOVAMALL_OSS_ENDPOINT:oss-cn-beijing.aliyuncs.com}
+    access-key-id: ${NOVAMALL_OSS_KEY_ID:}
+    access-key-secret: ${NOVAMALL_OSS_KEY_SECRET:}
+    bucket-name: ${NOVAMALL_OSS_BUCKET:}
+    custom-domain: ${NOVAMALL_OSS_DOMAIN:}
+    object-prefix: uploads/
 
 # MyBatis-Plus 约定（博客表逻辑删除等）
 mybatis-plus:

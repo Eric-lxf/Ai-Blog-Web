@@ -1,4 +1,4 @@
-# AI博客前端
+# NovaMall 前端
 
 基于 Vue 3 + Element Plus + Vite 的管理后台与博客前台。
 
@@ -9,10 +9,4 @@ npm ci
 npm run dev -- --port 5173 --host 0.0.0.0
 ```
 
-默认代理 `/dev-api` → `http://localhost:8080`。
-
-## 构建
-
-```bash
-npm run build:prod
-```
+默认代理：`/dev-api` → `http://localhost:8080`

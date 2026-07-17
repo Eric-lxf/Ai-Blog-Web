@@ -1,5 +1,5 @@
 SET NAMES utf8mb4;
-USE ai_blog;
+USE nova_mall;
 
 -- AI 博客业务菜单与权限（menu_id 2000+，菜单格式对齐管理后台）
 INSERT IGNORE INTO sys_menu VALUES

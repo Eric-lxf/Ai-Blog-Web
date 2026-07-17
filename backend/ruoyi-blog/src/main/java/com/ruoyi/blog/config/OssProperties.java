@@ -6,7 +6,7 @@ import lombok.Data;
 
 @Data
 @Component
-@ConfigurationProperties(prefix = "blog.oss")
+@ConfigurationProperties(prefix = "novamall.oss")
 public class OssProperties
 {
 

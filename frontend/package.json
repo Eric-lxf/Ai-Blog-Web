@@ -1,8 +1,8 @@
 {
-  "name": "ai-blog-web",
+  "name": "nova-mall-web",
   "version": "3.9.2",
-  "description": "AI博客管理系统",
-  "author": "Ai-Blog",
+  "description": "NovaMall 管理平台",
+  "author": "NovaMall",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -14,7 +14,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/Eric-lxf/Ai-Blog-Web.git"
+    "url": "https://github.com/Eric-lxf/NovaMall.git"
   },
   "dependencies": {
     "@bytemd/plugin-gfm": "1.22.0",

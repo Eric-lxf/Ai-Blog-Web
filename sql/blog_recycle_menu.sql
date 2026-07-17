@@ -1,5 +1,5 @@
 SET NAMES utf8mb4;
-USE ai_blog;
+USE nova_mall;
 
 INSERT IGNORE INTO sys_menu VALUES
 (2006, '文章回收站', 2000, 6, 'article/recycle', 'blog/article/recycle', '', '', 1, 0, 'C', '0', '0', 'blog:article:recycle', 'row', 'admin', sysdate(), '', NULL, ''),

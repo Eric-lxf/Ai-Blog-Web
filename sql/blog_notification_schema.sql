@@ -1,5 +1,5 @@
 SET NAMES utf8mb4;
-USE ai_blog;
+USE nova_mall;
 
 ALTER TABLE blog_article
   ADD COLUMN author_user_id bigint DEFAULT NULL COMMENT '作者用户ID' AFTER category_id;

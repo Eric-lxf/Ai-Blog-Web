@@ -55,7 +55,7 @@ const T = {
 };
 
 const sql = `SET NAMES utf8mb4;
-USE ai_blog;
+USE nova_mall;
 
 CREATE TABLE IF NOT EXISTS \`wx_account\` (
   \`id\` bigint NOT NULL AUTO_INCREMENT,
