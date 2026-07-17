@@ -27,7 +27,7 @@ export function addMallAddress(data) {
 
 export function updateMallAddress(data) {
   return request({
-    url: baseUrl,
+    url: `${baseUrl}/${data.id}`,
     method: 'put',
     data
   })
@@ -40,9 +40,15 @@ export function removeMallAddress(id) {
   })
 }
 
-export function setDefaultMallAddress(id) {
-  return request({
-    url: `${baseUrl}/${id}/default`,
-    method: 'put'
+export function setDefaultMallAddress(row) {
+  return updateMallAddress({
+    id: row.id,
+    receiver: row.receiver,
+    mobile: row.mobile,
+    province: row.province,
+    city: row.city,
+    district: row.district,
+    detail: row.detail,
+    isDefault: '1'
   })
 }

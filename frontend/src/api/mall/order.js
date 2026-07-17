@@ -21,7 +21,7 @@ export function getMallAdminOrder(id) {
 export function shipMallOrder(id, data) {
   return request({
     url: `${adminBaseUrl}/${id}/ship`,
-    method: 'put',
+    method: 'post',
     data
   })
 }
@@ -29,7 +29,7 @@ export function shipMallOrder(id, data) {
 export function completeMallOrder(id) {
   return request({
     url: `${adminBaseUrl}/${id}/complete`,
-    method: 'put'
+    method: 'post'
   })
 }
 
@@ -59,7 +59,7 @@ export function createMallOrder(data) {
 export function cancelMyMallOrder(id, data) {
   return request({
     url: `${userBaseUrl}/${id}/cancel`,
-    method: 'put',
+    method: 'post',
     data
   })
 }

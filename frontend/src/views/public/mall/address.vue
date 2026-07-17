@@ -117,7 +117,7 @@ async function handleRemove(row) {
 }
 
 async function handleDefault(row) {
-  await setDefaultMallAddress(row.id)
+  await setDefaultMallAddress(row)
   ElMessage.success('已设为默认地址')
   getList()
 }

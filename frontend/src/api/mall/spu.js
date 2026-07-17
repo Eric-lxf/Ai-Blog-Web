@@ -28,7 +28,7 @@ export function addMallSpu(data) {
 export function updateMallSpu(data) {
   return request({
     url: baseUrl,
-    method: 'put',
+    method: 'post',
     data
   })
 }
@@ -42,7 +42,7 @@ export function delMallSpu(id) {
 
 export function updateMallSpuStatus(id, status) {
   return request({
-    url: `${baseUrl}/${id}/status`,
+    url: `${baseUrl}/${id}/publish`,
     method: 'put',
     data: { status }
   })
