@@ -1,5 +1,5 @@
 SET NAMES utf8mb4;
-USE ai_blog;
+USE nova_mall;
 
 -- 1. 新增与「AI博客」同级的「博客」目录
 INSERT IGNORE INTO sys_menu VALUES

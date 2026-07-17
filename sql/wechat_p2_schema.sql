@@ -1,5 +1,5 @@
 SET NAMES utf8mb4;
-USE ai_blog;
+USE nova_mall;
 
 ALTER TABLE `wx_fans`
   ADD COLUMN `remark` varchar(255) DEFAULT NULL COMMENT '微信备注' AFTER `nickname`;

@@ -1,5 +1,5 @@
 SET NAMES utf8mb4;
-USE ai_blog;
+USE nova_mall;
 
 INSERT IGNORE INTO sys_menu VALUES
 (2060, '模块配置', 2050, 10, 'config', 'wechat/config/index', '', 'WechatConfig', 1, 0, 'C', '0', '0', 'wechat:config:query', 'system', 'admin', sysdate(), '', NULL, ''),

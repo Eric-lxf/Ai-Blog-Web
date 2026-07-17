@@ -4,13 +4,13 @@
 
 ### 产品概览
 
-**Ai-Blog-Web**：RuoYi-Vue 3.9.2 管理后台 + `ruoyi-blog`（文章/评论/上传/AI）。唯一前端在 `frontend/`；后端在 `backend/`（`ruoyi-admin` 为启动模块）。
+**NovaMall**：RuoYi-Vue 3.9.2 管理后台 + `ruoyi-blog`（文章/评论/上传/AI）。唯一前端在 `frontend/`；后端在 `backend/`（`ruoyi-admin` 为启动模块）。项目标识已统一为 NovaMall（库名 `nova_mall`），并向电商平台演进。
 
 ### 依赖服务（本地开发）
 
 | 服务 | 用途 | 建议启动方式 |
 |------|------|----------------|
-| **MySQL 8** | 库 `ai_blog`，SQL 在 `sql/` | `docker compose --env-file .env up mysql -d`（见下方 `.env` 密码约定） |
+| **MySQL 8** | 库 `nova_mall`，SQL 在 `sql/` | `docker compose --env-file .env up mysql -d`（见下方 `.env` 密码约定） |
 | **Redis** | Token / 验证码 | 本机 `redis-server`，或 `docker compose up redis -d`（勿与 6379 端口冲突） |
 | **Backend** | `:8080` | 见「后端」 |
 | **Frontend** | Vite 开发服 | 见「前端」 |

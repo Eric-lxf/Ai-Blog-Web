@@ -1,5 +1,5 @@
 SET NAMES utf8mb4;
-USE ai_blog;
+USE nova_mall;
 
 -- Fix route_name/path conflicts (e.g. wechat "menu" vs system/menu -> name "Menu").
 -- Safe to rerun.

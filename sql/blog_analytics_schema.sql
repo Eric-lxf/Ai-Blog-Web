@@ -1,5 +1,5 @@
 SET NAMES utf8mb4;
-USE ai_blog;
+USE nova_mall;
 
 -- 访问日志（PV/UV、来源、地域）
 CREATE TABLE IF NOT EXISTS blog_visit_log (

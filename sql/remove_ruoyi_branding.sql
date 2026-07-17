@@ -1,5 +1,5 @@
 -- 已有库：去掉界面可见的「若依」品牌文案与官网菜单（幂等）
-USE ai_blog;
+USE nova_mall;
 
 -- 侧栏「若依官网」外链
 DELETE FROM sys_role_menu WHERE menu_id = 4;

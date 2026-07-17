@@ -1,5 +1,5 @@
 SET NAMES utf8mb4;
-USE ai_blog;
+USE nova_mall;
 
 CREATE TABLE IF NOT EXISTS `blog_article` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',

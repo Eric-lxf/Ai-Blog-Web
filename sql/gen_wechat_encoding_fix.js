@@ -35,7 +35,7 @@ const T = {
 };
 
 const sql = `SET NAMES utf8mb4;
-USE ai_blog;
+USE nova_mall;
 
 -- ${T.fixComment}
 

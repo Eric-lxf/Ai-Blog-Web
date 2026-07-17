@@ -2,7 +2,7 @@ import { onUnmounted, ref, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import { autoSaveDraft } from '@/api/blog/article'
 
-const DRAFT_PREFIX = 'ai-blog-draft:'
+const DRAFT_PREFIX = 'nova-mall-draft:'
 
 function draftKey(id) {
   return `${DRAFT_PREFIX}${id ?? 'new'}`

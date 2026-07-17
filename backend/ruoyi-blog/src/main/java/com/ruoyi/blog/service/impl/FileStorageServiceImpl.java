@@ -24,7 +24,7 @@ import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
-@ConditionalOnProperty(prefix = "blog.oss", name = "enabled", havingValue = "false", matchIfMissing = true)
+@ConditionalOnProperty(prefix = "novamall.oss", name = "enabled", havingValue = "false", matchIfMissing = true)
 public class FileStorageServiceImpl implements FileStorageService
 {
 

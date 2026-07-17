@@ -1,7 +1,7 @@
 services:
   mysql:
     image: mysql:8.0
-    container_name: ai-blog-web-mysql
+    container_name: nova-mall-web-mysql
     restart: unless-stopped
     command:
       - --default-time-zone=+08:00
@@ -10,7 +10,7 @@ services:
     environment:
       TZ: Asia/Shanghai
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
-      MYSQL_DATABASE: ai_blog
+      MYSQL_DATABASE: nova_mall
     ports:
       - "${MYSQL_PORT:-3306}:3306"
     volumes:
@@ -36,7 +36,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: ai-blog-web-redis
+    container_name: nova-mall-web-redis
     restart: unless-stopped
     ports:
       - "${REDIS_PORT:-6379}:6379"
@@ -52,7 +52,7 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
-    container_name: ai-blog-web-backend
+    container_name: nova-mall-web-backend
     restart: unless-stopped
     depends_on:
       mysql:
@@ -64,7 +64,7 @@ services:
       SPRING_PROFILES_ACTIVE: druid,docker
       MYSQL_HOST: mysql
       MYSQL_PORT: 3306
-      MYSQL_DATABASE: ai_blog
+      MYSQL_DATABASE: nova_mall
       MYSQL_USER: root
       MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
       REDIS_HOST: redis
@@ -90,7 +90,7 @@ services:
         LOW_MEM_BUILD: ${FRONTEND_LOW_MEM_BUILD:-1}
         NODE_HEAP_MB: ${FRONTEND_NODE_HEAP_MB:-1280}
         NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com}
-    container_name: ai-blog-web-frontend
+    container_name: nova-mall-web-frontend
     restart: unless-stopped
     depends_on:
       backend:

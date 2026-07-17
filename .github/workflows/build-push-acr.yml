@@ -12,9 +12,9 @@ concurrency:
 
 env:
   ACR_REGISTRY: crpi-skinyl3l0124ry6m.cn-beijing.personal.cr.aliyuncs.com
-  ACR_NAMESPACE: blog_private
-  BACKEND_IMAGE_NAME: ai-blog-backend
-  FRONTEND_IMAGE_NAME: ai-blog-frontend
+  ACR_NAMESPACE: nova_mall
+  BACKEND_IMAGE_NAME: nova-mall-backend
+  FRONTEND_IMAGE_NAME: nova-mall-frontend
 
 jobs:
   build-backend:

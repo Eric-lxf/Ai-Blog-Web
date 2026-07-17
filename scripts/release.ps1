@@ -9,9 +9,9 @@ $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 Set-Location $Root
 
-$Registry = "crpi-skinyl3l0124ry6m.cn-beijing.personal.cr.aliyuncs.com/lxf_ai"
-$WebImage = "$Registry/al-blog-rouyi-web:latest"
-$ServerImage = "$Registry/al-blog-rouyi-server:latest"
+$Registry = "crpi-skinyl3l0124ry6m.cn-beijing.personal.cr.aliyuncs.com/nova_mall"
+$WebImage = "$Registry/nova-mall-web:latest"
+$ServerImage = "$Registry/nova-mall-server:latest"
 
 if (-not $SkipFrontendBuild) {
     Write-Host "==> build frontend dist"
