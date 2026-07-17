@@ -67,6 +67,67 @@ export const constantRoutes = [
     ]
   },
   {
+    path: '/mall',
+    hidden: true,
+    component: () => import('@/layout/MallPublicLayout.vue'),
+    children: [
+      {
+        path: '',
+        name: 'MallPublicHome',
+        component: () => import('@/views/public/mall/home.vue'),
+        meta: { title: 'NovaMall' }
+      },
+      {
+        path: 'list',
+        name: 'MallPublicList',
+        component: () => import('@/views/public/mall/list.vue'),
+        meta: { title: '商品列表' }
+      },
+      {
+        path: 'detail/:id(\\d+)',
+        name: 'MallPublicDetail',
+        component: () => import('@/views/public/mall/detail.vue'),
+        meta: { title: '商品详情' }
+      },
+      {
+        path: 'cart',
+        name: 'MallPublicCart',
+        component: () => import('@/views/public/mall/cart.vue'),
+        meta: { title: '购物车' }
+      },
+      {
+        path: 'checkout',
+        name: 'MallPublicCheckout',
+        component: () => import('@/views/public/mall/checkout.vue'),
+        meta: { title: '确认订单' }
+      },
+      {
+        path: 'pay/:orderId?',
+        name: 'MallPublicPay',
+        component: () => import('@/views/public/mall/pay.vue'),
+        meta: { title: '支付订单' }
+      },
+      {
+        path: 'orders',
+        name: 'MallPublicOrders',
+        component: () => import('@/views/public/mall/orders.vue'),
+        meta: { title: '我的订单' }
+      },
+      {
+        path: 'orders/:id(\\d+)',
+        name: 'MallPublicOrderDetail',
+        component: () => import('@/views/public/mall/order-detail.vue'),
+        meta: { title: '订单详情' }
+      },
+      {
+        path: 'address',
+        name: 'MallPublicAddress',
+        component: () => import('@/views/public/mall/address.vue'),
+        meta: { title: '收货地址' }
+      }
+    ]
+  },
+  {
     path: "/:pathMatch(.*)*",
     component: () => import('@/views/error/404'),
     hidden: true
