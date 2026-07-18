@@ -39,6 +39,16 @@ public class MallCategoryController extends MallProductControllerSupport
         return AjaxResult.success(mallCategoryService.list(query));
     }
 
+    /** 商品页下拉：树形正常类目；允许仅有商品权限的运营访问 */
+    @PreAuthorize("@ss.hasPermi('mall:category:list') or @ss.hasPermi('mall:spu:list') or @ss.hasPermi('mall:spu:add') or @ss.hasPermi('mall:spu:edit')")
+    @GetMapping("/options")
+    public AjaxResult options()
+    {
+        MallCategoryQuery query = new MallCategoryQuery();
+        query.setStatus("0");
+        return AjaxResult.success(mallCategoryService.tree(query));
+    }
+
     @PreAuthorize("@ss.hasPermi('mall:category:query')")
     @GetMapping("/{id}")
     public AjaxResult detail(@PathVariable Long id)
