@@ -39,6 +39,14 @@ public class MallBrandController extends MallProductControllerSupport
         return mpPageTable(page);
     }
 
+    /** 商品页下拉：全部正常品牌；允许仅有商品权限的运营访问 */
+    @PreAuthorize("@ss.hasPermi('mall:brand:list') or @ss.hasPermi('mall:spu:list') or @ss.hasPermi('mall:spu:add') or @ss.hasPermi('mall:spu:edit')")
+    @GetMapping("/options")
+    public AjaxResult options()
+    {
+        return AjaxResult.success(mallBrandService.listActive());
+    }
+
     @PreAuthorize("@ss.hasPermi('mall:brand:query')")
     @GetMapping("/{id}")
     public AjaxResult detail(@PathVariable Long id)

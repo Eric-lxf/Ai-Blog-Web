@@ -10,6 +10,14 @@ export function listMallCategory(params) {
   })
 }
 
+/** 商品筛选/表单下拉（树形） */
+export function listMallCategoryOptions() {
+  return request({
+    url: `${baseUrl}/options`,
+    method: 'get'
+  })
+}
+
 export function getMallCategory(id) {
   return request({
     url: `${baseUrl}/${id}`,

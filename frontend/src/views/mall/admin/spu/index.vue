@@ -3,8 +3,8 @@ defineOptions({ name: 'MallAdminSpu' })
 
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { listMallBrand } from '@/api/mall/brand'
-import { listMallCategory } from '@/api/mall/category'
+import { listMallBrandOptions } from '@/api/mall/brand'
+import { listMallCategoryOptions } from '@/api/mall/category'
 import {
   addMallSpu,
   delMallSpu,
@@ -99,12 +99,21 @@ function priceText(row) {
 }
 
 async function loadOptions() {
-  const [categoryRes, brandRes] = await Promise.all([
-    listMallCategory({ status: '0' }),
-    listMallBrand({ status: '0', pageNum: 1, pageSize: 200 })
-  ])
-  categoryList.value = normalizeTree(normalizeRows(categoryRes))
-  brandList.value = normalizeRows(brandRes)
+  // 类目/品牌各自加载，避免一侧失败导致两侧下拉都空
+  try {
+    const categoryRes = await listMallCategoryOptions()
+    categoryList.value = normalizeTree(normalizeRows(categoryRes))
+  } catch (e) {
+    console.error('加载类目下拉失败', e)
+    categoryList.value = []
+  }
+  try {
+    const brandRes = await listMallBrandOptions()
+    brandList.value = normalizeRows(brandRes)
+  } catch (e) {
+    console.error('加载品牌下拉失败', e)
+    brandList.value = []
+  }
 }
 
 async function getList() {
