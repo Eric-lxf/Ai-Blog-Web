@@ -10,6 +10,14 @@ export function listMallBrand(params) {
   })
 }
 
+/** 商品筛选/表单下拉（全量正常品牌） */
+export function listMallBrandOptions() {
+  return request({
+    url: `${baseUrl}/options`,
+    method: 'get'
+  })
+}
+
 export function getMallBrand(id) {
   return request({
     url: `${baseUrl}/${id}`,

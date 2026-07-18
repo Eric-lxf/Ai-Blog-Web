@@ -1,5 +1,7 @@
 package com.ruoyi.mall.product.service.impl;
 
+import java.util.List;
+
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -39,6 +41,15 @@ public class MallBrandServiceImpl implements MallBrandService
         }
         wrapper.orderByAsc(MallBrand::getSort).orderByAsc(MallBrand::getId);
         return mallBrandMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
+    }
+
+    @Override
+    public List<MallBrand> listActive()
+    {
+        return mallBrandMapper.selectList(new LambdaQueryWrapper<MallBrand>()
+                .eq(MallBrand::getStatus, MallProductConstants.STATUS_NORMAL)
+                .orderByAsc(MallBrand::getSort)
+                .orderByAsc(MallBrand::getId));
     }
 
     @Override
