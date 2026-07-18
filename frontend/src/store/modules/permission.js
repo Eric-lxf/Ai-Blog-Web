@@ -32,6 +32,11 @@ const viewFallback = {
   'wechat/kefu/index': () => import('@/views/wechat/kefu/index.vue'),
   'wechat/template/index': () => import('@/views/wechat/template/index.vue'),
   'wechat/mass/index': () => import('@/views/wechat/mass/index.vue'),
+  'mall/admin/category/index': () => import('@/views/mall/admin/category/index.vue'),
+  'mall/admin/brand/index': () => import('@/views/mall/admin/brand/index.vue'),
+  'mall/admin/spu/index': () => import('@/views/mall/admin/spu/index.vue'),
+  'mall/admin/order/index': () => import('@/views/mall/admin/order/index.vue'),
+  'mall/admin/payment/index': () => import('@/views/mall/admin/payment/index.vue'),
   'system/menu/index': () => import('@/views/system/menu/index.vue'),
 }
 

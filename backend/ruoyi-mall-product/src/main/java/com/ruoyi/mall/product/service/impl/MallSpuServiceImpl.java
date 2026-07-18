@@ -1,0 +1,426 @@
+package com.ruoyi.mall.product.service.impl;
+
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.BeanUtils;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.ruoyi.common.constant.HttpStatus;
+import com.ruoyi.common.exception.ServiceException;
+import com.ruoyi.common.utils.SecurityUtils;
+import com.ruoyi.mall.product.constant.MallProductConstants;
+import com.ruoyi.mall.product.domain.MallBrand;
+import com.ruoyi.mall.product.domain.MallCategory;
+import com.ruoyi.mall.product.domain.MallSku;
+import com.ruoyi.mall.product.domain.MallSpu;
+import com.ruoyi.mall.product.domain.MallSpuImage;
+import com.ruoyi.mall.product.dto.MallSkuSaveRequest;
+import com.ruoyi.mall.product.dto.MallSpuImageSaveRequest;
+import com.ruoyi.mall.product.dto.MallSpuPageQuery;
+import com.ruoyi.mall.product.dto.MallSpuSaveRequest;
+import com.ruoyi.mall.product.mapper.MallBrandMapper;
+import com.ruoyi.mall.product.mapper.MallCategoryMapper;
+import com.ruoyi.mall.product.mapper.MallSkuMapper;
+import com.ruoyi.mall.product.mapper.MallSpuImageMapper;
+import com.ruoyi.mall.product.mapper.MallSpuMapper;
+import com.ruoyi.mall.product.service.MallSpuService;
+import com.ruoyi.mall.product.vo.MallSpuDetailVO;
+import com.ruoyi.mall.product.vo.MallSpuVO;
+
+import lombok.RequiredArgsConstructor;
+
+@Service
+@RequiredArgsConstructor
+public class MallSpuServiceImpl implements MallSpuService
+{
+    private final MallSpuMapper mallSpuMapper;
+    private final MallSkuMapper mallSkuMapper;
+    private final MallSpuImageMapper mallSpuImageMapper;
+    private final MallCategoryMapper mallCategoryMapper;
+    private final MallBrandMapper mallBrandMapper;
+
+    @Override
+    public Page<MallSpuVO> page(MallSpuPageQuery query)
+    {
+        return querySpus(query, false);
+    }
+
+    @Override
+    public Page<MallSpuVO> publicPage(MallSpuPageQuery query)
+    {
+        return querySpus(query, true);
+    }
+
+    @Override
+    public MallSpuDetailVO detail(Long id)
+    {
+        MallSpu spu = requireSpu(id);
+        return toDetailVO(spu, false);
+    }
+
+    @Override
+    public MallSpuDetailVO publicDetail(Long id)
+    {
+        MallSpu spu = mallSpuMapper.selectOne(new LambdaQueryWrapper<MallSpu>()
+                .eq(MallSpu::getId, id)
+                .eq(MallSpu::getStatus, MallProductConstants.SPU_STATUS_ON)
+                .eq(MallSpu::getDelFlag, MallProductConstants.DEL_FLAG_NORMAL));
+        if (spu == null)
+        {
+            throw new ServiceException("商品不存在", HttpStatus.NOT_FOUND);
+        }
+        return toDetailVO(spu, true);
+    }
+
+    @Override
+    @Transactional
+    public Long save(MallSpuSaveRequest request)
+    {
+        validateStatus(request.getStatus(), true);
+        validateCategoryAndBrand(request.getCategoryId(), request.getBrandId());
+
+        String username = SecurityUtils.getUsername();
+        MallSpu spu = new MallSpu();
+        if (request.getId() != null)
+        {
+            requireSpu(request.getId());
+            spu.setId(request.getId());
+            spu.setUpdateBy(username);
+        }
+        else
+        {
+            spu.setCreateBy(username);
+            spu.setDelFlag(MallProductConstants.DEL_FLAG_NORMAL);
+        }
+        copyRequest(request, spu);
+
+        if (spu.getId() == null)
+        {
+            mallSpuMapper.insert(spu);
+        }
+        else
+        {
+            mallSpuMapper.updateById(spu);
+        }
+
+        saveSkus(spu.getId(), request.getSkus(), username);
+        saveImages(spu.getId(), request.getImages());
+        if (MallProductConstants.SPU_STATUS_ON.equals(spu.getStatus()))
+        {
+            validatePublishable(spu.getId());
+        }
+        return spu.getId();
+    }
+
+    @Override
+    @Transactional
+    public void delete(Long id)
+    {
+        requireSpu(id);
+        String username = SecurityUtils.getUsername();
+        mallSpuMapper.update(null, new LambdaUpdateWrapper<MallSpu>()
+                .eq(MallSpu::getId, id)
+                .eq(MallSpu::getDelFlag, MallProductConstants.DEL_FLAG_NORMAL)
+                .set(MallSpu::getDelFlag, MallProductConstants.DEL_FLAG_DELETED)
+                .set(MallSpu::getUpdateBy, username));
+        mallSkuMapper.update(null, new LambdaUpdateWrapper<MallSku>()
+                .eq(MallSku::getSpuId, id)
+                .eq(MallSku::getDelFlag, MallProductConstants.DEL_FLAG_NORMAL)
+                .set(MallSku::getDelFlag, MallProductConstants.DEL_FLAG_DELETED)
+                .set(MallSku::getUpdateBy, username));
+    }
+
+    @Override
+    @Transactional
+    public void publish(Long id, String status)
+    {
+        validateStatus(status, false);
+        requireSpu(id);
+        if (MallProductConstants.SPU_STATUS_ON.equals(status))
+        {
+            validatePublishable(id);
+        }
+        int rows = mallSpuMapper.update(null, new LambdaUpdateWrapper<MallSpu>()
+                .eq(MallSpu::getId, id)
+                .eq(MallSpu::getDelFlag, MallProductConstants.DEL_FLAG_NORMAL)
+                .set(MallSpu::getStatus, status)
+                .set(MallSpu::getUpdateBy, SecurityUtils.getUsername()));
+        if (rows == 0)
+        {
+            throw new ServiceException("商品状态更新失败", HttpStatus.ERROR);
+        }
+    }
+
+    private Page<MallSpuVO> querySpus(MallSpuPageQuery query, boolean publicOnly)
+    {
+        int pageNum = query.getPageNum() == null || query.getPageNum() < 1 ? 1 : query.getPageNum();
+        int pageSize = query.getPageSize() == null ? 10 : Math.min(query.getPageSize(), 100);
+        LambdaQueryWrapper<MallSpu> wrapper = new LambdaQueryWrapper<MallSpu>()
+                .eq(MallSpu::getDelFlag, MallProductConstants.DEL_FLAG_NORMAL);
+        if (StringUtils.hasText(query.getName()))
+        {
+            wrapper.like(MallSpu::getName, query.getName().trim());
+        }
+        if (query.getCategoryId() != null)
+        {
+            wrapper.eq(MallSpu::getCategoryId, query.getCategoryId());
+        }
+        if (publicOnly)
+        {
+            wrapper.eq(MallSpu::getStatus, MallProductConstants.SPU_STATUS_ON);
+        }
+        else if (StringUtils.hasText(query.getStatus()))
+        {
+            wrapper.eq(MallSpu::getStatus, query.getStatus().trim());
+        }
+        wrapper.orderByAsc(MallSpu::getSort).orderByDesc(MallSpu::getUpdateTime).orderByDesc(MallSpu::getId);
+        Page<MallSpu> result = mallSpuMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
+        Map<Long, String> categoryMap = loadCategoryMap(result.getRecords());
+        Map<Long, String> brandMap = loadBrandMap(result.getRecords());
+        Page<MallSpuVO> voPage = new Page<>(result.getCurrent(), result.getSize(), result.getTotal());
+        voPage.setRecords(result.getRecords().stream().map(spu -> toVO(spu, categoryMap, brandMap)).toList());
+        return voPage;
+    }
+
+    private MallSpu requireSpu(Long id)
+    {
+        MallSpu spu = mallSpuMapper.selectOne(new LambdaQueryWrapper<MallSpu>()
+                .eq(MallSpu::getId, id)
+                .eq(MallSpu::getDelFlag, MallProductConstants.DEL_FLAG_NORMAL));
+        if (spu == null)
+        {
+            throw new ServiceException("商品不存在", HttpStatus.NOT_FOUND);
+        }
+        return spu;
+    }
+
+    private void copyRequest(MallSpuSaveRequest request, MallSpu spu)
+    {
+        spu.setCategoryId(request.getCategoryId());
+        spu.setBrandId(request.getBrandId());
+        spu.setName(request.getName());
+        spu.setSubtitle(request.getSubtitle());
+        spu.setMainImage(request.getMainImage());
+        spu.setDetailHtml(request.getDetailHtml());
+        spu.setStatus(StringUtils.hasText(request.getStatus()) ? request.getStatus() : MallProductConstants.SPU_STATUS_DRAFT);
+        spu.setSort(request.getSort() == null ? 0 : request.getSort());
+        spu.setRemark(request.getRemark());
+    }
+
+    private void saveSkus(Long spuId, List<MallSkuSaveRequest> requests, String username)
+    {
+        List<MallSku> existing = mallSkuMapper.selectList(new LambdaQueryWrapper<MallSku>()
+                .eq(MallSku::getSpuId, spuId)
+                .eq(MallSku::getDelFlag, MallProductConstants.DEL_FLAG_NORMAL));
+        Map<Long, MallSku> existingById = existing.stream()
+                .filter(sku -> sku.getId() != null)
+                .collect(Collectors.toMap(MallSku::getId, Function.identity()));
+        Set<Long> submittedIds = CollectionUtils.isEmpty(requests) ? Set.of()
+                : requests.stream().map(MallSkuSaveRequest::getId).filter(Objects::nonNull).collect(Collectors.toSet());
+
+        if (!CollectionUtils.isEmpty(requests))
+        {
+            for (MallSkuSaveRequest request : requests)
+            {
+                validateSku(request);
+                MallSku sku = new MallSku();
+                if (request.getId() != null)
+                {
+                    if (!existingById.containsKey(request.getId()))
+                    {
+                        throw new ServiceException("SKU不存在或不属于当前商品", HttpStatus.BAD_REQUEST);
+                    }
+                    sku.setId(request.getId());
+                    sku.setUpdateBy(username);
+                }
+                else
+                {
+                    sku.setSpuId(spuId);
+                    sku.setCreateBy(username);
+                    sku.setDelFlag(MallProductConstants.DEL_FLAG_NORMAL);
+                }
+                copySkuRequest(request, sku);
+                if (sku.getId() == null)
+                {
+                    mallSkuMapper.insert(sku);
+                }
+                else
+                {
+                    mallSkuMapper.updateById(sku);
+                }
+            }
+        }
+
+        List<Long> removedIds = existing.stream()
+                .map(MallSku::getId)
+                .filter(id -> !submittedIds.contains(id))
+                .toList();
+        if (!removedIds.isEmpty())
+        {
+            mallSkuMapper.update(null, new LambdaUpdateWrapper<MallSku>()
+                    .in(MallSku::getId, removedIds)
+                    .set(MallSku::getDelFlag, MallProductConstants.DEL_FLAG_DELETED)
+                    .set(MallSku::getUpdateBy, username));
+        }
+    }
+
+    private void saveImages(Long spuId, List<MallSpuImageSaveRequest> images)
+    {
+        mallSpuImageMapper.delete(new LambdaQueryWrapper<MallSpuImage>().eq(MallSpuImage::getSpuId, spuId));
+        if (CollectionUtils.isEmpty(images))
+        {
+            return;
+        }
+        for (MallSpuImageSaveRequest request : images)
+        {
+            MallSpuImage image = new MallSpuImage();
+            image.setSpuId(spuId);
+            image.setUrl(request.getUrl());
+            image.setSort(request.getSort() == null ? 0 : request.getSort());
+            mallSpuImageMapper.insert(image);
+        }
+    }
+
+    private void copySkuRequest(MallSkuSaveRequest request, MallSku sku)
+    {
+        sku.setSkuCode(request.getSkuCode());
+        sku.setSpecsJson(request.getSpecsJson());
+        sku.setPrice(request.getPrice());
+        sku.setStock(request.getStock());
+        sku.setStatus(StringUtils.hasText(request.getStatus()) ? request.getStatus() : MallProductConstants.STATUS_NORMAL);
+        sku.setRemark(request.getRemark());
+    }
+
+    private void validateSku(MallSkuSaveRequest request)
+    {
+        if (request.getPrice() == null || request.getPrice().compareTo(BigDecimal.ZERO) < 0)
+        {
+            throw new ServiceException("SKU价格不能小于0", HttpStatus.BAD_REQUEST);
+        }
+        if (request.getStock() == null || request.getStock() < 0)
+        {
+            throw new ServiceException("SKU库存不能小于0", HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    private void validatePublishable(Long spuId)
+    {
+        List<MallSku> enabledSkus = mallSkuMapper.selectList(new LambdaQueryWrapper<MallSku>()
+                .eq(MallSku::getSpuId, spuId)
+                .eq(MallSku::getStatus, MallProductConstants.STATUS_NORMAL)
+                .eq(MallSku::getDelFlag, MallProductConstants.DEL_FLAG_NORMAL));
+        if (enabledSkus.isEmpty())
+        {
+            throw new ServiceException("上架商品至少需要一个启用SKU", HttpStatus.BAD_REQUEST);
+        }
+        for (MallSku sku : enabledSkus)
+        {
+            if (sku.getPrice() == null || sku.getPrice().compareTo(BigDecimal.ZERO) < 0)
+            {
+                throw new ServiceException("启用SKU价格不能小于0", HttpStatus.BAD_REQUEST);
+            }
+            if (sku.getStock() == null || sku.getStock() < 0)
+            {
+                throw new ServiceException("启用SKU库存不能小于0", HttpStatus.BAD_REQUEST);
+            }
+        }
+    }
+
+    private void validateStatus(String status, boolean allowDraft)
+    {
+        if (!StringUtils.hasText(status))
+        {
+            return;
+        }
+        String value = status.trim();
+        boolean valid = MallProductConstants.SPU_STATUS_ON.equals(value)
+                || MallProductConstants.SPU_STATUS_OFF.equals(value)
+                || (allowDraft && MallProductConstants.SPU_STATUS_DRAFT.equals(value));
+        if (!valid)
+        {
+            throw new ServiceException("商品状态不合法", HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    private void validateCategoryAndBrand(Long categoryId, Long brandId)
+    {
+        MallCategory category = mallCategoryMapper.selectById(categoryId);
+        if (category == null)
+        {
+            throw new ServiceException("商品类目不存在", HttpStatus.BAD_REQUEST);
+        }
+        if (brandId != null)
+        {
+            MallBrand brand = mallBrandMapper.selectById(brandId);
+            if (brand == null)
+            {
+                throw new ServiceException("商品品牌不存在", HttpStatus.BAD_REQUEST);
+            }
+        }
+    }
+
+    private MallSpuDetailVO toDetailVO(MallSpu spu, boolean publicOnly)
+    {
+        Map<Long, String> categoryMap = loadCategoryMap(List.of(spu));
+        Map<Long, String> brandMap = loadBrandMap(List.of(spu));
+        MallSpuDetailVO vo = new MallSpuDetailVO();
+        BeanUtils.copyProperties(toVO(spu, categoryMap, brandMap), vo);
+        LambdaQueryWrapper<MallSku> skuWrapper = new LambdaQueryWrapper<MallSku>()
+                .eq(MallSku::getSpuId, spu.getId())
+                .eq(MallSku::getDelFlag, MallProductConstants.DEL_FLAG_NORMAL);
+        if (publicOnly)
+        {
+            skuWrapper.eq(MallSku::getStatus, MallProductConstants.STATUS_NORMAL);
+        }
+        skuWrapper.orderByAsc(MallSku::getId);
+        vo.setSkus(mallSkuMapper.selectList(skuWrapper));
+        vo.setImages(mallSpuImageMapper.selectList(new LambdaQueryWrapper<MallSpuImage>()
+                .eq(MallSpuImage::getSpuId, spu.getId())
+                .orderByAsc(MallSpuImage::getSort)
+                .orderByAsc(MallSpuImage::getId)));
+        return vo;
+    }
+
+    private MallSpuVO toVO(MallSpu spu, Map<Long, String> categoryMap, Map<Long, String> brandMap)
+    {
+        MallSpuVO vo = new MallSpuVO();
+        BeanUtils.copyProperties(spu, vo);
+        vo.setCategoryName(categoryMap.get(spu.getCategoryId()));
+        vo.setBrandName(brandMap.get(spu.getBrandId()));
+        return vo;
+    }
+
+    private Map<Long, String> loadCategoryMap(List<MallSpu> spus)
+    {
+        List<Long> ids = spus.stream().map(MallSpu::getCategoryId).filter(Objects::nonNull).distinct().toList();
+        if (ids.isEmpty())
+        {
+            return Map.of();
+        }
+        return mallCategoryMapper.selectList(new LambdaQueryWrapper<MallCategory>().in(MallCategory::getId, ids)).stream()
+                .collect(Collectors.toMap(MallCategory::getId, MallCategory::getName));
+    }
+
+    private Map<Long, String> loadBrandMap(List<MallSpu> spus)
+    {
+        List<Long> ids = spus.stream().map(MallSpu::getBrandId).filter(Objects::nonNull).distinct().toList();
+        if (ids.isEmpty())
+        {
+            return Map.of();
+        }
+        return mallBrandMapper.selectList(new LambdaQueryWrapper<MallBrand>().in(MallBrand::getId, ids)).stream()
+                .collect(Collectors.toMap(MallBrand::getId, MallBrand::getName));
+    }
+}
