@@ -39,9 +39,12 @@ mysql -u root -p < sql/mall_address_schema.sql
 mysql -u root -p < sql/mall_cart_order_schema.sql
 mysql -u root -p < sql/mall_payment_schema.sql
 mysql -u root -p < sql/mall_menu_seed.sql
+mysql -u root -p < sql/mall_menu_path_fix.sql
 mysql -u root -p < sql/mall_order_job_seed.sql
 # 可选演示数据：mysql -u root -p < sql/mall_demo_seed.sql
 ```
+
+> 后台商城菜单路由为 `/mall-admin/**`（如 `/mall-admin/spu`）；C 端商城为 `/mall`（如 `/mall`、`/mall/list`）。二者不可共用 `mall` 前缀，否则刷新后台页会 404。
 
 修改 `backend/ruoyi-admin/src/main/resources/application-druid.yml` 中的数据库账号，库名建议 `nova_mall`。
 
