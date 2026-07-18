@@ -33,8 +33,9 @@ services:
       - ./sql/mall_cart_order_schema.sql:/docker-entrypoint-initdb.d/15-mall_cart_order_schema.sql:ro
       - ./sql/mall_payment_schema.sql:/docker-entrypoint-initdb.d/16-mall_payment_schema.sql:ro
       - ./sql/mall_menu_seed.sql:/docker-entrypoint-initdb.d/17-mall_menu_seed.sql:ro
-      - ./sql/mall_order_job_seed.sql:/docker-entrypoint-initdb.d/18-mall_order_job_seed.sql:ro
-      - ./sql/mall_demo_seed.sql:/docker-entrypoint-initdb.d/19-mall_demo_seed.sql:ro
+      - ./sql/mall_menu_path_fix.sql:/docker-entrypoint-initdb.d/18-mall_menu_path_fix.sql:ro
+      - ./sql/mall_order_job_seed.sql:/docker-entrypoint-initdb.d/19-mall_order_job_seed.sql:ro
+      - ./sql/mall_demo_seed.sql:/docker-entrypoint-initdb.d/20-mall_demo_seed.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" || exit 1"]
       interval: 10s

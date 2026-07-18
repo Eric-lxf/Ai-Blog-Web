@@ -12,7 +12,23 @@ import usePermissionStore from '@/store/modules/permission'
 
 NProgress.configure({ showSpinner: false })
 
-const whiteList = ['/login', '/register', '/blog', '/blog/**', '/mall', '/mall/**']
+// C 端公开前台可匿名访问；后台商城在 /mall-admin/**，切勿把其放进白名单
+const whiteList = [
+  '/login',
+  '/register',
+  '/blog',
+  '/blog/**',
+  '/mall',
+  '/mall/list',
+  '/mall/detail/**',
+  '/mall/cart',
+  '/mall/checkout',
+  '/mall/pay',
+  '/mall/pay/**',
+  '/mall/orders',
+  '/mall/orders/**',
+  '/mall/address'
+]
 
 const isWhiteList = (path) => {
   return whiteList.some(pattern => isPathMatch(pattern, path))
