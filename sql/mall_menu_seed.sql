@@ -5,7 +5,7 @@ USE nova_mall;
 -- 组件路径按实现时 frontend/src/views/mall/admin/** 约定，可按实际路由再跑 fix 脚本调整
 
 INSERT IGNORE INTO sys_menu VALUES
-(3000, '商城', 0, 6, 'mall', NULL, '', '', 1, 0, 'M', '0', '0', '', 'shopping', 'admin', sysdate(), '', NULL, '商城管理目录'),
+(3000, '商城', 0, 6, 'mall-admin', NULL, '', '', 1, 0, 'M', '0', '0', '', 'shopping', 'admin', sysdate(), '', NULL, '商城管理目录（path=mall-admin，避免与C端/mall冲突）'),
 (3001, '类目管理', 3000, 1, 'category', 'mall/admin/category/index', '', '', 1, 0, 'C', '0', '0', 'mall:category:list', 'tree', 'admin', sysdate(), '', NULL, ''),
 (3002, '品牌管理', 3000, 2, 'brand', 'mall/admin/brand/index', '', '', 1, 0, 'C', '0', '0', 'mall:brand:list', 'star', 'admin', sysdate(), '', NULL, ''),
 (3003, '商品管理', 3000, 3, 'spu', 'mall/admin/spu/index', '', '', 1, 0, 'C', '0', '0', 'mall:spu:list', 'component', 'admin', sysdate(), '', NULL, ''),
