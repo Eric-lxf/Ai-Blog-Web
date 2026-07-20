@@ -113,7 +113,6 @@ onMounted(async () => {
         <el-select v-model="query.sort" style="width: 140px" @change="handleSearch">
           <el-option label="最新上架" value="latest" />
           <el-option label="价格优先" value="price" />
-          <el-option label="销量优先" value="sales" />
         </el-select>
         <el-button type="primary" @click="handleSearch">搜索</el-button>
       </div>

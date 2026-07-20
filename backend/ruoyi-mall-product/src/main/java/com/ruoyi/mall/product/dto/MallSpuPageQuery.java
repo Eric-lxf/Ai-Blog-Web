@@ -15,6 +15,11 @@ public class MallSpuPageQuery
     private Integer pageSize = 10;
 
     private String name;
+    /** 公开列表关键词；与 name 任一有值即按商品名称模糊匹配 */
+    private String keyword;
     private String status;
     private Long categoryId;
+    private Long brandId;
+    /** 排序：latest（默认）| price；非法值回退默认 */
+    private String sort;
 }

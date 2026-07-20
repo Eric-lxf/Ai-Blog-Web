@@ -169,13 +169,19 @@ public class MallSpuServiceImpl implements MallSpuService
         int pageSize = query.getPageSize() == null ? 10 : Math.min(query.getPageSize(), 100);
         LambdaQueryWrapper<MallSpu> wrapper = new LambdaQueryWrapper<MallSpu>()
                 .eq(MallSpu::getDelFlag, MallProductConstants.DEL_FLAG_NORMAL);
-        if (StringUtils.hasText(query.getName()))
+        String nameKeyword = StringUtils.hasText(query.getKeyword()) ? query.getKeyword().trim()
+                : (StringUtils.hasText(query.getName()) ? query.getName().trim() : null);
+        if (nameKeyword != null)
         {
-            wrapper.like(MallSpu::getName, query.getName().trim());
+            wrapper.like(MallSpu::getName, nameKeyword);
         }
         if (query.getCategoryId() != null)
         {
             wrapper.eq(MallSpu::getCategoryId, query.getCategoryId());
+        }
+        if (query.getBrandId() != null)
+        {
+            wrapper.eq(MallSpu::getBrandId, query.getBrandId());
         }
         if (publicOnly)
         {
@@ -185,13 +191,34 @@ public class MallSpuServiceImpl implements MallSpuService
         {
             wrapper.eq(MallSpu::getStatus, query.getStatus().trim());
         }
-        wrapper.orderByAsc(MallSpu::getSort).orderByDesc(MallSpu::getUpdateTime).orderByDesc(MallSpu::getId);
+        applySpuSort(wrapper, query.getSort(), publicOnly);
         Page<MallSpu> result = mallSpuMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
         Map<Long, String> categoryMap = loadCategoryMap(result.getRecords());
         Map<Long, String> brandMap = loadBrandMap(result.getRecords());
         Page<MallSpuVO> voPage = new Page<>(result.getCurrent(), result.getSize(), result.getTotal());
         voPage.setRecords(result.getRecords().stream().map(spu -> toVO(spu, categoryMap, brandMap)).toList());
         return voPage;
+    }
+
+    /**
+     * sort 白名单：price 按启用 SKU 最低价升序；latest 或其它值走默认。
+     * 公开列表默认按更新时间倒序；运营列表默认按运营 sort 升序。
+     */
+    private void applySpuSort(LambdaQueryWrapper<MallSpu> wrapper, String sort, boolean publicOnly)
+    {
+        if ("price".equalsIgnoreCase(sort))
+        {
+            wrapper.last("ORDER BY (SELECT MIN(s.price) FROM mall_sku s WHERE s.spu_id = mall_spu.id"
+                    + " AND s.del_flag = '" + MallProductConstants.DEL_FLAG_NORMAL + "'"
+                    + " AND s.status = '0') ASC, mall_spu.id DESC");
+            return;
+        }
+        if (publicOnly || "latest".equalsIgnoreCase(sort))
+        {
+            wrapper.orderByDesc(MallSpu::getUpdateTime).orderByDesc(MallSpu::getId);
+            return;
+        }
+        wrapper.orderByAsc(MallSpu::getSort).orderByDesc(MallSpu::getUpdateTime).orderByDesc(MallSpu::getId);
     }
 
     private MallSpu requireSpu(Long id)
