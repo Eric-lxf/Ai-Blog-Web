@@ -15,8 +15,10 @@ import org.springframework.web.bind.annotation.RestController;
 import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.enums.BusinessType;
+import com.ruoyi.mall.product.dto.MallCategoryAttrBindRequest;
 import com.ruoyi.mall.product.dto.MallCategoryQuery;
 import com.ruoyi.mall.product.dto.MallCategorySaveRequest;
+import com.ruoyi.mall.product.service.MallAttrService;
 import com.ruoyi.mall.product.service.MallCategoryService;
 
 import lombok.RequiredArgsConstructor;
@@ -27,6 +29,7 @@ import lombok.RequiredArgsConstructor;
 public class MallCategoryController extends MallProductControllerSupport
 {
     private final MallCategoryService mallCategoryService;
+    private final MallAttrService mallAttrService;
 
     @PreAuthorize("@ss.hasPermi('mall:category:list')")
     @GetMapping
@@ -80,5 +83,29 @@ public class MallCategoryController extends MallProductControllerSupport
     {
         mallCategoryService.delete(id);
         return AjaxResult.success();
+    }
+
+    @PreAuthorize("@ss.hasPermi('mall:category:query') or @ss.hasPermi('mall:category:edit')")
+    @GetMapping("/{id}/attrs")
+    public AjaxResult listAttrs(@PathVariable Long id)
+    {
+        return AjaxResult.success(mallAttrService.listCategoryAttrs(id));
+    }
+
+    @PreAuthorize("@ss.hasPermi('mall:category:edit')")
+    @Log(title = "商城类目属性绑定", businessType = BusinessType.UPDATE)
+    @PutMapping("/{id}/attrs")
+    public AjaxResult replaceAttrs(@PathVariable Long id, @Valid @RequestBody MallCategoryAttrBindRequest request)
+    {
+        mallAttrService.replaceCategoryAttrs(id, request.getItems());
+        return AjaxResult.success();
+    }
+
+    /** 发品属性模板；允许仅有商品编辑权限的运营访问 */
+    @PreAuthorize("@ss.hasPermi('mall:category:query') or @ss.hasPermi('mall:spu:add') or @ss.hasPermi('mall:spu:edit')")
+    @GetMapping("/{id}/attr-template")
+    public AjaxResult attrTemplate(@PathVariable Long id)
+    {
+        return AjaxResult.success(mallAttrService.getAttrTemplate(id));
     }
 }
