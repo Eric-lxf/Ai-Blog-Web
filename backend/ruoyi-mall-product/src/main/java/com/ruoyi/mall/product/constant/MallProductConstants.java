@@ -12,6 +12,13 @@ public final class MallProductConstants
     public static final String DEL_FLAG_NORMAL = "0";
     public static final String DEL_FLAG_DELETED = "2";
 
+    public static final String ATTR_TYPE_SALE = "SALE";
+    public static final String ATTR_TYPE_DESC = "DESC";
+
+    public static final String INPUT_TYPE_TEXT = "text";
+    public static final String INPUT_TYPE_SELECT = "select";
+    public static final String INPUT_TYPE_MULTI = "multi";
+
     private MallProductConstants()
     {
     }

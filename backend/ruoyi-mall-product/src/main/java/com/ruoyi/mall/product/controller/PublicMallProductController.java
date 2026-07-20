@@ -12,7 +12,7 @@ import com.ruoyi.common.annotation.Anonymous;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
 import com.ruoyi.mall.product.dto.MallSpuPageQuery;
-import com.ruoyi.mall.product.service.MallCategoryService;
+import com.ruoyi.mall.product.service.MallFrontCategoryService;
 import com.ruoyi.mall.product.service.MallSpuService;
 import com.ruoyi.mall.product.vo.MallSpuVO;
 
@@ -25,7 +25,7 @@ import lombok.RequiredArgsConstructor;
 public class PublicMallProductController extends MallProductControllerSupport
 {
     private final MallSpuService mallSpuService;
-    private final MallCategoryService mallCategoryService;
+    private final MallFrontCategoryService mallFrontCategoryService;
 
     @GetMapping("/spus")
     public TableDataInfo spus(@Valid MallSpuPageQuery query)
@@ -43,6 +43,6 @@ public class PublicMallProductController extends MallProductControllerSupport
     @GetMapping("/categories")
     public AjaxResult categories()
     {
-        return AjaxResult.success(mallCategoryService.listActive());
+        return AjaxResult.success(mallFrontCategoryService.listActiveTree());
     }
 }

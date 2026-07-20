@@ -23,6 +23,18 @@ function normalizeRows(res) {
   return res.rows || res.data?.records || res.data || []
 }
 
+/** 前台类目树 → 侧栏扁平列表（保留层级缩进） */
+function flattenCategoryTree(nodes, depth = 0) {
+  const result = []
+  for (const node of nodes || []) {
+    result.push({ id: node.id, name: node.name, depth })
+    if (node.children?.length) {
+      result.push(...flattenCategoryTree(node.children, depth + 1))
+    }
+  }
+  return result
+}
+
 function syncRouteQuery() {
   query.keyword = route.query.keyword || ''
   query.categoryId = route.query.categoryId ? Number(route.query.categoryId) : undefined
@@ -43,7 +55,8 @@ function priceText(item) {
 
 async function loadCategories() {
   const res = await listPublicMallCategory({ status: '0' })
-  categories.value = normalizeRows(res)
+  const rows = normalizeRows(res)
+  categories.value = flattenCategoryTree(rows)
 }
 
 async function getList() {
@@ -101,6 +114,7 @@ onMounted(async () => {
         :key="item.id"
         type="button"
         :class="{ active: query.categoryId === item.id }"
+        :style="{ paddingLeft: `${12 + item.depth * 14}px` }"
         @click="chooseCategory(item.id)"
       >
         {{ item.name }}
@@ -113,7 +127,6 @@ onMounted(async () => {
         <el-select v-model="query.sort" style="width: 140px" @change="handleSearch">
           <el-option label="最新上架" value="latest" />
           <el-option label="价格优先" value="price" />
-          <el-option label="销量优先" value="sales" />
         </el-select>
         <el-button type="primary" @click="handleSearch">搜索</el-button>
       </div>

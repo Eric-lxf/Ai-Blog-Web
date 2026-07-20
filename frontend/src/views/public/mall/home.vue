@@ -21,6 +21,15 @@ function normalizeRows(res) {
   return res.rows || res.data?.records || res.data || []
 }
 
+/** 热门类目：取前台树一级节点（无 children 时退回扁平列表前若干项） */
+function pickHomeCategories(rows) {
+  if (!rows?.length) return []
+  if (rows.some(item => Array.isArray(item.children))) {
+    return rows.slice(0, 8)
+  }
+  return rows.slice(0, 8)
+}
+
 function productImage(item) {
   return resolveUploadUrl(item.mainImage || item.image || item.images?.[0]?.url || '')
 }
@@ -48,7 +57,7 @@ async function loadData() {
       listPublicMallCategory({ status: '0' }),
       listPublicMallSpu(query)
     ])
-    categories.value = normalizeRows(categoryRes)
+    categories.value = pickHomeCategories(normalizeRows(categoryRes))
     products.value = normalizeRows(productRes)
   } finally {
     loading.value = false
