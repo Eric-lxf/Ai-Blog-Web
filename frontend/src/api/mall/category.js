@@ -47,3 +47,19 @@ export function delMallCategory(id) {
     method: 'delete'
   })
 }
+
+export function listMallCategoryAttrs(id) {
+  return request({
+    url: `${baseUrl}/${id}/attrs`,
+    method: 'get'
+  })
+}
+
+/** body 必须为 { items: [...] } */
+export function replaceMallCategoryAttrs(id, items) {
+  return request({
+    url: `${baseUrl}/${id}/attrs`,
+    method: 'put',
+    data: { items }
+  })
+}

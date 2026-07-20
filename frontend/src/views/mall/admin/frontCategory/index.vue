@@ -1,32 +1,33 @@
 <script setup>
-defineOptions({ name: 'MallAdminCategory' })
+defineOptions({ name: 'MallAdminFrontCategory' })
 
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { listMallCategoryOptions } from '@/api/mall/category'
 import {
-  addMallCategory,
-  delMallCategory,
-  getMallCategory,
-  listMallCategory,
-  listMallCategoryAttrs,
-  replaceMallCategoryAttrs,
-  updateMallCategory
-} from '@/api/mall/category'
-import { listMallAttr } from '@/api/mall/attr'
+  addMallFrontCategory,
+  delMallFrontCategory,
+  getMallFrontCategory,
+  listMallFrontCategory,
+  listMallFrontCategoryRels,
+  replaceMallFrontCategoryRels,
+  updateMallFrontCategory
+} from '@/api/mall/frontCategory'
 
 const loading = ref(false)
 const categoryList = ref([])
 const open = ref(false)
-const bindOpen = ref(false)
+const relOpen = ref(false)
 const title = ref('')
 const formRef = ref()
-const bindSaving = ref(false)
-const bindCategory = ref(null)
-const bindRows = ref([])
-const attrOptions = ref([])
+const relSaving = ref(false)
+const relFront = ref(null)
+const selectedBackIds = ref([])
+const leafOptions = ref([])
 const queryParams = reactive({
   name: '',
-  status: undefined
+  status: undefined,
+  tree: true
 })
 const form = reactive({
   id: undefined,
@@ -60,11 +61,29 @@ function buildTree(list, parentId = 0) {
     }))
 }
 
+function flattenLeaves(nodes, acc = []) {
+  for (const node of nodes || []) {
+    const children = node.children || []
+    if (!children.length) {
+      acc.push({ id: node.id, name: node.name })
+    } else {
+      flattenLeaves(children, acc)
+    }
+  }
+  return acc
+}
+
 async function getList() {
   loading.value = true
   try {
-    const res = await listMallCategory(queryParams)
-    categoryList.value = buildTree(normalizeRows(res))
+    const res = await listMallFrontCategory(queryParams)
+    const rows = normalizeRows(res)
+    // tree=true 时后端已建树；否则前端组树
+    if (queryParams.tree && rows.some(item => Array.isArray(item.children))) {
+      categoryList.value = rows
+    } else {
+      categoryList.value = buildTree(rows)
+    }
   } finally {
     loading.value = false
   }
@@ -98,21 +117,21 @@ function handleAdd(row) {
   if (row?.id) {
     form.parentId = row.id
   }
-  title.value = '新增类目'
+  title.value = '新增前台类目'
   open.value = true
 }
 
 async function handleUpdate(row) {
   resetForm()
-  const res = await getMallCategory(row.id)
+  const res = await getMallFrontCategory(row.id)
   Object.assign(form, res.data || row)
-  title.value = '修改类目'
+  title.value = '修改前台类目'
   open.value = true
 }
 
 async function handleDelete(row) {
-  await ElMessageBox.confirm(`确认删除类目“${row.name}”吗？`, '提示', { type: 'warning' })
-  await delMallCategory(row.id)
+  await ElMessageBox.confirm(`确认删除前台类目“${row.name}”吗？`, '提示', { type: 'warning' })
+  await delMallFrontCategory(row.id)
   ElMessage.success('删除成功')
   getList()
 }
@@ -120,71 +139,39 @@ async function handleDelete(row) {
 async function submitForm() {
   await formRef.value.validate()
   if (form.id) {
-    await updateMallCategory(form)
+    await updateMallFrontCategory(form)
   } else {
-    await addMallCategory(form)
+    await addMallFrontCategory(form)
   }
   ElMessage.success('保存成功')
   open.value = false
   getList()
 }
 
-async function loadAttrOptions() {
-  const res = await listMallAttr({ pageNum: 1, pageSize: 100, status: '0' })
-  attrOptions.value = normalizeRows(res)
+async function loadLeafOptions() {
+  const res = await listMallCategoryOptions()
+  const tree = normalizeRows(res)
+  leafOptions.value = flattenLeaves(tree)
 }
 
-async function handleBindAttrs(row) {
-  bindCategory.value = row
-  await loadAttrOptions()
-  const res = await listMallCategoryAttrs(row.id)
-  const list = res.data || []
-  bindRows.value = list.map(item => ({
-    attrId: item.attrId,
-    attrType: item.attrType || 'DESC',
-    required: item.required ?? '0',
-    sort: item.sort ?? 0
-  }))
-  if (!bindRows.value.length) {
-    bindRows.value.push({ attrId: undefined, attrType: 'DESC', required: '0', sort: 0 })
-  }
-  bindOpen.value = true
+async function handleRels(row) {
+  relFront.value = row
+  selectedBackIds.value = []
+  await loadLeafOptions()
+  const res = await listMallFrontCategoryRels(row.id)
+  const rels = res.data || []
+  selectedBackIds.value = rels.map(item => item.backCategoryId).filter(Boolean)
+  relOpen.value = true
 }
 
-function addBindRow() {
-  bindRows.value.push({
-    attrId: undefined,
-    attrType: 'DESC',
-    required: '0',
-    sort: bindRows.value.length
-  })
-}
-
-function removeBindRow(index) {
-  bindRows.value.splice(index, 1)
-}
-
-async function submitBindAttrs() {
-  const items = bindRows.value
-    .filter(row => row.attrId)
-    .map((row, index) => ({
-      attrId: row.attrId,
-      attrType: row.attrType || 'DESC',
-      required: row.required ?? '0',
-      sort: row.sort ?? index
-    }))
-  const ids = items.map(item => item.attrId)
-  if (new Set(ids).size !== ids.length) {
-    ElMessage.warning('同一属性不可重复绑定')
-    return
-  }
-  bindSaving.value = true
+async function submitRels() {
+  relSaving.value = true
   try {
-    await replaceMallCategoryAttrs(bindCategory.value.id, items)
-    ElMessage.success('属性绑定已保存')
-    bindOpen.value = false
+    await replaceMallFrontCategoryRels(relFront.value.id, selectedBackIds.value)
+    ElMessage.success('映射已保存')
+    relOpen.value = false
   } finally {
-    bindSaving.value = false
+    relSaving.value = false
   }
 }
 
@@ -195,7 +182,7 @@ onMounted(getList)
   <div class="app-container">
     <el-card shadow="never">
       <template #header>
-        <span>后台类目</span>
+        <span>前台类目</span>
       </template>
       <el-form :inline="true" :model="queryParams" @submit.prevent="handleQuery">
         <el-form-item label="类目名称">
@@ -215,7 +202,7 @@ onMounted(getList)
 
       <el-row :gutter="10" class="mb8">
         <el-col :span="1.5">
-          <el-button type="primary" plain icon="Plus" v-hasPermi="['mall:category:add']" @click="handleAdd">
+          <el-button type="primary" plain icon="Plus" v-hasPermi="['mall:frontCategory:add']" @click="handleAdd">
             新增
           </el-button>
         </el-col>
@@ -241,12 +228,18 @@ onMounted(getList)
         <el-table-column prop="updateTime" label="更新时间" width="180" />
         <el-table-column label="操作" width="280" fixed="right" align="center">
           <template #default="{ row }">
-            <el-button link type="primary" v-hasPermi="['mall:category:add']" @click="handleAdd(row)">新增子类</el-button>
-            <el-button link type="primary" v-hasPermi="['mall:category:edit']" @click="handleUpdate(row)">修改</el-button>
-            <el-button link type="primary" v-hasPermi="['mall:category:edit']" @click="handleBindAttrs(row)">
-              绑定属性
+            <el-button link type="primary" v-hasPermi="['mall:frontCategory:add']" @click="handleAdd(row)">
+              新增子类
             </el-button>
-            <el-button link type="danger" v-hasPermi="['mall:category:remove']" @click="handleDelete(row)">删除</el-button>
+            <el-button link type="primary" v-hasPermi="['mall:frontCategory:edit']" @click="handleUpdate(row)">
+              修改
+            </el-button>
+            <el-button link type="primary" v-hasPermi="['mall:frontCategory:edit']" @click="handleRels(row)">
+              映射
+            </el-button>
+            <el-button link type="danger" v-hasPermi="['mall:frontCategory:remove']" @click="handleDelete(row)">
+              删除
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -290,60 +283,21 @@ onMounted(getList)
       </template>
     </el-dialog>
 
-    <el-dialog v-model="bindOpen" :title="`绑定属性 — ${bindCategory?.name || ''}`" width="760px" append-to-body>
-      <el-table :data="bindRows" border>
-        <el-table-column label="属性" min-width="180">
-          <template #default="{ row }">
-            <el-select v-model="row.attrId" filterable clearable placeholder="选择属性" style="width: 100%">
-              <el-option
-                v-for="attr in attrOptions"
-                :key="attr.id"
-                :label="attr.name"
-                :value="attr.id"
-              />
-            </el-select>
-          </template>
-        </el-table-column>
-        <el-table-column label="类型" width="130" align="center">
-          <template #default="{ row }">
-            <el-select v-model="row.attrType" style="width: 110px">
-              <el-option label="销售(SALE)" value="SALE" />
-              <el-option label="描述(DESC)" value="DESC" />
-            </el-select>
-          </template>
-        </el-table-column>
-        <el-table-column label="必填" width="110" align="center">
-          <template #default="{ row }">
-            <el-select v-model="row.required" style="width: 90px">
-              <el-option label="否" value="0" />
-              <el-option label="是" value="1" />
-            </el-select>
-          </template>
-        </el-table-column>
-        <el-table-column label="排序" width="110" align="center">
-          <template #default="{ row }">
-            <el-input-number v-model="row.sort" :min="0" controls-position="right" style="width: 90px" />
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="70" align="center">
-          <template #default="{ $index }">
-            <el-button link type="danger" @click="removeBindRow($index)">删</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-      <div class="bind-actions">
-        <el-button icon="Plus" @click="addBindRow">添加行</el-button>
-      </div>
+    <el-dialog v-model="relOpen" :title="`映射后台叶子 — ${relFront?.name || ''}`" width="560px" append-to-body>
+      <el-select
+        v-model="selectedBackIds"
+        multiple
+        filterable
+        clearable
+        placeholder="请选择后台叶子类目"
+        style="width: 100%"
+      >
+        <el-option v-for="item in leafOptions" :key="item.id" :label="item.name" :value="item.id" />
+      </el-select>
       <template #footer>
-        <el-button @click="bindOpen = false">取消</el-button>
-        <el-button type="primary" :loading="bindSaving" @click="submitBindAttrs">确定</el-button>
+        <el-button @click="relOpen = false">取消</el-button>
+        <el-button type="primary" :loading="relSaving" @click="submitRels">确定</el-button>
       </template>
     </el-dialog>
   </div>
 </template>
-
-<style scoped>
-.bind-actions {
-  margin-top: 12px;
-}
-</style>
