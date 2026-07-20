@@ -34,4 +34,7 @@ public class MallSpuSaveRequest
 
     @Valid
     private List<MallSpuImageSaveRequest> images;
+
+    @Valid
+    private List<MallSpuAttrValueRequest> attrValues;
 }

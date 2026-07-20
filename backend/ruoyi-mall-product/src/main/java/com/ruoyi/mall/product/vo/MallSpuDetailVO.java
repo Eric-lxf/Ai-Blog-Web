@@ -14,4 +14,5 @@ public class MallSpuDetailVO extends MallSpuVO
 {
     private List<MallSku> skus;
     private List<MallSpuImage> images;
+    private List<MallSpuAttrValueVO> attrValues;
 }
