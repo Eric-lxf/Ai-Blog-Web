@@ -18,6 +18,10 @@ const productId = computed(() => Number(route.params.id))
 const skus = computed(() => product.value?.skus || product.value?.skuList || [])
 const selectedSku = computed(() => skus.value.find(item => item.id === selectedSkuId.value))
 const mainImage = computed(() => resolveUploadUrl(product.value?.mainImage || product.value?.images?.[0]?.url || ''))
+const descAttrValues = computed(() => {
+  const list = product.value?.attrValues || []
+  return list.filter(item => !item.attrType || item.attrType === 'DESC')
+})
 
 function specsText(sku) {
   if (!sku?.specsJson) return '默认规格'
@@ -110,6 +114,18 @@ watch(productId, loadProduct, { immediate: true })
         </div>
       </section>
 
+      <section v-if="descAttrValues.length" class="detail-attrs">
+        <h2>商品参数</h2>
+        <table class="attr-table">
+          <tbody>
+            <tr v-for="item in descAttrValues" :key="item.attrId || item.attrName">
+              <th>{{ item.attrName }}</th>
+              <td>{{ item.value || '-' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
       <section class="detail-html">
         <h2>商品详情</h2>
         <div v-if="product.detailHtml" v-html="product.detailHtml" />
@@ -198,12 +214,39 @@ watch(productId, loadProduct, { immediate: true })
   margin-top: 28px;
 }
 
-.detail-html {
+.detail-html,
+.detail-attrs {
   margin-top: 24px;
   padding: 24px;
   border-radius: 18px;
   background: #fff;
   border: 1px solid #e5e7eb;
+}
+
+.detail-attrs h2,
+.detail-html h2 {
+  margin: 0 0 16px;
+  font-size: 20px;
+}
+
+.attr-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.attr-table th,
+.attr-table td {
+  padding: 12px 16px;
+  border: 1px solid #e5e7eb;
+  text-align: left;
+  vertical-align: top;
+}
+
+.attr-table th {
+  width: 160px;
+  color: #606266;
+  background: #f8fafc;
+  font-weight: 600;
 }
 
 @media (max-width: 900px) {

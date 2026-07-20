@@ -1,10 +1,10 @@
 <script setup>
 defineOptions({ name: 'MallAdminSpu' })
 
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { listMallBrandOptions } from '@/api/mall/brand'
-import { listMallCategoryOptions } from '@/api/mall/category'
+import { getMallCategoryAttrTemplate, listMallCategoryOptions } from '@/api/mall/category'
 import {
   addMallSpu,
   delMallSpu,
@@ -17,6 +17,7 @@ import { resolveUploadUrl } from '@/utils/blogAssets'
 
 const loading = ref(false)
 const saving = ref(false)
+const templateLoading = ref(false)
 const spuList = ref([])
 const categoryList = ref([])
 const brandList = ref([])
@@ -24,6 +25,12 @@ const total = ref(0)
 const open = ref(false)
 const title = ref('')
 const formRef = ref()
+const saleAttrs = ref([])
+const descAttrs = ref([])
+/** @type {import('vue').Ref<Record<number|string, string[]>>} */
+const saleSelected = ref({})
+/** @type {import('vue').Ref<Record<number|string, string|string[]>>} */
+const descValues = ref({})
 const queryParams = reactive({
   pageNum: 1,
   pageSize: 10,
@@ -56,6 +63,8 @@ const statusMap = {
 }
 
 const categoryOptions = computed(() => categoryList.value)
+const hasSaleAttrs = computed(() => saleAttrs.value.length > 0)
+const hasDescAttrs = computed(() => descAttrs.value.length > 0)
 
 function normalizeRows(res) {
   return res.rows || res.data?.records || res.data || []
@@ -98,8 +107,156 @@ function priceText(row) {
   return min === max ? `¥${min}` : `¥${min} - ¥${max}`
 }
 
+function optionList(attr) {
+  return (attr?.options || []).filter(item => item.status !== '1')
+}
+
+function clearTemplate() {
+  saleAttrs.value = []
+  descAttrs.value = []
+  saleSelected.value = {}
+  descValues.value = {}
+}
+
+function initDescValue(attr, existing) {
+  if (attr.inputType === 'multi') {
+    if (Array.isArray(existing)) return existing
+    if (typeof existing === 'string' && existing) {
+      return existing.split(',').map(s => s.trim()).filter(Boolean)
+    }
+    return []
+  }
+  return existing ?? ''
+}
+
+async function loadAttrTemplate(categoryId, existingAttrValues = []) {
+  clearTemplate()
+  if (!categoryId) return
+  templateLoading.value = true
+  try {
+    const res = await getMallCategoryAttrTemplate(categoryId)
+    const data = res.data || {}
+    saleAttrs.value = data.saleAttrs || []
+    descAttrs.value = data.descAttrs || []
+
+    const existingMap = {}
+    for (const item of existingAttrValues || []) {
+      if (item?.attrId != null) {
+        existingMap[item.attrId] = item.value
+      }
+    }
+
+    const nextSale = {}
+    for (const attr of saleAttrs.value) {
+      nextSale[attr.id] = []
+    }
+    saleSelected.value = nextSale
+
+    const nextDesc = {}
+    for (const attr of descAttrs.value) {
+      nextDesc[attr.id] = initDescValue(attr, existingMap[attr.id])
+    }
+    descValues.value = nextDesc
+
+    // 从已有 SKU 回填销售属性多选
+    if (form.skus?.length) {
+      for (const attr of saleAttrs.value) {
+        const values = new Set()
+        for (const sku of form.skus) {
+          try {
+            const specs = JSON.parse(sku.specsJson || '{}')
+            const raw = specs[attr.name]
+            if (raw == null || raw === '') continue
+            if (Array.isArray(raw)) {
+              raw.forEach(v => values.add(String(v)))
+            } else {
+              String(raw).split(',').map(s => s.trim()).filter(Boolean).forEach(v => values.add(v))
+            }
+          } catch {
+            /* ignore */
+          }
+        }
+        saleSelected.value[attr.id] = [...values]
+      }
+    }
+  } catch (e) {
+    console.error('加载属性模板失败', e)
+    clearTemplate()
+  } finally {
+    templateLoading.value = false
+  }
+}
+
+function cartesian(arrays) {
+  return arrays.reduce(
+    (acc, curr) => {
+      const next = []
+      for (const prefix of acc) {
+        for (const item of curr) {
+          next.push([...prefix, item])
+        }
+      }
+      return next
+    },
+    [[]]
+  )
+}
+
+function generateSkusFromSale() {
+  if (!saleAttrs.value.length) {
+    ElMessage.warning('当前类目无销售属性')
+    return
+  }
+  const dims = []
+  for (const attr of saleAttrs.value) {
+    const selected = saleSelected.value[attr.id] || []
+    if (!selected.length) {
+      ElMessage.warning(`请为销售属性「${attr.name}」至少选择一个值`)
+      return
+    }
+    dims.push(selected.map(value => ({ name: attr.name, value })))
+  }
+  const combos = cartesian(dims)
+  const existingBySpecs = new Map()
+  for (const sku of form.skus || []) {
+    existingBySpecs.set(sku.specsJson || '{}', sku)
+  }
+  form.skus = combos.map((combo, index) => {
+    const specs = {}
+    const codeParts = []
+    for (const item of combo) {
+      specs[item.name] = item.value
+      codeParts.push(item.value)
+    }
+    const specsJson = JSON.stringify(specs)
+    const prev = existingBySpecs.get(specsJson)
+    if (prev) {
+      return { ...createSku(), ...prev, specsJson }
+    }
+    const prefix = (form.name || 'SKU').replace(/\s+/g, '').slice(0, 16)
+    return {
+      ...createSku(),
+      skuCode: `${prefix}-${codeParts.join('-') || index + 1}`.slice(0, 64),
+      specsJson
+    }
+  })
+  ElMessage.success(`已生成 ${form.skus.length} 个 SKU`)
+}
+
+function buildAttrValues() {
+  return descAttrs.value.map(attr => {
+    const raw = descValues.value[attr.id]
+    let value = ''
+    if (Array.isArray(raw)) {
+      value = raw.join(',')
+    } else if (raw != null) {
+      value = String(raw)
+    }
+    return { attrId: attr.id, value }
+  })
+}
+
 async function loadOptions() {
-  // 类目/品牌各自加载，避免一侧失败导致两侧下拉都空
   try {
     const categoryRes = await listMallCategoryOptions()
     categoryList.value = normalizeTree(normalizeRows(categoryRes))
@@ -141,6 +298,7 @@ function resetForm() {
     remark: '',
     skus: [createSku()]
   })
+  clearTemplate()
   formRef.value?.clearValidate()
 }
 
@@ -180,6 +338,7 @@ async function handleUpdate(row) {
   }
   title.value = '修改商品'
   open.value = true
+  await loadAttrTemplate(form.categoryId, detail.attrValues || [])
 }
 
 function addSkuRow() {
@@ -197,6 +356,7 @@ function removeSkuRow(index) {
 function buildPayload() {
   return {
     ...form,
+    attrValues: buildAttrValues(),
     skus: form.skus.map(item => ({
       ...item,
       price: Number(item.price || 0),
@@ -207,6 +367,15 @@ function buildPayload() {
 
 async function submitForm() {
   await formRef.value.validate()
+  for (const attr of descAttrs.value) {
+    if (attr.required !== '1') continue
+    const raw = descValues.value[attr.id]
+    const empty = Array.isArray(raw) ? !raw.length : !String(raw ?? '').trim()
+    if (empty) {
+      ElMessage.warning(`描述属性「${attr.name}」不能为空`)
+      return
+    }
+  }
   const invalidSku = form.skus.find(item => !item.skuCode || Number(item.price) < 0 || Number(item.stock) < 0)
   if (invalidSku) {
     ElMessage.warning('请完整填写 SKU 编码、价格和库存')
@@ -239,6 +408,17 @@ async function handleChangeStatus(row, status) {
   ElMessage.success(status === 'ON' ? '已上架' : '已下架')
   getList()
 }
+
+watch(
+  () => form.categoryId,
+  async (id, prev) => {
+    if (!open.value) return
+    if (id === prev) return
+    // 编辑初次赋值时由 handleUpdate 加载，避免重复
+    if (form.id && prev === undefined) return
+    await loadAttrTemplate(id, [])
+  }
+)
 
 onMounted(async () => {
   await loadOptions()
@@ -358,8 +538,8 @@ onMounted(async () => {
       />
     </el-card>
 
-    <el-dialog v-model="open" :title="title" width="920px" append-to-body>
-      <el-form ref="formRef" :model="form" :rules="rules" label-width="90px">
+    <el-dialog v-model="open" :title="title" width="960px" append-to-body>
+      <el-form ref="formRef" v-loading="templateLoading" :model="form" :rules="rules" label-width="90px">
         <el-row :gutter="16">
           <el-col :span="12">
             <el-form-item label="商品名称" prop="name">
@@ -416,6 +596,83 @@ onMounted(async () => {
             </el-form-item>
           </el-col>
         </el-row>
+
+        <template v-if="hasDescAttrs">
+          <div class="section-header">描述属性</div>
+          <el-row :gutter="16">
+            <el-col v-for="attr in descAttrs" :key="attr.id" :span="12">
+              <el-form-item :label="attr.name" :required="attr.required === '1'">
+                <el-input
+                  v-if="attr.inputType === 'text' || !attr.inputType"
+                  v-model="descValues[attr.id]"
+                  :placeholder="`请输入${attr.name}`"
+                />
+                <el-select
+                  v-else-if="attr.inputType === 'select'"
+                  v-model="descValues[attr.id]"
+                  clearable
+                  filterable
+                  style="width: 100%"
+                  :placeholder="`请选择${attr.name}`"
+                >
+                  <el-option
+                    v-for="opt in optionList(attr)"
+                    :key="opt.id || opt.value"
+                    :label="opt.value"
+                    :value="opt.value"
+                  />
+                </el-select>
+                <el-select
+                  v-else
+                  v-model="descValues[attr.id]"
+                  multiple
+                  collapse-tags
+                  collapse-tags-tooltip
+                  clearable
+                  filterable
+                  style="width: 100%"
+                  :placeholder="`请选择${attr.name}`"
+                >
+                  <el-option
+                    v-for="opt in optionList(attr)"
+                    :key="opt.id || opt.value"
+                    :label="opt.value"
+                    :value="opt.value"
+                  />
+                </el-select>
+              </el-form-item>
+            </el-col>
+          </el-row>
+        </template>
+
+        <template v-if="hasSaleAttrs">
+          <div class="section-header">
+            <span>销售属性</span>
+            <el-button type="primary" link @click="generateSkusFromSale">生成 SKU</el-button>
+          </div>
+          <el-row :gutter="16">
+            <el-col v-for="attr in saleAttrs" :key="attr.id" :span="12">
+              <el-form-item :label="attr.name" required>
+                <el-select
+                  v-model="saleSelected[attr.id]"
+                  multiple
+                  collapse-tags
+                  collapse-tags-tooltip
+                  filterable
+                  style="width: 100%"
+                  :placeholder="`请选择${attr.name}（可多选）`"
+                >
+                  <el-option
+                    v-for="opt in optionList(attr)"
+                    :key="opt.id || opt.value"
+                    :label="opt.value"
+                    :value="opt.value"
+                  />
+                </el-select>
+              </el-form-item>
+            </el-col>
+          </el-row>
+        </template>
 
         <div class="sku-header">
           <span>SKU 信息</span>
@@ -483,11 +740,18 @@ onMounted(async () => {
   font-size: 12px;
 }
 
-.sku-header {
+.sku-header,
+.section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin: 8px 0 12px;
   font-weight: 600;
+}
+
+.section-header {
+  margin-top: 16px;
+  padding-top: 8px;
+  border-top: 1px solid #ebeef5;
 }
 </style>

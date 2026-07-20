@@ -63,3 +63,11 @@ export function replaceMallCategoryAttrs(id, items) {
     data: { items }
   })
 }
+
+/** 发品属性模板：{ saleAttrs, descAttrs } */
+export function getMallCategoryAttrTemplate(id) {
+  return request({
+    url: `${baseUrl}/${id}/attr-template`,
+    method: 'get'
+  })
+}
