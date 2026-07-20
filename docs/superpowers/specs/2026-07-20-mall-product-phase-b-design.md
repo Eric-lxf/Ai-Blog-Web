@@ -1,10 +1,11 @@
 # Design: Mall Product Phase B（属性化 + 前后台类目）
 
-**Status**: Draft — awaiting user review of this file  
+**Status**: Approved  
 **Author**: Alex / Cursor  
 **Last Updated**: 2026-07-20  
 **Branch**: `feat/mall-product-a-b-c`  
 **Depends on**: Phase A (`a266ce9`)  
+**Plan**: `docs/superpowers/plans/2026-07-20-mall-product-phase-b.md`  
 **Stakeholders**: Eng
 
 ---
