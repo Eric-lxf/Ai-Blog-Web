@@ -1,8 +1,9 @@
 # Design: Mall Product Phase B（属性化 + 前后台类目）
 
-**Status**: Approved  
+**Status**: Implemented  
 **Author**: Alex / Cursor  
 **Last Updated**: 2026-07-20  
+**Implemented**: 2026-07-20（Tasks 1–6，`feat/mall-product-a-b-c`）  
 **Branch**: `feat/mall-product-a-b-c`  
 **Depends on**: Phase A (`a266ce9`)  
 **Plan**: `docs/superpowers/plans/2026-07-20-mall-product-phase-b.md`  
@@ -178,6 +179,15 @@ mall_spu_attr_value
 
 ---
 
-## 12. Next Step After Spec Approval
+## 12. Implementation
 
-Invoke writing-plans → `docs/superpowers/plans/2026-07-20-mall-product-phase-b.md` → 按任务实现。
+计划 `docs/superpowers/plans/2026-07-20-mall-product-phase-b.md` Tasks 1–6 已落地；SQL 见根目录 `sql/mall_attr_front_category_schema.sql`、`sql/mall_phase_b_*.sql`。
+
+## 13. Acceptance
+
+- [x] 属性 CRUD、选项、类目绑定（SALE/DESC）、发品 attr-template
+- [x] 前台类目 CRUD、后台叶子映射、`resolveBackCategoryIds` 公开筛选
+- [x] SPU 保存：叶子类目校验、DESC 落库、SALE specs_json 校验
+- [x] Admin 属性/前台类目/后台类目绑定 UI；发品模板 + C 端前台导购与 DESC 展示
+- [x] 无属性绑定类目兼容旧发品流程
+- [x] `mvn -pl ruoyi-mall-product -am -DskipTests compile` 通过
