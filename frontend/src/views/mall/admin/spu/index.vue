@@ -81,10 +81,22 @@ function buildTree(list, parentId = 0) {
 }
 
 function normalizeTree(rows) {
-  if (rows.some(item => Array.isArray(item.children))) {
-    return rows
-  }
-  return buildTree(rows)
+  const tree = rows.some(item => Array.isArray(item.children)) ? rows : buildTree(rows)
+  return markNonLeafDisabled(tree)
+}
+
+/** 非叶子类目禁用选择（发品必须挂后台叶子） */
+function markNonLeafDisabled(nodes) {
+  return (nodes || []).map(node => {
+    const children = Array.isArray(node.children) && node.children.length
+      ? markNonLeafDisabled(node.children)
+      : undefined
+    return {
+      ...node,
+      children,
+      disabled: !!(children && children.length)
+    }
+  })
 }
 
 function createSku() {
@@ -319,14 +331,16 @@ function resetQuery() {
   getList()
 }
 
-function handleAdd() {
+async function handleAdd() {
   resetForm()
   title.value = '新增商品'
   open.value = true
+  await loadOptions()
 }
 
 async function handleUpdate(row) {
   resetForm()
+  await loadOptions()
   const res = await getMallSpu(row.id)
   const detail = res.data || row
   Object.assign(form, {
@@ -365,14 +379,48 @@ function buildPayload() {
   }
 }
 
+function skuMissingSaleSpecs(sku) {
+  if (sku.status === '1') return false
+  let specs = {}
+  try {
+    specs = JSON.parse(sku.specsJson || '{}')
+  } catch {
+    return true
+  }
+  return saleAttrs.value.some(attr => {
+    const v = specs[attr.name]
+    return v == null || v === '' || (Array.isArray(v) && !v.length)
+  })
+}
+
 async function submitForm() {
-  await formRef.value.validate()
+  try {
+    await formRef.value.validate()
+  } catch {
+    ElMessage.warning('请完善商品名称和类目（须选叶子类目）')
+    return
+  }
+  if (!form.categoryId) {
+    ElMessage.warning('请选择后台叶子类目')
+    return
+  }
   for (const attr of descAttrs.value) {
     if (attr.required !== '1') continue
     const raw = descValues.value[attr.id]
     const empty = Array.isArray(raw) ? !raw.length : !String(raw ?? '').trim()
     if (empty) {
       ElMessage.warning(`描述属性「${attr.name}」不能为空`)
+      return
+    }
+  }
+  if (hasSaleAttrs.value) {
+    const needSelect = saleAttrs.value.find(attr => !(saleSelected.value[attr.id] || []).length)
+    if (needSelect) {
+      ElMessage.warning(`请为销售属性「${needSelect.name}」选择取值，并点击「生成 SKU」`)
+      return
+    }
+    if (form.skus.some(skuMissingSaleSpecs)) {
+      ElMessage.warning('SKU 规格未包含销售属性，请点击「生成 SKU」后再保存')
       return
     }
   }
@@ -391,6 +439,9 @@ async function submitForm() {
     ElMessage.success('保存成功')
     open.value = false
     getList()
+  } catch (e) {
+    // 业务错误已由 request 拦截器提示
+    console.error('保存商品失败', e)
   } finally {
     saving.value = false
   }
@@ -438,7 +489,7 @@ onMounted(async () => {
             v-model="queryParams.categoryId"
             :data="categoryOptions"
             node-key="id"
-            :props="{ label: 'name', children: 'children' }"
+            :props="{ label: 'name', children: 'children', disabled: 'disabled' }"
             clearable
             check-strictly
             style="width: 180px"
@@ -557,9 +608,10 @@ onMounted(async () => {
                 v-model="form.categoryId"
                 :data="categoryOptions"
                 node-key="id"
-                :props="{ label: 'name', children: 'children' }"
+                :props="{ label: 'name', children: 'children', disabled: 'disabled' }"
                 check-strictly
                 filterable
+                placeholder="请选择叶子类目"
                 style="width: 100%"
               />
             </el-form-item>
@@ -660,7 +712,7 @@ onMounted(async () => {
                   collapse-tags-tooltip
                   filterable
                   style="width: 100%"
-                  :placeholder="`请选择${attr.name}（可多选）`"
+                  :placeholder="optionList(attr).length ? `请选择${attr.name}（可多选）` : '暂无选项，请先在属性管理维护'"
                 >
                   <el-option
                     v-for="opt in optionList(attr)"
