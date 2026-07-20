@@ -25,6 +25,7 @@ import com.ruoyi.mall.product.domain.MallAttr;
 import com.ruoyi.mall.product.domain.MallAttrOption;
 import com.ruoyi.mall.product.domain.MallCategory;
 import com.ruoyi.mall.product.domain.MallCategoryAttr;
+import com.ruoyi.mall.product.domain.MallSpuAttrValue;
 import com.ruoyi.mall.product.dto.MallAttrOptionSaveRequest;
 import com.ruoyi.mall.product.dto.MallAttrPageQuery;
 import com.ruoyi.mall.product.dto.MallAttrSaveRequest;
@@ -33,6 +34,7 @@ import com.ruoyi.mall.product.mapper.MallAttrMapper;
 import com.ruoyi.mall.product.mapper.MallAttrOptionMapper;
 import com.ruoyi.mall.product.mapper.MallCategoryAttrMapper;
 import com.ruoyi.mall.product.mapper.MallCategoryMapper;
+import com.ruoyi.mall.product.mapper.MallSpuAttrValueMapper;
 import com.ruoyi.mall.product.service.MallAttrService;
 import com.ruoyi.mall.product.vo.MallAttrTemplateVO;
 import com.ruoyi.mall.product.vo.MallAttrVO;
@@ -47,6 +49,7 @@ public class MallAttrServiceImpl implements MallAttrService
     private final MallAttrOptionMapper mallAttrOptionMapper;
     private final MallCategoryAttrMapper mallCategoryAttrMapper;
     private final MallCategoryMapper mallCategoryMapper;
+    private final MallSpuAttrValueMapper mallSpuAttrValueMapper;
 
     @Override
     public Page<MallAttr> page(MallAttrPageQuery query)
@@ -103,6 +106,12 @@ public class MallAttrServiceImpl implements MallAttrService
         if (refs != null && refs > 0)
         {
             throw new ServiceException("属性已绑定类目，不能删除", HttpStatus.BAD_REQUEST);
+        }
+        Long spuRefs = mallSpuAttrValueMapper.selectCount(new LambdaQueryWrapper<MallSpuAttrValue>()
+                .eq(MallSpuAttrValue::getAttrId, id));
+        if (spuRefs != null && spuRefs > 0)
+        {
+            throw new ServiceException("属性已被商品引用，不能删除", HttpStatus.BAD_REQUEST);
         }
         mallAttrOptionMapper.delete(new LambdaQueryWrapper<MallAttrOption>()
                 .eq(MallAttrOption::getAttrId, id));

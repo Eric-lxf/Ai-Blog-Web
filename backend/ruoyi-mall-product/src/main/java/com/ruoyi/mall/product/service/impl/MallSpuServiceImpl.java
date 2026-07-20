@@ -141,7 +141,7 @@ public class MallSpuServiceImpl implements MallSpuService
 
         saveSkus(spu.getId(), request.getSkus(), username);
         saveImages(spu.getId(), request.getImages());
-        saveAttrValues(spu.getId(), request.getAttrValues());
+        saveAttrValues(spu.getId(), template, request.getAttrValues());
         if (MallProductConstants.SPU_STATUS_ON.equals(spu.getStatus()))
         {
             validatePublishable(spu.getId());
@@ -382,19 +382,29 @@ public class MallSpuServiceImpl implements MallSpuService
         }
     }
 
-    private void saveAttrValues(Long spuId, List<MallSpuAttrValueRequest> attrValues)
+    private void saveAttrValues(Long spuId, MallAttrTemplateVO template, List<MallSpuAttrValueRequest> attrValues)
     {
         mallSpuAttrValueMapper.delete(new LambdaQueryWrapper<MallSpuAttrValue>().eq(MallSpuAttrValue::getSpuId, spuId));
         if (CollectionUtils.isEmpty(attrValues))
         {
             return;
         }
+        List<MallAttrVO> descAttrs = template == null || template.getDescAttrs() == null
+                ? List.of() : template.getDescAttrs();
+        Set<Long> descAttrIds = descAttrs.stream()
+                .map(MallAttrVO::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
         Set<Long> seen = new HashSet<>();
         for (MallSpuAttrValueRequest request : attrValues)
         {
             if (request.getAttrId() == null)
             {
                 continue;
+            }
+            if (!descAttrIds.contains(request.getAttrId()))
+            {
+                throw new ServiceException("描述属性不在当前类目模板中", HttpStatus.BAD_REQUEST);
             }
             if (!seen.add(request.getAttrId()))
             {
