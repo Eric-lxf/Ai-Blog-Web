@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS `mall_front_category` (
 CREATE TABLE IF NOT EXISTS `mall_front_category_rel` (
   `id`               bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
   `front_id`         bigint NOT NULL COMMENT '前台类目ID',
-  `back_category_id` bigint NOT NULL COMMENT '后台类目ID（叶子）',
+  `back_category_id` bigint NOT NULL COMMENT '后台类目ID，迁移含全部节点；运营映射建议叶子',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_mall_front_category_rel` (`front_id`, `back_category_id`),
   KEY `idx_mall_front_category_rel_front` (`front_id`),

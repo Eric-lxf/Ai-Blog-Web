@@ -37,6 +37,7 @@ mysql -u root -p < sql/mall_category_brand_schema.sql
 mysql -u root -p < sql/mall_product_schema.sql
 mysql -u root -p < sql/mall_attr_front_category_schema.sql
 mysql -u root -p < sql/mall_phase_b_migrate_front_category.sql
+# 若 migrate 中途失败导致 front 表半写入，先 TRUNCATE mall_front_category_rel / mall_front_category 再重跑 migrate
 mysql -u root -p < sql/mall_address_schema.sql
 mysql -u root -p < sql/mall_cart_order_schema.sql
 mysql -u root -p < sql/mall_payment_schema.sql

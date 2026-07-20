@@ -4,6 +4,15 @@ USE nova_mall;
 -- Phase B: 一次性迁移 mall_category -> mall_front_category + 1:1 rel
 -- 可重复执行：若 mall_front_category 已有数据则整段跳过
 -- 依赖: mall_attr_front_category_schema.sql；需在 mall_category 有数据后执行
+--
+-- 深度限制：按 parent 层级分 8 轮 INSERT（Pass 1 根节点 + Pass 2–8 子节点），
+-- 最多覆盖 8 层类目树；超过 8 层的节点不会被迁移，需扩展脚本后再跑。
+--
+-- 失败恢复：若迁移中途失败（如连接中断），mall_front_category 可能已有部分数据，
+-- 再次执行会因 @do_migrate=0 整段跳过。请手动清空后重跑：
+--   TRUNCATE TABLE mall_front_category_rel;
+--   TRUNCATE TABLE mall_front_category;
+-- 然后重新执行本脚本。
 
 SET @do_migrate := (SELECT COUNT(*) = 0 FROM mall_front_category);
 
