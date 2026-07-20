@@ -1,7 +1,5 @@
 package com.ruoyi.mall.product.controller;
 
-import java.util.List;
-
 import jakarta.validation.Valid;
 
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -20,7 +18,7 @@ import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
 import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.mall.product.domain.MallAttr;
-import com.ruoyi.mall.product.dto.MallAttrOptionSaveRequest;
+import com.ruoyi.mall.product.dto.MallAttrOptionsReplaceRequest;
 import com.ruoyi.mall.product.dto.MallAttrPageQuery;
 import com.ruoyi.mall.product.dto.MallAttrSaveRequest;
 import com.ruoyi.mall.product.service.MallAttrService;
@@ -86,9 +84,9 @@ public class MallAttrController extends MallProductControllerSupport
     @Log(title = "商城属性选项", businessType = BusinessType.UPDATE)
     @PutMapping("/{id}/options")
     public AjaxResult replaceOptions(@PathVariable Long id,
-            @Valid @RequestBody List<MallAttrOptionSaveRequest> options)
+            @Valid @RequestBody MallAttrOptionsReplaceRequest request)
     {
-        mallAttrService.replaceOptions(id, options);
+        mallAttrService.replaceOptions(id, request.getOptions());
         return AjaxResult.success();
     }
 }

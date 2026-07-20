@@ -291,9 +291,16 @@ public class MallAttrServiceImpl implements MallAttrService
     private void copyRequest(MallAttrSaveRequest request, MallAttr attr)
     {
         attr.setName(request.getName());
-        attr.setInputType(StringUtils.hasText(request.getInputType())
+        String inputType = StringUtils.hasText(request.getInputType())
                 ? request.getInputType().trim()
-                : MallProductConstants.INPUT_TYPE_TEXT);
+                : MallProductConstants.INPUT_TYPE_TEXT;
+        if (!MallProductConstants.INPUT_TYPE_TEXT.equals(inputType)
+                && !MallProductConstants.INPUT_TYPE_SELECT.equals(inputType)
+                && !MallProductConstants.INPUT_TYPE_MULTI.equals(inputType))
+        {
+            throw new ServiceException("录入类型仅支持 text、select 或 multi", HttpStatus.BAD_REQUEST);
+        }
+        attr.setInputType(inputType);
         attr.setSort(request.getSort() == null ? 0 : request.getSort());
         attr.setStatus(StringUtils.hasText(request.getStatus()) ? request.getStatus() : MallProductConstants.STATUS_NORMAL);
         attr.setRemark(request.getRemark());
